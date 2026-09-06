@@ -1,0 +1,3 @@
+import DashboardLayout from "../layouts/DashboardLayout.jsx";
+function QAReviews() { return <DashboardLayout><div className="teamflow-page"><section className="teamflow-heading"><p className="welcome-label">QUALITY REVIEW</p><h2>Ready for review.</h2><p className="welcome-description">Use this workflow to record QA checks before a task is marked complete.</p></section><section className="panel"><div className="empty-state"><span>✓</span><strong>No work awaiting review</strong><p>QA submissions will appear here once task updates are connected.</p></div></section></div></DashboardLayout>; }
+export default QAReviews;

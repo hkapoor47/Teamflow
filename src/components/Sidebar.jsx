@@ -11,6 +11,8 @@ import {
   LogOut,
 } from "lucide-react";
 
+import { NavLink } from "react-router-dom";
+
 const Sidebar = () => {
   const menuItems = [
     {
@@ -58,8 +60,11 @@ const Sidebar = () => {
   return (
     <aside className="sidebar">
 
+      {/* Logo */}
       <div className="sidebar-logo">
-        <div className="logo-icon">T</div>
+        <div className="logo-icon">
+          T
+        </div>
 
         <div>
           <h2>TeamFlow</h2>
@@ -67,35 +72,53 @@ const Sidebar = () => {
         </div>
       </div>
 
+      {/* Navigation */}
       <nav className="sidebar-menu">
 
         {menuItems.map((item) => {
           const Icon = item.icon;
 
           return (
-            <a
+            <NavLink
               key={item.name}
-              href={item.path}
-              className="sidebar-item"
+              to={item.path}
+              className={({ isActive }) =>
+                `sidebar-item ${isActive ? "active" : ""}`
+              }
             >
-              <Icon size={20} />
-              <span>{item.name}</span>
-            </a>
+              <Icon size={19} strokeWidth={1.8} />
+
+              <span>
+                {item.name}
+              </span>
+            </NavLink>
           );
         })}
 
       </nav>
 
+      {/* Bottom */}
       <div className="sidebar-bottom">
 
-        <a href="#" className="sidebar-item">
-          <Settings size={20} />
-          <span>Settings</span>
-        </a>
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `sidebar-item ${isActive ? "active" : ""}`
+          }
+        >
+          <Settings size={19} strokeWidth={1.8} />
+
+          <span>
+            Settings
+          </span>
+        </NavLink>
 
         <button className="sidebar-item logout">
-          <LogOut size={20} />
-          <span>Logout</span>
+          <LogOut size={19} strokeWidth={1.8} />
+
+          <span>
+            Logout
+          </span>
         </button>
 
       </div>

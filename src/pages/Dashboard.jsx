@@ -1,157 +1,301 @@
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
+import { useProjects } from "../context/ProjectContext.jsx";
 
-const Dashboard = () => {
+function Dashboard() {
+  const navigate = useNavigate();
+
+  const { projects, tasks, projectProgress, members } = useProjects();
+
+  // --------------------------------------------------
+  // BASIC TASK COUNTS
+  // --------------------------------------------------
+
+  const activeTasks = tasks.filter(
+    (task) => task.status === "In Progress"
+  ).length;
+
+  const completedTasks = tasks.filter(
+    (task) => task.status === "Completed"
+  ).length;
+
+  // --------------------------------------------------
+  // TASKS NEEDING ATTENTION
+  // Overdue OR due within the next 2 days
+  // Completed tasks are excluded.
+  // --------------------------------------------------
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const twoDaysFromNow = new Date(today);
+  twoDaysFromNow.setDate(today.getDate() + 2);
+
+  const needsAttentionTasks = tasks
+    .filter((task) => {
+      if (task.status === "Completed") {
+        return false;
+      }
+
+      if (!task.dueDate || task.dueDate === "Not set") {
+        return false;
+      }
+
+      const dueDate = new Date(`${task.dueDate}T00:00:00`);
+
+      return dueDate <= twoDaysFromNow;
+    })
+    .sort((a, b) => {
+      const dateA = new Date(`${a.dueDate}T00:00:00`);
+      const dateB = new Date(`${b.dueDate}T00:00:00`);
+
+      return dateA - dateB;
+    });
+
+  // --------------------------------------------------
+  // ACTIVE PROJECTS
+  // --------------------------------------------------
+
+  const activeProjects = [...projects].sort(
+    (a, b) => projectProgress(b.id) - projectProgress(a.id)
+  );
+
+  // --------------------------------------------------
+  // HELPERS
+  // --------------------------------------------------
+
+  const getProject = (projectId) =>
+    projects.find((project) => project.id === projectId);
+
+  const getMember = (memberId) =>
+    members.find((member) => member.id === memberId);
+
+  const getDeadlineText = (dueDate) => {
+    if (!dueDate || dueDate === "Not set") {
+      return "No deadline";
+    }
+
+    const date = new Date(`${dueDate}T00:00:00`);
+
+    const differenceInTime = date - today;
+    const differenceInDays = Math.ceil(
+      differenceInTime / (1000 * 60 * 60 * 24)
+    );
+
+    if (differenceInDays < 0) {
+      const daysOverdue = Math.abs(differenceInDays);
+
+      return daysOverdue === 1
+        ? "1 day overdue"
+        : `${daysOverdue} days overdue`;
+    }
+
+    if (differenceInDays === 0) {
+      return "Due today";
+    }
+
+    if (differenceInDays === 1) {
+      return "Due tomorrow";
+    }
+
+    return `Due in ${differenceInDays} days`;
+  };
+
   return (
     <DashboardLayout>
+      <div className="teamflow-page dashboard">
 
-      <div className="dashboard">
+        {/* --------------------------------------------- */}
+        {/* PAGE HEADING */}
+        {/* --------------------------------------------- */}
 
-        <div className="welcome">
+        <section className="welcome teamflow-heading">
           <div>
-            <h2>Good morning, Harshita 👋</h2>
-            <p>
-              Here's what's happening with your team today.
+            <p className="welcome-label">TEAMFLOW WORKSPACE</p>
+
+            <h2>Dashboard</h2>
+
+            <p className="welcome-description">
+              A clear view of delivery, deadlines and the people doing the work.
             </p>
           </div>
+        </section>
 
-          <button className="primary-button">
-            + Create Task
-          </button>
-        </div>
+        {/* --------------------------------------------- */}
+        {/* OVERVIEW CARDS */}
+        {/* --------------------------------------------- */}
 
-        <div className="stats-grid">
+        <section
+          className="overview-grid"
+          aria-label="Project overview"
+        >
 
-          <div className="stat-card">
-            <p>Project Progress</p>
-            <h2>68%</h2>
-            <span className="positive">
-              ↑ 8% this week
+          {/* TOTAL PROJECTS */}
+
+          <button
+            className="overview-card"
+            onClick={() => navigate("/projects")}
+          >
+            <span className="overview-icon teal">
+              ▣
             </span>
-          </div>
 
-          <div className="stat-card">
-            <p>Completed Tasks</p>
-            <h2>12</h2>
-            <span className="positive">
-              ↑ 3 this week
-            </span>
-          </div>
-
-          <div className="stat-card">
-            <p>Pending Tasks</p>
-            <h2>5</h2>
             <span>
-              2 due this week
+              <small>Total projects</small>
+
+              <strong>{projects.length}</strong>
+
+              <em>View every project</em>
             </span>
-          </div>
+          </button>
 
-          <div className="stat-card danger-card">
-            <p>Overdue Tasks</p>
-            <h2>3</h2>
-            <span className="danger">
-              Requires attention
+          {/* TOTAL TASKS */}
+
+          <button
+            className="overview-card"
+            onClick={() => navigate("/tasks")}
+          >
+            <span className="overview-icon blue">
+              ✓
             </span>
+
+            <span>
+              <small>Total tasks</small>
+
+              <strong>{tasks.length}</strong>
+
+              <em>{activeTasks} in progress</em>
+            </span>
+          </button>
+
+          {/* NEEDS ATTENTION */}
+
+          <button
+            className="overview-card"
+            onClick={() => navigate("/tasks")}
+          >
+            <span className="overview-icon orange">
+              !
+            </span>
+
+            <span>
+              <small>Needs attention</small>
+
+              <strong>{needsAttentionTasks.length}</strong>
+
+              <em>
+                {needsAttentionTasks.length === 1
+                  ? "Deadline needs attention"
+                  : "Deadlines need attention"}
+              </em>
+            </span>
+          </button>
+
+          {/* COMPLETED WORK */}
+
+          <button
+            className="overview-card"
+            onClick={() => navigate("/tasks")}
+          >
+            <span className="overview-icon violet">
+              ↗
+            </span>
+
+            <span>
+              <small>Completed work</small>
+
+              <strong>{completedTasks}</strong>
+
+              <em>Across all teams</em>
+            </span>
+          </button>
+
+        </section>
+
+        {/* --------------------------------------------- */}
+        {/* ACTIVE PROJECTS - FULL WIDTH */}
+        {/* --------------------------------------------- */}
+
+        <section className="panel active-projects-panel">
+
+          <div className="panel-header">
+            <div>
+              <h3>Active projects</h3>
+
+              <p>
+                Your current projects and their progress.
+              </p>
+            </div>
+
+            <button
+              className="view-button"
+              onClick={() => navigate("/projects")}
+            >
+              View all projects →
+            </button>
           </div>
 
-        </div>
+          <div className="active-project-list">
 
-        <div className="dashboard-grid">
+            {activeProjects.map((project) => {
+              const progress = projectProgress(project.id);
 
-          <div className="panel">
+              const projectTasks = tasks.filter(
+                (task) => task.projectId === project.id
+              );
 
-            <div className="panel-header">
-              <h3>Team Progress</h3>
-              <button>View All</button>
-            </div>
+              const projectActiveTasks = projectTasks.filter(
+                (task) => task.status === "In Progress"
+              ).length;
 
-            <div className="team-progress">
+              return (
+                <button
+                  className="active-project-row"
+                  key={project.id}
+                  onClick={() =>
+                    navigate(`/projects/${project.id}`)
+                  }
+                >
 
-              <TeamMember
-                name="Rahul"
-                progress={88}
-              />
+                  <span className="project-avatar">
+                    {project.name.charAt(0)}
+                  </span>
 
-              <TeamMember
-                name="Priya"
-                progress={67}
-              />
+                  <span className="active-project-main">
 
-              <TeamMember
-                name="Aman"
-                progress={43}
-              />
+                    <strong>
+                      {project.name}
+                    </strong>
 
-              <TeamMember
-                name="Neha"
-                progress={92}
-              />
+                    <small>
+                      {projectActiveTasks} active tasks · Due{" "}
+                      {project.deadline}
+                    </small>
 
-            </div>
+                    <span className="mini-progress">
+                      <i
+                        style={{
+                          width: `${progress}%`,
+                        }}
+                      />
+                    </span>
 
-          </div>
+                  </span>
 
-          <div className="panel">
+                  <span className="progress-number">
+                    {progress}%
+                  </span>
 
-            <div className="panel-header">
-              <h3>AI Alerts</h3>
-              <span className="ai-badge">
-                AI
-              </span>
-            </div>
-
-            <div className="alert-list">
-
-              <div className="alert danger">
-                <strong>⚠ Aman has 2 overdue tasks</strong>
-                <p>
-                  Consider following up with him.
-                </p>
-              </div>
-
-              <div className="alert warning">
-                <strong>Deadline approaching</strong>
-                <p>
-                  Payment API is due tomorrow.
-                </p>
-              </div>
-
-              <div className="alert info">
-                <strong>3 tasks waiting for QA</strong>
-                <p>
-                  QA verification is required.
-                </p>
-              </div>
-
-            </div>
+                </button>
+              );
+            })}
 
           </div>
 
-        </div>
-
+        </section>
       </div>
-
     </DashboardLayout>
   );
-};
-
-const TeamMember = ({ name, progress }) => {
-  return (
-    <div className="member-progress">
-
-      <div className="member-info">
-        <span>{name}</span>
-        <strong>{progress}%</strong>
-      </div>
-
-      <div className="progress-background">
-        <div
-          className="progress-fill"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-    </div>
-  );
-};
+}
 
 export default Dashboard;

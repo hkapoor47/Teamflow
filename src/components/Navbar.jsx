@@ -1,25 +1,24 @@
-import { Search, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
 
 const Navbar = () => {
+  const navigate = useNavigate();
+
   return (
     <header className="navbar">
 
       <div>
-        <h1>Dashboard</h1>
-        <p>Monitor your team's progress and performance</p>
+        <h1>Teamflow</h1>
+        <p>Project delivery workspace</p>
       </div>
 
       <div className="navbar-right">
 
-        <div className="search-box">
-          <Search size={18} />
-          <input
-            type="text"
-            placeholder="Search..."
-          />
-        </div>
-
-        <button className="notification-button">
+        <button
+          className="notification-button"
+          onClick={() => navigate("/notifications")}
+          aria-label="Open notifications"
+        >
           <Bell size={20} />
           <span>3</span>
         </button>

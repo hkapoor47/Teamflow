@@ -1,0 +1,3 @@
+import DashboardLayout from "../layouts/DashboardLayout.jsx";
+function Tickets() { return <DashboardLayout><div className="teamflow-page"><section className="teamflow-heading"><p className="welcome-label">PROJECT ISSUES</p><h2>Tickets and blockers.</h2><p className="welcome-description">This frontend-ready space will hold bugs, decisions and change requests.</p></section><section className="panel"><div className="empty-state"><span>✦</span><strong>No tickets yet</strong><p>Create ticket support when the backend is connected.</p></div></section></div></DashboardLayout>; }
+export default Tickets;
