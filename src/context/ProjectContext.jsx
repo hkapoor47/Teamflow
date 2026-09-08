@@ -2,6 +2,8 @@ import { createContext, useContext, useMemo, useState } from "react";
 
 const ProjectContext = createContext(null);
 
+const CURRENT_USER_ID = "harshita";
+
 const seedMembers = [
   {
     id: "rahul",
@@ -33,12 +35,12 @@ const seedProjects = [
   {
     id: "website-redesign",
     name: "Website Redesign",
-    description:
-      "A faster, clearer marketing site for the next product launch.",
+    description: "A faster, clearer marketing site for the next product launch.",
     requirements:
       "Modern responsive experience, accessible components and improved conversion journey.",
     deadline: "2026-09-15",
     status: "On Track",
+    creatorId: CURRENT_USER_ID,
     memberIds: ["rahul", "neha", "aman"],
   },
   {
@@ -50,6 +52,7 @@ const seedProjects = [
       "Secure sign-in, offline support, real-time notifications and a simple mobile-first flow.",
     deadline: "2026-09-25",
     status: "On Track",
+    creatorId: CURRENT_USER_ID,
     memberIds: ["priya", "rahul", "aman"],
   },
   {
@@ -61,6 +64,7 @@ const seedProjects = [
       "Actionable metrics, permissions and exportable reports for leadership.",
     deadline: "2026-09-10",
     status: "At Risk",
+    creatorId: CURRENT_USER_ID,
     memberIds: ["priya", "neha"],
   },
 ];
@@ -75,7 +79,6 @@ const seedTasks = [
     progress: 75,
     dueDate: "2026-09-08",
   },
-
   {
     id: "t2",
     projectId: "website-redesign",
@@ -85,7 +88,6 @@ const seedTasks = [
     progress: 65,
     dueDate: "2026-09-10",
   },
-
   {
     id: "t3",
     projectId: "website-redesign",
@@ -95,7 +97,6 @@ const seedTasks = [
     progress: 20,
     dueDate: "2026-09-12",
   },
-
   {
     id: "t4",
     projectId: "website-redesign",
@@ -105,7 +106,6 @@ const seedTasks = [
     progress: 0,
     dueDate: "2026-09-13",
   },
-
   {
     id: "t5",
     projectId: "mobile-application",
@@ -114,9 +114,7 @@ const seedTasks = [
     status: "Completed",
     progress: 100,
     dueDate: "2026-09-06",
-    completedAt: "2026-09-05",
   },
-
   {
     id: "t6",
     projectId: "mobile-application",
@@ -126,7 +124,6 @@ const seedTasks = [
     progress: 55,
     dueDate: "2026-09-14",
   },
-
   {
     id: "t7",
     projectId: "mobile-application",
@@ -136,7 +133,6 @@ const seedTasks = [
     progress: 0,
     dueDate: "2026-09-18",
   },
-
   {
     id: "t8",
     projectId: "ai-dashboard",
@@ -146,7 +142,6 @@ const seedTasks = [
     progress: 45,
     dueDate: "2026-09-07",
   },
-
   {
     id: "t9",
     projectId: "ai-dashboard",
@@ -156,7 +151,6 @@ const seedTasks = [
     progress: 30,
     dueDate: "2026-09-08",
   },
-
   {
     id: "t10",
     projectId: "ai-dashboard",
@@ -180,8 +174,6 @@ export function ProjectProvider({ children }) {
   const [projects, setProjects] = useState(seedProjects);
   const [tasks, setTasks] = useState(seedTasks);
   const [claimRequests, setClaimRequests] = useState([]);
-
-  // Stores the work history/activity of users.
   const [activities, setActivities] = useState([]);
 
   const projectProgress = (projectId) => {
@@ -189,10 +181,6 @@ export function ProjectProvider({ children }) {
       tasks.filter((task) => task.projectId === projectId)
     );
   };
-
-  // --------------------------------------------------
-  // ACTIVITY / HISTORY
-  // --------------------------------------------------
 
   const addActivity = ({
     taskId = null,
@@ -214,15 +202,14 @@ export function ProjectProvider({ children }) {
     setActivities((current) => [activity, ...current]);
   };
 
-  // --------------------------------------------------
+  // --------------------------------
   // CREATE PROJECT
-  // --------------------------------------------------
+  // --------------------------------
 
   const createProject = ({
     name,
-    description,
     requirements,
-    taskTitles,
+    deadline,
   }) => {
     const id = `${name
       .toLowerCase()
@@ -233,111 +220,258 @@ export function ProjectProvider({ children }) {
     const project = {
       id,
       name: name.trim(),
-      description: description.trim(),
+
+      // Kept internally so existing project pages don't break.
+      description: "",
+
       requirements: requirements.trim(),
-      deadline: "Not set",
+
+      deadline: deadline || "Not set",
+
       status: "Planning",
+
+      // Person creating this project
+      creatorId: CURRENT_USER_ID,
+
+      // Initially nobody is part of the project.
+      // Members get added when tasks are assigned/approved.
       memberIds: [],
     };
 
     setProjects((current) => [...current, project]);
 
-    const newTasks = taskTitles.map((title, index) => ({
-      id: `${id}-task-${index}`,
-      projectId: id,
-      title,
-      assigneeId: null,
-      status: "Unassigned",
-      progress: 0,
-      dueDate: "Not set",
-    }));
-
-    setTasks((current) => [...current, ...newTasks]);
-
-    // Record project creation.
     addActivity({
       projectId: id,
+      userId: CURRENT_USER_ID,
       action: "PROJECT_CREATED",
-      details: `Project "${project.name}" was created`,
-    });
-
-    // Record task creation.
-    newTasks.forEach((task) => {
-      addActivity({
-        taskId: task.id,
-        projectId: id,
-        action: "TASK_CREATED",
-        details: `Task "${task.title}" was created`,
-      });
+      details: `Created project "${project.name}"`,
     });
 
     return project;
   };
 
-  // --------------------------------------------------
+  // --------------------------------
   // CREATE TASK
-  // --------------------------------------------------
+  // --------------------------------
 
   const createTask = ({
     projectId,
     title,
     assigneeId = null,
-    status,
-    progress = 0,
     dueDate = "Not set",
   }) => {
     const taskId = `task-${Date.now()}-${Math.random()}`;
 
-    const finalStatus =
-      status || (assigneeId ? "To Do" : "Unassigned");
-
-    const newTask = {
+    const task = {
       id: taskId,
       projectId,
       title: title.trim(),
-      assigneeId,
-      status: finalStatus,
-      progress,
-      dueDate,
+      assigneeId: assigneeId || null,
+      status: assigneeId ? "To Do" : "Unassigned",
+      progress: 0,
+      dueDate: dueDate || "Not set",
     };
 
-    setTasks((current) => [...current, newTask]);
+    setTasks((current) => [...current, task]);
 
-    // Record task creation.
+    // If creator assigns the task directly,
+    // automatically add that person to project team.
+    if (assigneeId) {
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === projectId &&
+          !project.memberIds.includes(assigneeId)
+            ? {
+                ...project,
+                memberIds: [...project.memberIds, assigneeId],
+              }
+            : project
+        )
+      );
+    }
+
     addActivity({
       taskId,
       projectId,
+      userId: CURRENT_USER_ID,
       action: "TASK_CREATED",
-      details: `Task "${newTask.title}" was created`,
+      details: assigneeId
+        ? `Created and assigned "${task.title}"`
+        : `Created unassigned task "${task.title}"`,
     });
 
-    // If the task was created with an assignee,
-    // record that assignment as well.
-    if (assigneeId) {
-      addActivity({
-        taskId,
-        projectId,
-        userId: assigneeId,
-        action: "TASK_ASSIGNED",
-        details: `Task "${newTask.title}" was assigned`,
-      });
-    }
-
-    return newTask;
+    return task;
   };
 
-  // --------------------------------------------------
-  // UPDATE TASK STATUS
-  // --------------------------------------------------
+  // --------------------------------
+  // ASSIGN TASK
+  // --------------------------------
 
-  const updateTaskStatus = (taskId, newStatus, userId = null) => {
+  const assignTask = (taskId, memberId) => {
     const task = tasks.find((item) => item.id === taskId);
 
     if (!task) return;
 
-    const oldStatus = task.status;
+    setTasks((current) =>
+      current.map((item) =>
+        item.id === taskId
+          ? {
+              ...item,
+              assigneeId: memberId,
+              status: "To Do",
+            }
+          : item
+      )
+    );
 
-    if (oldStatus === newStatus) return;
+    // Add member to project team automatically
+    setProjects((current) =>
+      current.map((project) =>
+        project.id === task.projectId &&
+        !project.memberIds.includes(memberId)
+          ? {
+              ...project,
+              memberIds: [...project.memberIds, memberId],
+            }
+          : project
+      )
+    );
+
+    addActivity({
+      taskId,
+      projectId: task.projectId,
+      userId: CURRENT_USER_ID,
+      action: "TASK_ASSIGNED",
+      details: `Assigned "${task.title}"`,
+    });
+  };
+
+  // --------------------------------
+  // CLAIM TASK
+  // --------------------------------
+
+  const requestClaim = (taskId, memberId) => {
+    const task = tasks.find((item) => item.id === taskId);
+
+    if (!task || task.assigneeId) return;
+
+    const alreadyPending = claimRequests.some(
+      (request) =>
+        request.taskId === taskId &&
+        request.status === "Pending"
+    );
+
+    if (alreadyPending) return;
+
+    const project = projects.find(
+      (item) => item.id === task.projectId
+    );
+
+    const request = {
+      id: `claim-${Date.now()}`,
+      taskId,
+      memberId,
+      projectId: task.projectId,
+
+      // This is the person who created the project.
+      managerId: project?.creatorId || CURRENT_USER_ID,
+
+      status: "Pending",
+
+      // Later backend can use this information to send email.
+      notificationStatus: "Email pending backend integration",
+    };
+
+    setClaimRequests((current) => [request, ...current]);
+
+    addActivity({
+      taskId,
+      projectId: task.projectId,
+      userId: memberId,
+      action: "TASK_CLAIM_REQUESTED",
+      details: `Requested to claim "${task.title}"`,
+    });
+  };
+
+  // --------------------------------
+  // APPROVE CLAIM
+  // --------------------------------
+
+  const approveClaim = (requestId) => {
+    const request = claimRequests.find(
+      (item) => item.id === requestId
+    );
+
+    if (!request) return;
+
+    const task = tasks.find(
+      (item) => item.id === request.taskId
+    );
+
+    if (!task) return;
+
+    // Assign task
+    setTasks((current) =>
+      current.map((item) =>
+        item.id === request.taskId
+          ? {
+              ...item,
+              assigneeId: request.memberId,
+              status: "To Do",
+            }
+          : item
+      )
+    );
+
+    // IMPORTANT:
+    // Member becomes part of the project after claim approval.
+    setProjects((current) =>
+      current.map((project) =>
+        project.id === request.projectId &&
+        !project.memberIds.includes(request.memberId)
+          ? {
+              ...project,
+              memberIds: [
+                ...project.memberIds,
+                request.memberId,
+              ],
+            }
+          : project
+      )
+    );
+
+    setClaimRequests((current) =>
+      current.map((item) =>
+        item.id === requestId
+          ? {
+              ...item,
+              status: "Approved",
+            }
+          : item
+      )
+    );
+
+    addActivity({
+      taskId: request.taskId,
+      projectId: request.projectId,
+      userId: request.memberId,
+      action: "TASK_CLAIM_APPROVED",
+      details: `Claim approved for "${task.title}"`,
+    });
+  };
+
+  // --------------------------------
+  // TASK STATUS
+  // --------------------------------
+
+  const updateTaskStatus = (
+    taskId,
+    newStatus,
+    userId = CURRENT_USER_ID
+  ) => {
+    const task = tasks.find((item) => item.id === taskId);
+
+    if (!task) return;
 
     setTasks((current) =>
       current.map((item) =>
@@ -357,28 +491,21 @@ export function ProjectProvider({ children }) {
     addActivity({
       taskId,
       projectId: task.projectId,
-      userId: userId || task.assigneeId,
-      action: "STATUS_CHANGED",
-      details: `Status changed from "${oldStatus}" to "${newStatus}"`,
+      userId,
+      action: "TASK_STATUS_UPDATED",
+      details: `Changed "${task.title}" to ${newStatus}`,
     });
-
-    // Automatically record completion.
-    if (newStatus === "Completed") {
-      addActivity({
-        taskId,
-        projectId: task.projectId,
-        userId: userId || task.assigneeId,
-        action: "TASK_COMPLETED",
-        details: `Task "${task.title}" was completed`,
-      });
-    }
   };
 
-  // --------------------------------------------------
-  // UPDATE TASK PROGRESS
-  // --------------------------------------------------
+  // --------------------------------
+  // TASK PROGRESS
+  // --------------------------------
 
-  const updateTaskProgress = (taskId, progress, userId = null) => {
+  const updateTaskProgress = (
+    taskId,
+    progress,
+    userId = CURRENT_USER_ID
+  ) => {
     const task = tasks.find((item) => item.id === taskId);
 
     if (!task) return;
@@ -387,8 +514,6 @@ export function ProjectProvider({ children }) {
       0,
       Math.min(100, Number(progress))
     );
-
-    if (task.progress === safeProgress) return;
 
     setTasks((current) =>
       current.map((item) =>
@@ -410,167 +535,11 @@ export function ProjectProvider({ children }) {
     addActivity({
       taskId,
       projectId: task.projectId,
-      userId: userId || task.assigneeId,
-      action: "PROGRESS_UPDATED",
-      details: `Progress changed from ${task.progress}% to ${safeProgress}%`,
-    });
-
-    if (safeProgress === 100 && task.progress !== 100) {
-      addActivity({
-        taskId,
-        projectId: task.projectId,
-        userId: userId || task.assigneeId,
-        action: "TASK_COMPLETED",
-        details: `Task "${task.title}" was completed`,
-      });
-    }
-  };
-
-  // --------------------------------------------------
-  // ASSIGN TASK
-  // --------------------------------------------------
-
-  const assignTask = (taskId, memberId) => {
-    const task = tasks.find((item) => item.id === taskId);
-
-    if (!task) return;
-
-    const previousAssignee = task.assigneeId;
-
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === taskId
-          ? {
-              ...item,
-              assigneeId: memberId,
-              status:
-                item.status === "Unassigned"
-                  ? "To Do"
-                  : item.status,
-            }
-          : item
-      )
-    );
-
-    if (previousAssignee && previousAssignee !== memberId) {
-      addActivity({
-        taskId,
-        projectId: task.projectId,
-        userId: memberId,
-        action: "TASK_REASSIGNED",
-        details: `Task was reassigned from ${previousAssignee} to ${memberId}`,
-      });
-    } else {
-      addActivity({
-        taskId,
-        projectId: task.projectId,
-        userId: memberId,
-        action: "TASK_ASSIGNED",
-        details: `Task "${task.title}" was assigned`,
-      });
-    }
-  };
-
-  // --------------------------------------------------
-  // CLAIM TASK
-  // --------------------------------------------------
-
- const requestClaim = (taskId, memberId) => {
-  const task = tasks.find((item) => item.id === taskId);
-
-  if (!task || task.assigneeId) {
-    return;
-  }
-
-  setTasks((current) =>
-    current.map((item) =>
-      item.id === taskId
-        ? {
-            ...item,
-            assigneeId: memberId,
-            status: "To Do",
-          }
-        : item
-    )
-  );
-
-  addActivity({
-    taskId,
-    projectId: task.projectId,
-    userId: memberId,
-    action: "TASK_CLAIMED",
-    details: `Task "${task.title}" was claimed`,
-  });
-
-  /*
-    FUTURE BACKEND:
-    Send an email to the project manager
-    when this task is claimed.
-  */
-};
-
-  // --------------------------------------------------
-  // APPROVE CLAIM
-  // --------------------------------------------------
-
-  const approveClaim = (requestId) => {
-    const request = claimRequests.find(
-      (item) => item.id === requestId
-    );
-
-    if (!request) return;
-
-    const task = tasks.find(
-      (item) => item.id === request.taskId
-    );
-
-    if (!task) return;
-
-    setTasks((current) =>
-      current.map((task) =>
-        task.id === request.taskId
-          ? {
-              ...task,
-              assigneeId: request.memberId,
-              status: "To Do",
-            }
-          : task
-      )
-    );
-
-    setClaimRequests((current) =>
-      current.map((item) =>
-        item.id === requestId
-          ? {
-              ...item,
-              status: "Approved",
-            }
-          : item
-      )
-    );
-
-    // Record approval.
-    addActivity({
-      taskId: request.taskId,
-      projectId: task.projectId,
-      userId: request.memberId,
-      action: "CLAIM_APPROVED",
-      details: `Claim request for "${task.title}" was approved`,
-    });
-
-    // Record assignment.
-    addActivity({
-      taskId: request.taskId,
-      projectId: task.projectId,
-      userId: request.memberId,
-      action: "TASK_ASSIGNED",
-      details: `Task "${task.title}" was assigned after claim approval`,
+      userId,
+      action: "TASK_PROGRESS_UPDATED",
+      details: `Updated "${task.title}" to ${safeProgress}%`,
     });
   };
-
-  // --------------------------------------------------
-  // CONTEXT VALUE
-  // --------------------------------------------------
 
   const value = useMemo(
     () => ({
@@ -584,20 +553,15 @@ export function ProjectProvider({ children }) {
 
       createProject,
       createTask,
-
-      updateTaskStatus,
-      updateTaskProgress,
       assignTask,
 
       requestClaim,
       approveClaim,
+
+      updateTaskStatus,
+      updateTaskProgress,
     }),
-    [
-      projects,
-      tasks,
-      claimRequests,
-      activities,
-    ]
+    [projects, tasks, claimRequests, activities]
   );
 
   return (
