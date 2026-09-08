@@ -13,7 +13,6 @@ function Tasks() {
   } = useProjects();
 
   const [projectFilter, setProjectFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [notice, setNotice] = useState("");
 
   const [showCreateTask, setShowCreateTask] = useState(false);
@@ -33,12 +32,10 @@ function Tasks() {
     () =>
       tasks.filter(
         (task) =>
-          (projectFilter === "all" ||
-            task.projectId === projectFilter) &&
-          (statusFilter === "all" ||
-            task.status === statusFilter)
+          projectFilter === "all" ||
+            task.projectId === projectFilter
       ),
-    [tasks, projectFilter, statusFilter]
+    [tasks, projectFilter]
   );
 
   // --------------------------------------------------
@@ -170,40 +167,6 @@ function Tasks() {
             </select>
           </label>
 
-          <label>
-            Status
-
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value)
-              }
-            >
-              <option value="all">
-                All statuses
-              </option>
-
-              <option>
-                In Progress
-              </option>
-
-              <option>
-                To Do
-              </option>
-
-              <option>
-                Unassigned
-              </option>
-
-              <option>
-                Completed
-              </option>
-
-              <option>
-                Blocked
-              </option>
-            </select>
-          </label>
 
           <button
             className="primary-button"
@@ -416,7 +379,7 @@ function Tasks() {
                   </th>
 
                   <th>
-                    Owner
+                     ASSIGNED TO
                   </th>
 
                   <th>
@@ -468,7 +431,7 @@ function Tasks() {
                       </td>
 
                       {/* -------------------------------- */}
-                      {/* OWNER */}
+                      {/* ASSIGNED TO */}
                       {/* -------------------------------- */}
 
                       <td>
@@ -535,20 +498,6 @@ function Tasks() {
                           </span>
 
                         </div>
-
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={task.progress}
-                          onChange={(event) =>
-                            handleProgressChange(
-                              task.id,
-                              event.target.value
-                            )
-                          }
-                        />
-
                       </td>
 
                       {/* -------------------------------- */}

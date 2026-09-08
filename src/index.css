@@ -3771,4 +3771,17 @@ body, .app-layout, .page-content { background: var(--background); }
     grid-column: 2;
     justify-self: start;
   }
+}.task-filters {
+  display: flex;
+  align-items: flex-end;
+  justify-content:space-between;
+  gap: 18px;
+}
+
+.task-filters label {
+  min-width: 360px;
+}
+
+.task-filters .create-project-button {
+  margin-left: auto;
 }
