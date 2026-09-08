@@ -191,154 +191,167 @@ function Tasks() {
         {/* CREATE TASK MODAL */}
         {/* --------------------------------------------- */}
 
-        {showCreateTask && (
-          <div className="modal-overlay">
+       
+{showCreateTask && (
+  <div className="modal-overlay">
 
-            <div className="modal-card">
+    <div className="modal-card">
 
-              <div className="modal-header">
+      <div className="modal-header">
 
-                <div>
-                  <p className="welcome-label">
-                    NEW TASK
-                  </p>
+        <div>
+          <p className="welcome-label">
+            NEW TASK
+          </p>
 
-                  <h3>
-                    Create a task
-                  </h3>
-                </div>
+          <h3>
+            Create a task
+          </h3>
+        </div>
 
-                <button
-                  className="modal-close"
-                  onClick={() =>
-                    setShowCreateTask(false)
-                  }
-                >
-                  ×
-                </button>
+        <button
+          type="button"
+          className="modal-close"
+          onClick={() => setShowCreateTask(false)}
+        >
+          ×
+        </button>
 
-              </div>
+      </div>
 
-              <form onSubmit={handleCreateTask}>
+      <form onSubmit={handleCreateTask}>
 
-                {/* TASK TITLE */}
+        <div className="project-form-grid">
 
-                <label>
-                  Task title
+          {/* TASK NAME */}
+          <div className="form-group">
 
-                  <input
-                    type="text"
-                    placeholder="e.g. Build login page"
-                    value={newTask.title}
-                    onChange={(event) =>
-                      setNewTask({
-                        ...newTask,
-                        title: event.target.value,
-                      })
-                    }
-                  />
-                </label>
+            <label>
+              Task name
+            </label>
 
-                {/* PROJECT */}
-
-                <label>
-                  Project
-
-                  <select
-                    value={newTask.projectId}
-                    onChange={(event) =>
-                      setNewTask({
-                        ...newTask,
-                        projectId: event.target.value,
-                      })
-                    }
-                  >
-                    {projects.map((project) => (
-                      <option
-                        key={project.id}
-                        value={project.id}
-                      >
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                {/* ASSIGN TASK */}
-
-                <label>
-                  Assign to
-
-                  <select
-                    value={newTask.assigneeId}
-                    onChange={(event) =>
-                      setNewTask({
-                        ...newTask,
-                        assigneeId: event.target.value,
-                      })
-                    }
-                  >
-                    <option value="">
-                      Leave unassigned
-                    </option>
-
-                    {members.map((member) => (
-                      <option
-                        key={member.id}
-                        value={member.id}
-                      >
-                        {member.name} — {member.role}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                {/* DUE DATE */}
-
-                <label>
-                  Due date
-
-                  <input
-                    type="date"
-                    value={newTask.dueDate}
-                    onChange={(event) =>
-                      setNewTask({
-                        ...newTask,
-                        dueDate: event.target.value,
-                      })
-                    }
-                  />
-                </label>
-
-                {/* MODAL BUTTONS */}
-
-                <div className="modal-actions">
-
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() =>
-                      setShowCreateTask(false)
-                    }
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="primary-button"
-                  >
-                    Create task
-                  </button>
-
-                </div>
-
-              </form>
-
-            </div>
+            <input
+              required
+              value={newTask.title}
+              onChange={(event) =>
+                setNewTask({
+                  ...newTask,
+                  title: event.target.value,
+                })
+              }
+              placeholder="e.g. Build login page"
+            />
 
           </div>
-        )}
+
+          {/* PROJECT */}
+          <div className="form-group">
+
+            <label>
+              Project
+            </label>
+
+            <select
+              value={newTask.projectId}
+              onChange={(event) =>
+                setNewTask({
+                  ...newTask,
+                  projectId: event.target.value,
+                })
+              }
+            >
+              {projects.map((project) => (
+                <option
+                  key={project.id}
+                  value={project.id}
+                >
+                  {project.name}
+                </option>
+              ))}
+            </select>
+
+          </div>
+
+          {/* ASSIGN MEMBER */}
+          <div className="form-group">
+
+            <label>
+              Assign to
+            </label>
+
+            <select
+              value={newTask.assigneeId}
+              onChange={(event) =>
+                setNewTask({
+                  ...newTask,
+                  assigneeId: event.target.value,
+                })
+              }
+            >
+              <option value="">
+                Leave unassigned
+              </option>
+
+              {members.map((member) => (
+                <option
+                  key={member.id}
+                  value={member.id}
+                >
+                  {member.name} — {member.role}
+                </option>
+              ))}
+            </select>
+
+          </div>
+
+          {/* DEADLINE */}
+          <div className="form-group">
+
+            <label>
+              Deadline
+            </label>
+
+            <input
+              type="date"
+              value={newTask.dueDate}
+              onChange={(event) =>
+                setNewTask({
+                  ...newTask,
+                  dueDate: event.target.value,
+                })
+              }
+            />
+
+          </div>
+
+        </div>
+
+        {/* MODAL FOOTER */}
+        <div className="modal-footer">
+
+          <button
+            type="button"
+            className="cancel-project-button"
+            onClick={() => setShowCreateTask(false)}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="create-project-submit"
+          >
+            Create task
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+)}
 
         {/* --------------------------------------------- */}
         {/* TASK BOARD */}

@@ -3785,3 +3785,311 @@ body, .app-layout, .page-content { background: var(--background); }
 .task-filters .create-project-button {
   margin-left: auto;
 }
+/* =========================================
+   PROJECT SUMMARY - 3 EVEN COLUMNS
+   ========================================= */
+
+.project-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+
+/* =========================================
+   PROJECT PROGRESS CIRCLE
+   ========================================= */
+
+.project-progress-circle {
+  width: 86px;
+  height: 86px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.project-progress-circle svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.progress-circle-track {
+  fill: none;
+  stroke: #26364d;
+  stroke-width: 8;
+}
+
+.progress-circle-value {
+  fill: none;
+  stroke: #18c5b7;
+  stroke-width: 8;
+  stroke-linecap: round;
+
+  stroke-dasharray: 301.59;
+  stroke-dashoffset: 301.59;
+
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.progress-circle-text {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  pointer-events: none;
+}
+
+.progress-circle-text strong {
+  font-size: 15px;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.progress-circle-text span {
+  margin-top: 4px;
+  font-size: 9px;
+  color: #8da3c2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+
+/* =========================================
+   PROJECT TASK HEADER
+   ========================================= */
+
+.project-task-panel .panel-header {
+  align-items: center;
+}
+
+/* =========================================
+   PROJECT BRIEF + PROJECT TASKS
+   SIDE BY SIDE
+   ========================================= */
+
+.project-work-grid {
+  display: grid;
+  grid-template-columns: 1fr 2.5fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.project-work-grid .project-description-section {
+  margin: 0;
+  min-width: 0;
+}
+
+.project-work-grid .project-description-panel,
+.project-work-grid .project-task-panel {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* Make the task table fit inside the right panel */
+.project-work-grid .project-task-panel {
+  min-width: 0;
+}
+
+.project-work-grid .table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Smaller screens */
+@media (max-width: 1000px) {
+  .project-work-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================
+   CREATE TASK MODAL
+   ========================================= */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(4, 10, 24, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  padding: 24px;
+}
+
+.modal-card {
+  width: min(560px, 100%);
+
+  background: #111c2d;
+  border: 1px solid #263752;
+  border-radius: 18px;
+
+  padding: 28px;
+
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+
+  margin-bottom: 28px;
+}
+
+.modal-header h3 {
+  margin: 4px 0 0;
+  font-size: 24px;
+}
+
+.modal-close {
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #30425d;
+  border-radius: 10px;
+
+  background: #172438;
+  color: #ffffff;
+
+  font-size: 22px;
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.modal-close:hover {
+  background: #22324a;
+}
+
+/* FORM */
+
+.project-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #dbe7f7;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  box-sizing: border-box;
+
+  min-height: 44px;
+
+  padding: 10px 12px;
+
+  border: 1px solid #30425d;
+  border-radius: 9px;
+
+  background: #0d1727;
+  color: #ffffff;
+
+  font-size: 14px;
+
+  outline: none;
+}
+
+.form-group input::placeholder {
+  color: #71839d;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #18c4b5;
+  box-shadow: 0 0 0 3px rgba(24, 196, 181, 0.12);
+}
+
+/* FOOTER */
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+
+  margin-top: 28px;
+}
+
+.cancel-project-button,
+.create-project-submit {
+  min-height: 42px;
+
+  padding: 0 20px;
+
+  border-radius: 9px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.cancel-project-button {
+  border: 1px solid #30425d;
+  background: transparent;
+  color: #b9c7da;
+}
+
+.cancel-project-button:hover {
+  background: #172438;
+}
+
+.create-project-submit {
+  border: none;
+  background: #18c4b5;
+  color: #06131d;
+
+  box-shadow: 0 8px 20px rgba(24, 196, 181, 0.18);
+}
+
+.create-project-submit:hover {
+  background: #21d2c2;
+}
+
+/* MOBILE */
+
+@media (max-width: 650px) {
+  .modal-card {
+    padding: 22px;
+  }
+
+  .project-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+  }
+
+  .cancel-project-button,
+  .create-project-submit {
+    width: 100%;
+  }
+}

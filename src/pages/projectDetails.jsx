@@ -129,7 +129,7 @@ function ProjectDetails() {
             </span>
           </div>
 
-          <div className="hero-progress">
+          {/* <div className="hero-progress">
             <strong>{progress}%</strong>
 
             <span>
@@ -144,111 +144,179 @@ function ProjectDetails() {
                 }}
               />
             </div>
-          </div>
+          </div> */}
+          <div
+  className="project-progress-circle"
+  title={`${progress}% project progress`}
+>
+  <svg viewBox="0 0 120 120">
+    <circle
+      className="progress-circle-track"
+      cx="60"
+      cy="60"
+      r="48"
+    />
+
+    <circle
+      className="progress-circle-value"
+      cx="60"
+      cy="60"
+      r="48"
+      style={{
+        strokeDashoffset:
+          301.59 - (301.59 * progress) / 100,
+      }}
+    />
+  </svg>
+
+  <div className="progress-circle-text">
+    <strong>{progress}%</strong>
+    <span>Progress</span>
+  </div>
+</div>
         </section>
 
-        {/* PROJECT SUMMARY */}
         <section className="project-summary">
 
-          <article>
-            <small>Deadline</small>
-            <strong>
-              {project.deadline}
-            </strong>
-          </article>
+  <article>
+    <small>Deadline</small>
+    <strong>
+      {project.deadline}
+    </strong>
+  </article>
 
-          <article>
-            <small>Team members</small>
-            <strong>
-              {projectMembers.length}
-            </strong>
-          </article>
+  <article>
+    <small>Team members</small>
+    <strong>
+      {projectMembers.length}
+    </strong>
+  </article>
 
-          <article>
-            <small>Total tasks</small>
-            <strong>
-              {projectTasks.length}
-            </strong>
-          </article>
+  <article>
+    <small>Total tasks</small>
+    <strong>
+      {projectTasks.length}
+    </strong>
+  </article>
 
-          <article>
-            <small>Open tasks</small>
-            <strong>
-              {
-                projectTasks.filter(
-                  (task) => !task.assigneeId
-                ).length
-              }
-            </strong>
-          </article>
+</section>
 
-        </section>
+       
+       {/* PROJECT BRIEF */}
 
-        {/* PROJECT BRIEF + WORK SNAPSHOT */}
-        <section className="content-grid">
+<div className="project-work-grid">
 
-          {/* PROJECT BRIEF */}
-          <article className="panel">
+  {/* PROJECT BRIEF */}
+  <section className="project-description-section">
+    <article className="panel project-description-panel">
 
-            <div className="panel-header">
-              <div>
-                <h3>
-                  Project brief
-                </h3>
+      <div className="panel-header">
+        <div>
+          <h3>Project brief</h3>
+          <p>The agreed direction for this work.</p>
+        </div>
+      </div>
 
-                <p>
-                  The agreed direction for this work.
-                </p>
-              </div>
-            </div>
+      <div className="project-description-content">
+        <h4>{project.description}</h4>
 
-            <p className="requirement-copy">
-              {project.requirements}
-            </p>
+        <p>
+          {project.requirements}
+        </p>
+      </div>
 
-          </article>
+    </article>
+  </section>
 
-          {/* WORK SNAPSHOT */}
-          <article className="panel">
 
-            <div className="panel-header">
-              <div>
-                <h3>
-                  Work snapshot
-                </h3>
+  {/* PROJECT TASKS */}
+  <section className="panel project-task-panel">
 
-                <p>
-                  What is happening now.
-                </p>
-              </div>
+    <div className="panel-header">
 
-              <button
-                className="view-button"
-                onClick={() => navigate("/tasks")}
+      <div>
+        <h3>Project tasks</h3>
+
+        <p>
+          Create work, assign members or leave
+          tasks open for team members to claim.
+        </p>
+      </div>
+
+      <button
+        className="create-project-button"
+        onClick={() => setShowTaskModal(true)}
+      >
+        <span>+</span>
+        Create task
+      </button>
+
+    </div>
+
+    <div className="table-container">
+
+      <table>
+
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Assigned to</th>
+            <th>Status</th>
+            <th>Deadline</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {projectTasks.length === 0 ? (
+            <tr>
+              <td
+                colSpan="5"
+                style={{
+                  textAlign: "center",
+                  padding: "40px",
+                }}
               >
-                Open tasks →
-              </button>
-            </div>
+                No tasks created yet.
+              </td>
+            </tr>
+          ) : (
+            projectTasks.map((task) => {
 
-            {projectTasks.length === 0 ? (
-              <div className="empty-state">
-                <strong>No tasks yet</strong>
-                <p>
-                  Create the first task for this project.
-                </p>
-              </div>
-            ) : (
-              projectTasks
-                .slice(0, 4)
-                .map((task) => (
-                  <div
-                    className="snapshot-task"
-                    key={task.id}
-                  >
-                    <span>
-                      {task.title}
-                    </span>
+              const member = members.find(
+                (item) => item.id === task.assigneeId
+              );
 
+              return (
+                <tr key={task.id}>
+
+                  <td>
+                    <strong>{task.title}</strong>
+                  </td>
+
+                  <td>
+                    {member ? (
+                      <div className="table-member">
+
+                        <div className="member-avatar">
+                          {member.name.charAt(0)}
+                        </div>
+
+                        <div>
+                          <strong>{member.name}</strong>
+                          <span>{member.role}</span>
+                        </div>
+
+                      </div>
+                    ) : (
+                      <span className="unassigned">
+                        Unassigned
+                      </span>
+                    )}
+                  </td>
+
+                  <td>
                     <span
                       className={`task-status ${task.status
                         .toLowerCase()
@@ -256,170 +324,43 @@ function ProjectDetails() {
                     >
                       {task.status}
                     </span>
-                  </div>
-                ))
-            )}
+                  </td>
 
-          </article>
+                  <td>
+                    {task.dueDate}
+                  </td>
 
-        </section>
+                  <td>
+                    <div className="table-progress">
 
-        {/* ALL PROJECT TASKS */}
-        <section className="panel project-task-panel">
+                      <div className="progress-background">
+                        <div
+                          className="progress-fill"
+                          style={{
+                            width: `${task.progress}%`,
+                          }}
+                        />
+                      </div>
 
-          <div className="panel-header">
+                      <span>{task.progress}%</span>
 
-            <div>
-              <h3>
-                Project tasks
-              </h3>
+                    </div>
+                  </td>
 
-              <p>
-                Create work, assign members or leave
-                tasks open for team members to claim.
-              </p>
-            </div>
-
-            <button
-              className="create-project-button"
-              onClick={() =>
-                setShowTaskModal(true)
-              }
-            >
-              <span>+</span>
-              Create task
-            </button>
-
-          </div>
-
-          <div className="table-container">
-
-            <table>
-
-              <thead>
-                <tr>
-                  <th>Task</th>
-                  <th>Assigned to</th>
-                  <th>Status</th>
-                  <th>Deadline</th>
-                  <th>Progress</th>
                 </tr>
-              </thead>
+              );
+            })
+          )}
 
-              <tbody>
+        </tbody>
 
-                {projectTasks.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      style={{
-                        textAlign: "center",
-                        padding: "40px",
-                      }}
-                    >
-                      No tasks created yet.
-                    </td>
-                  </tr>
-                ) : (
-                  projectTasks.map((task) => {
+      </table>
 
-                    const member =
-                      members.find(
-                        (item) =>
-                          item.id ===
-                          task.assigneeId
-                      );
+    </div>
 
-                    return (
-                      <tr key={task.id}>
+  </section>
 
-                        {/* TASK */}
-                        <td>
-                          <strong>
-                            {task.title}
-                          </strong>
-                        </td>
-
-                        {/* ASSIGNED MEMBER */}
-                        <td>
-                          {member ? (
-                            <div className="table-member">
-
-                              <div className="member-avatar">
-                                {member.name.charAt(0)}
-                              </div>
-
-                              <div>
-                                <strong>
-                                  {member.name}
-                                </strong>
-
-                                <span>
-                                  {member.role}
-                                </span>
-                              </div>
-
-                            </div>
-                          ) : (
-                            <span className="unassigned">
-                              Unassigned
-                            </span>
-                          )}
-                        </td>
-
-                        {/* STATUS */}
-                        <td>
-                          <span
-                            className={`task-status ${task.status
-                              .toLowerCase()
-                              .replaceAll(
-                                " ",
-                                "-"
-                              )}`}
-                          >
-                            {task.status}
-                          </span>
-                        </td>
-
-                        {/* DEADLINE */}
-                        <td>
-                          {task.dueDate}
-                        </td>
-
-                        {/* PROGRESS */}
-                        <td>
-                          <div className="table-progress">
-
-                            <div className="progress-background">
-
-                              <div
-                                className="progress-fill"
-                                style={{
-                                  width: `${task.progress}%`,
-                                }}
-                              />
-
-                            </div>
-
-                            <span>
-                              {task.progress}%
-                            </span>
-
-                          </div>
-                        </td>
-
-                      </tr>
-                    );
-                  })
-                )}
-
-              </tbody>
-
-            </table>
-
-          </div>
-
-        </section>
+</div>
 
         {/* CREATE TASK MODAL */}
         {showTaskModal && (
