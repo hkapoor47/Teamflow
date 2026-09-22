@@ -18,16 +18,21 @@ import Tickets from "./pages/Tickets.jsx";
 import QAReviews from "./pages/QAReviews.jsx";
 import TeamMember from "./pages/TeamMember.jsx";
 
+// NEW
+import CompletedProjects from "./pages/CompletedProjects.jsx";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+        {/* Default */}
         <Route
           path="/"
           element={<Navigate to="/login" />}
         />
 
+        {/* Authentication */}
         <Route
           path="/login"
           element={<Login />}
@@ -38,11 +43,13 @@ function App() {
           element={<Register />}
         />
 
+        {/* Dashboard */}
         <Route
           path="/dashboard"
           element={<Dashboard />}
         />
 
+        {/* Projects */}
         <Route
           path="/projects"
           element={<Projects />}
@@ -53,19 +60,54 @@ function App() {
           element={<ProjectDetails />}
         />
 
+        {/* Tasks */}
         <Route
           path="/tasks"
           element={<Tasks />}
         />
-        <Route path="/team" element={<Team />} />
-<Route path="/team/:memberId" element={<TeamMember />} />
 
-        <Route path="/team" element={<Team />} />
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/tickets" element={<Tickets />} />
-        <Route path="/qa-reviews" element={<QAReviews />} />
+        {/* Team */}
+        <Route
+          path="/team"
+          element={<Team />}
+        />
 
+        <Route
+          path="/team/:memberId"
+          element={<TeamMember />}
+        />
+
+        {/* Analytics */}
+        <Route
+          path="/analytics"
+          element={<Analytics />}
+        />
+
+        {/* Notifications */}
+        <Route
+          path="/notifications"
+          element={<Notifications />}
+        />
+
+        {/* Tickets */}
+        <Route
+          path="/tickets"
+          element={<Tickets />}
+        />
+
+        {/* Completed Projects */}
+        <Route
+          path="/completed-projects"
+          element={<CompletedProjects />}
+        />
+
+        {/* QA Testing for a specific project */}
+        <Route
+          path="/qa-reviews/:projectId"
+          element={<QAReviews />}
+        />
+
+        {/* Fallback */}
         <Route
           path="*"
           element={<Navigate to="/dashboard" />}

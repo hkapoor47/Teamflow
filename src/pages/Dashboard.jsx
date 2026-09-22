@@ -142,10 +142,10 @@ function Dashboard() {
           {/* COMPLETED PROJECTS */}
 
           <button
-            className="overview-card"
-            onClick={() => navigate("/projects")}
+            className="stat-card"
+            onClick={() => navigate("/completed-projects")}
           >
-            <span className="overview-icon violet">
+            <span className="stat-icon">
               ✓
             </span>
 
