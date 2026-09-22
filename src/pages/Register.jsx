@@ -9,11 +9,64 @@ import {
 const Register = () => {
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Temporary frontend-only navigation
-    navigate("/dashboard");
+    const name = e.target.name.value;
+    const email = e.target["register-email"].value;
+    const password = e.target["register-password"].value;
+    const confirmPassword = e.target["confirm-password"].value;
+
+    // Check passwords before sending request
+    if (password !== confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        "http://65.0.11.153:5001/api/auth/register",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      console.log("Register response:", data);
+
+      if (!response.ok) {
+        alert(data.message || "Registration failed.");
+        return;
+      }
+
+      // Save token if backend returns one
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+
+      // Save user information if backend returns it
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+
+      alert(data.message || "Account created successfully!");
+
+      // Registration successful → Dashboard
+      navigate("/dashboard");
+
+    } catch (error) {
+      console.error("Register API error:", error);
+      alert("Unable to connect to the backend server.");
+    }
   };
 
   return (
@@ -110,6 +163,7 @@ const Register = () => {
 
                 <input
                   id="name"
+                  name="name"
                   type="text"
                   placeholder="Harshita Kapoor"
                   required
@@ -132,6 +186,7 @@ const Register = () => {
 
                 <input
                   id="register-email"
+                  name="register-email"
                   type="email"
                   placeholder="you@example.com"
                   required
@@ -154,6 +209,7 @@ const Register = () => {
 
                 <input
                   id="register-password"
+                  name="register-password"
                   type="password"
                   placeholder="Create a password"
                   minLength={6}
@@ -177,6 +233,7 @@ const Register = () => {
 
                 <input
                   id="confirm-password"
+                  name="confirm-password"
                   type="password"
                   placeholder="Confirm your password"
                   minLength={6}
@@ -191,11 +248,16 @@ const Register = () => {
             <div className="terms-checkbox">
 
               <label>
-                <input type="checkbox" required />
+
+                <input
+                  type="checkbox"
+                  required
+                />
 
                 <span>
                   I agree to the Terms of Service and Privacy Policy.
                 </span>
+
               </label>
 
             </div>
@@ -223,7 +285,7 @@ const Register = () => {
           </p>
 
           <p className="auth-demo-note">
-            Frontend demo • Authentication will be connected later
+            Secure registration • TeamFlow
           </p>
 
         </div>

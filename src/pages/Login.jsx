@@ -4,11 +4,52 @@ import { Mail, Lock, ArrowRight } from "lucide-react";
 const Login = () => {
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Temporary frontend-only navigation
-    navigate("/dashboard");
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+
+    try {
+      const response = await fetch(
+        "http://65.0.11.153:5001/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      console.log("Login response:", data);
+
+      if (!response.ok) {
+        alert(data.message || "Invalid email or password");
+        return;
+      }
+
+      // Store token if backend returns one
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+
+      // Store user information if backend returns it
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+
+      // Login successful → Dashboard
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Login API error:", error);
+      alert("Unable to connect to the backend server.");
+    }
   };
 
   return (
@@ -98,6 +139,7 @@ const Login = () => {
 
                 <input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="you@example.com"
                   required
@@ -124,6 +166,7 @@ const Login = () => {
 
                 <input
                   id="password"
+                  name="password"
                   type="password"
                   placeholder="Enter your password"
                   required
@@ -165,7 +208,7 @@ const Login = () => {
           </p>
 
           <p className="auth-demo-note">
-            Frontend demo • Authentication will be connected later
+            Secure login • TeamFlow
           </p>
 
         </div>
