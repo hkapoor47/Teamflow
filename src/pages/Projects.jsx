@@ -62,74 +62,72 @@ function Projects() {
   };
 
   // Create project using backend API
-  const submit = async (event) => {
-    event.preventDefault();
+ const submit = async (event) => {
+  event.preventDefault();
 
-    if (
-      !projectName.trim() ||
-      !requirements.trim() ||
-      !deadline
-    ) {
+  if (
+    !projectName.trim() ||
+    !requirements.trim() ||
+    !deadline
+  ) {
+    return;
+  }
+
+  try {
+    setCreating(true);
+    setError("");
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("Authentication required. Please login again.");
       return;
     }
 
-    try {
-      setCreating(true);
-      setError("");
-
-      const response = await fetch(
-        `${API_BASE_URL}/projects`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: projectName.trim(),
-            description: requirements.trim(),
-            deadline,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to create project"
-        );
+    const response = await fetch(
+      `${API_BASE_URL}/projects`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: projectName.trim(),
+          description: requirements.trim(),
+          deadline,
+        }),
       }
+    );
 
-      /*
-       * Refresh projects from backend so the newly
-       * created project appears in All Projects.
-       */
-      await fetchProjects();
+    const data = await response.json();
 
-      /*
-       * If backend returns the created project,
-       * open its project details page.
-       */
-      const createdProject =
-        data.project || data;
-
-      closeModal();
-
-      if (createdProject?.id) {
-        navigate(
-          `/projects/${createdProject.id}`
-        );
-      }
-    } catch (err) {
-      console.error("Create project error:", err);
-
-      setError(
-        err.message || "Unable to create project."
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Failed to create project"
       );
-    } finally {
-      setCreating(false);
     }
-  };
+
+    await fetchProjects();
+
+    const createdProject =
+      data.project || data;
+
+    closeModal();
+
+    if (createdProject?.id) {
+      navigate(`/projects/${createdProject.id}`);
+    }
+  } catch (err) {
+    console.error("Create project error:", err);
+
+    setError(
+      err.message || "Unable to create project."
+    );
+  } finally {
+    setCreating(false);
+  }
+};
 
   return (
     <DashboardLayout>
