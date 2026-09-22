@@ -24,11 +24,26 @@ function Projects() {
       setLoading(true);
       setError("");
 
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("Authentication required. Please login again.");
+        return [];
+      }
+
       const response = await fetch(
-        `${API_BASE_URL}/projects`
+        `${API_BASE_URL}/projects`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       const data = await response.json();
+
+      console.log("PROJECTS RESPONSE:", data);
 
       if (!response.ok) {
         throw new Error(
@@ -36,12 +51,19 @@ function Projects() {
         );
       }
 
-      setProjects(data.projects || []);
+      const projectList = data.projects || [];
+
+      setProjects(projectList);
+
+      return projectList;
     } catch (err) {
       console.error("Fetch projects error:", err);
+
       setError(
         err.message || "Unable to load projects."
       );
+
+      return [];
     } finally {
       setLoading(false);
     }
@@ -61,8 +83,8 @@ function Projects() {
     setError("");
   };
 
-  // Create project using backend API
- const submit = async (event) => {
+  // Create project
+  const submit = async (event) => {
   event.preventDefault();
 
   if (
@@ -80,7 +102,9 @@ function Projects() {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      setError("Authentication required. Please login again.");
+      setError(
+        "Authentication required. Please login again."
+      );
       return;
     }
 
@@ -102,27 +126,33 @@ function Projects() {
 
     const data = await response.json();
 
+    console.log(
+      "CREATE PROJECT RESPONSE:",
+      data
+    );
+
     if (!response.ok) {
       throw new Error(
         data.message || "Failed to create project"
       );
     }
 
+    // Project has been successfully created.
+    // Now fetch the complete project list again.
     await fetchProjects();
 
-    const createdProject =
-      data.project || data;
-
+    // Close the modal and stay on All Projects.
     closeModal();
 
-    if (createdProject?.id) {
-      navigate(`/projects/${createdProject.id}`);
-    }
   } catch (err) {
-    console.error("Create project error:", err);
+    console.error(
+      "Create project error:",
+      err
+    );
 
     setError(
-      err.message || "Unable to create project."
+      err.message ||
+        "Unable to create project."
     );
   } finally {
     setCreating(false);
@@ -160,48 +190,46 @@ function Projects() {
           </button>
         </section>
 
-        {/* ERROR MESSAGE */}
+        {/* PAGE ERROR */}
         {error && !showModal && (
           <div className="project-error">
             {error}
           </div>
         )}
 
-        {/* LOADING */}
+        {/* PROJECT LIST */}
         {loading ? (
           <div className="empty-state">
-            <strong>Loading projects...</strong>
+            <strong>
+              Loading projects...
+            </strong>
+
             <p>
-              Getting the latest projects from the server.
+              Getting the latest projects
+              from the server.
             </p>
           </div>
         ) : projects.length === 0 ? (
-          /* NO PROJECTS */
           <div className="empty-state">
-            <strong>No projects yet</strong>
+            <strong>
+              No projects yet
+            </strong>
+
             <p>
-              Create your first project to get started.
+              Create your first project
+              to get started.
             </p>
           </div>
         ) : (
-          /* PROJECTS */
           <div className="projects-grid">
             {projects.map((project) => {
-              /*
-               * Backend currently returns:
-               * id
-               * name
-               * description
-               * deadline
-               * status
-               */
-
               const description =
                 project.description ||
                 "No project description";
 
               const status =
-                project.status || "ACTIVE";
+                project.status ||
+                "ACTIVE";
 
               return (
                 <button
@@ -222,7 +250,9 @@ function Projects() {
                     </div>
 
                     <div className="project-title">
-                      <h3>{project.name}</h3>
+                      <h3>
+                        {project.name}
+                      </h3>
 
                       <p>
                         {description}
@@ -241,6 +271,7 @@ function Projects() {
                   </div>
 
                   <div className="project-card-progress">
+
                     <div className="progress-label">
                       <span>
                         Project progress
@@ -259,9 +290,11 @@ function Projects() {
                         }}
                       />
                     </div>
+
                   </div>
 
                   <div className="project-card-footer">
+
                     <span>
                       Project #{project.id}
                     </span>
@@ -274,6 +307,7 @@ function Projects() {
                           ).toLocaleDateString()
                         : "Not set"}
                     </span>
+
                   </div>
                 </button>
               );
@@ -300,6 +334,7 @@ function Projects() {
                 event.stopPropagation()
               }
             >
+
               <div className="modal-header">
                 <div>
                   <h2>

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { useProjects } from "../context/ProjectContext.jsx";
+
+const API_BASE_URL = "http://65.0.11.153:5001/api";
 
 function ProjectDetails() {
   const { projectId } = useParams();
@@ -21,10 +23,93 @@ function ProjectDetails() {
   const [taskAssignee, setTaskAssignee] = useState("");
   const [taskDeadline, setTaskDeadline] = useState("");
 
-  const project = projects.find(
-    (item) => item.id === projectId
+  // FIX: Keep backend-fetched projects locally
+  const [apiProjects, setApiProjects] = useState([]);
+  const [loadingProject, setLoadingProject] = useState(false);
+
+  // FIX: projectId from URL is a string
+  const numericProjectId = Number(projectId);
+
+  // First try context projects
+  let project = projects.find(
+    (item) => Number(item.id) === numericProjectId
   );
 
+  // If not found in context, try API projects
+  if (!project) {
+    project = apiProjects.find(
+      (item) => Number(item.id) === numericProjectId
+    );
+  }
+
+  // FIX: Fetch projects from backend if project isn't in context
+  useEffect(() => {
+    const fetchProjectFromAPI = async () => {
+      // If already found in context, no need to fetch
+      const existingProject = projects.find(
+        (item) => Number(item.id) === numericProjectId
+      );
+
+      if (existingProject) {
+        return;
+      }
+
+      try {
+        setLoadingProject(true);
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          console.error("No authentication token found.");
+          return;
+        }
+
+        const response = await fetch(
+          `${API_BASE_URL}/projects`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        console.log("PROJECT DETAILS API RESPONSE:", data);
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to fetch projects"
+          );
+        }
+
+        setApiProjects(data.projects || []);
+      } catch (error) {
+        console.error(
+          "Failed to load project details:",
+          error
+        );
+      } finally {
+        setLoadingProject(false);
+      }
+    };
+
+    fetchProjectFromAPI();
+  }, [numericProjectId, projects]);
+
+  // Loading state
+  if (loadingProject && !project) {
+    return (
+      <DashboardLayout>
+        <div className="teamflow-page">
+          <h2>Loading project...</h2>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Project genuinely doesn't exist
   if (!project) {
     return (
       <DashboardLayout>
@@ -42,8 +127,10 @@ function ProjectDetails() {
     );
   }
 
+  // FIX: Compare IDs as numbers
   const projectTasks = tasks.filter(
-    (task) => task.projectId === project.id
+    (task) =>
+      Number(task.projectId) === Number(project.id)
   );
 
   /*
@@ -115,7 +202,8 @@ function ProjectDetails() {
             <h2>{project.name}</h2>
 
             <p>
-              {project.description}
+              {project.description ||
+                "No project description provided."}
             </p>
 
             <span
@@ -129,238 +217,257 @@ function ProjectDetails() {
             </span>
           </div>
 
-          {/* <div className="hero-progress">
-            <strong>{progress}%</strong>
+          <div
+            className="project-progress-circle"
+            title={`${progress}% project progress`}
+          >
+            <svg viewBox="0 0 120 120">
+              <circle
+                className="progress-circle-track"
+                cx="60"
+                cy="60"
+                r="48"
+              />
 
-            <span>
-              overall progress
-            </span>
-
-            <div className="progress-background">
-              <div
-                className="progress-fill"
+              <circle
+                className="progress-circle-value"
+                cx="60"
+                cy="60"
+                r="48"
                 style={{
-                  width: `${progress}%`,
+                  strokeDashoffset:
+                    301.59 -
+                    (301.59 * progress) / 100,
                 }}
               />
+            </svg>
+
+            <div className="progress-circle-text">
+              <strong>{progress}%</strong>
+              <span>Progress</span>
             </div>
-          </div> */}
-          <div
-  className="project-progress-circle"
-  title={`${progress}% project progress`}
->
-  <svg viewBox="0 0 120 120">
-    <circle
-      className="progress-circle-track"
-      cx="60"
-      cy="60"
-      r="48"
-    />
-
-    <circle
-      className="progress-circle-value"
-      cx="60"
-      cy="60"
-      r="48"
-      style={{
-        strokeDashoffset:
-          301.59 - (301.59 * progress) / 100,
-      }}
-    />
-  </svg>
-
-  <div className="progress-circle-text">
-    <strong>{progress}%</strong>
-    <span>Progress</span>
-  </div>
-</div>
+          </div>
         </section>
 
+        {/* PROJECT SUMMARY */}
         <section className="project-summary">
 
-  <article>
-    <small>Deadline</small>
-    <strong>
-      {project.deadline}
-    </strong>
-  </article>
+          <article>
+            <small>Deadline</small>
 
-  <article>
-    <small>Team members</small>
-    <strong>
-      {projectMembers.length}
-    </strong>
-  </article>
+            <strong>
+              {project.deadline
+                ? new Date(
+                    project.deadline
+                  ).toLocaleDateString()
+                : "Not set"}
+            </strong>
+          </article>
 
-  <article>
-    <small>Total tasks</small>
-    <strong>
-      {projectTasks.length}
-    </strong>
-  </article>
+          <article>
+            <small>Team members</small>
 
-</section>
+            <strong>
+              {projectMembers.length}
+            </strong>
+          </article>
 
-       
-       {/* PROJECT BRIEF */}
+          <article>
+            <small>Total tasks</small>
 
-<div className="project-work-grid">
+            <strong>
+              {projectTasks.length}
+            </strong>
+          </article>
 
-  {/* PROJECT BRIEF */}
-  <section className="project-description-section">
-    <article className="panel project-description-panel">
+        </section>
 
-      <div className="panel-header">
-        <div>
-          <h3>Project brief</h3>
-          <p>The agreed direction for this work.</p>
-        </div>
-      </div>
+        {/* PROJECT WORK GRID */}
+        <div className="project-work-grid">
 
-      <div className="project-description-content">
-        <h4>{project.description}</h4>
+          {/* PROJECT BRIEF */}
+          <section className="project-description-section">
+            <article className="panel project-description-panel">
 
-        <p>
-          {project.requirements}
-        </p>
-      </div>
+              <div className="panel-header">
+                <div>
+                  <h3>Project brief</h3>
 
-    </article>
-  </section>
+                  <p>
+                    The agreed direction for this work.
+                  </p>
+                </div>
+              </div>
 
+              <div className="project-description-content">
 
-  {/* PROJECT TASKS */}
-  <section className="panel project-task-panel">
+                <h4>
+                  {project.description ||
+                    "No description available."}
+                </h4>
 
-    <div className="panel-header">
+                <p>
+                  {project.requirements ||
+                    "No additional requirements provided."}
+                </p>
 
-      <div>
-        <h3>Project tasks</h3>
+              </div>
 
-        <p>
-          Create work, assign members or leave
-          tasks open for team members to claim.
-        </p>
-      </div>
+            </article>
+          </section>
 
-      <button
-        className="create-project-button"
-        onClick={() => setShowTaskModal(true)}
-      >
-        <span>+</span>
-        Create task
-      </button>
+          {/* PROJECT TASKS */}
+          <section className="panel project-task-panel">
 
-    </div>
+            <div className="panel-header">
 
-    <div className="table-container">
+              <div>
+                <h3>Project tasks</h3>
 
-      <table>
+                <p>
+                  Create work, assign members or leave
+                  tasks open for team members to claim.
+                </p>
+              </div>
 
-        <thead>
-          <tr>
-            <th>Task</th>
-            <th>Assigned to</th>
-            <th>Status</th>
-            <th>Deadline</th>
-            <th>Progress</th>
-          </tr>
-        </thead>
-
-        <tbody>
-
-          {projectTasks.length === 0 ? (
-            <tr>
-              <td
-                colSpan="5"
-                style={{
-                  textAlign: "center",
-                  padding: "40px",
-                }}
+              <button
+                className="create-project-button"
+                onClick={() =>
+                  setShowTaskModal(true)
+                }
               >
-                No tasks created yet.
-              </td>
-            </tr>
-          ) : (
-            projectTasks.map((task) => {
+                <span>+</span>
+                Create task
+              </button>
 
-              const member = members.find(
-                (item) => item.id === task.assigneeId
-              );
+            </div>
 
-              return (
-                <tr key={task.id}>
+            <div className="table-container">
 
-                  <td>
-                    <strong>{task.title}</strong>
-                  </td>
+              <table>
 
-                  <td>
-                    {member ? (
-                      <div className="table-member">
+                <thead>
+                  <tr>
+                    <th>Task</th>
+                    <th>Assigned to</th>
+                    <th>Status</th>
+                    <th>Deadline</th>
+                    <th>Progress</th>
+                  </tr>
+                </thead>
 
-                        <div className="member-avatar">
-                          {member.name.charAt(0)}
-                        </div>
+                <tbody>
 
-                        <div>
-                          <strong>{member.name}</strong>
-                          <span>{member.role}</span>
-                        </div>
+                  {projectTasks.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        style={{
+                          textAlign: "center",
+                          padding: "40px",
+                        }}
+                      >
+                        No tasks created yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    projectTasks.map((task) => {
 
-                      </div>
-                    ) : (
-                      <span className="unassigned">
-                        Unassigned
-                      </span>
-                    )}
-                  </td>
+                      const member =
+                        members.find(
+                          (item) =>
+                            Number(item.id) ===
+                            Number(task.assigneeId)
+                        );
 
-                  <td>
-                    <span
-                      className={`task-status ${task.status
-                        .toLowerCase()
-                        .replaceAll(" ", "-")}`}
-                    >
-                      {task.status}
-                    </span>
-                  </td>
+                      return (
+                        <tr key={task.id}>
 
-                  <td>
-                    {task.dueDate}
-                  </td>
+                          <td>
+                            <strong>
+                              {task.title}
+                            </strong>
+                          </td>
 
-                  <td>
-                    <div className="table-progress">
+                          <td>
+                            {member ? (
+                              <div className="table-member">
 
-                      <div className="progress-background">
-                        <div
-                          className="progress-fill"
-                          style={{
-                            width: `${task.progress}%`,
-                          }}
-                        />
-                      </div>
+                                <div className="member-avatar">
+                                  {member.name
+                                    .charAt(0)}
+                                </div>
 
-                      <span>{task.progress}%</span>
+                                <div>
+                                  <strong>
+                                    {member.name}
+                                  </strong>
 
-                    </div>
-                  </td>
+                                  <span>
+                                    {member.role}
+                                  </span>
+                                </div>
 
-                </tr>
-              );
-            })
-          )}
+                              </div>
+                            ) : (
+                              <span className="unassigned">
+                                Unassigned
+                              </span>
+                            )}
+                          </td>
 
-        </tbody>
+                          <td>
+                            <span
+                              className={`task-status ${
+                                task.status
+                                  .toLowerCase()
+                                  .replaceAll(
+                                    " ",
+                                    "-"
+                                  )
+                              }`}
+                            >
+                              {task.status}
+                            </span>
+                          </td>
 
-      </table>
+                          <td>
+                            {task.dueDate}
+                          </td>
 
-    </div>
+                          <td>
+                            <div className="table-progress">
 
-  </section>
+                              <div className="progress-background">
+                                <div
+                                  className="progress-fill"
+                                  style={{
+                                    width: `${task.progress}%`,
+                                  }}
+                                />
+                              </div>
 
-</div>
+                              <span>
+                                {task.progress}%
+                              </span>
+
+                            </div>
+                          </td>
+
+                        </tr>
+                      );
+                    })
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          </section>
+
+        </div>
 
         {/* CREATE TASK MODAL */}
         {showTaskModal && (
@@ -456,7 +563,8 @@ function ProjectDetails() {
                           key={member.id}
                           value={member.id}
                         >
-                          {member.name} — {member.role}
+                          {member.name} —{" "}
+                          {member.role}
                         </option>
                       ))}
                     </select>
