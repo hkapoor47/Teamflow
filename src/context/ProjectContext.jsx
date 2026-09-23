@@ -1,567 +1,660 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 const ProjectContext = createContext(null);
 
+const API_BASE_URL = "http://65.0.11.153:5001/api";
+
 const CURRENT_USER_ID = "harshita";
 
-const seedMembers = [
-  {
-    id: "rahul",
-    name: "Rahul Sharma",
-    email: "rahul@teamflow.dev",
-    role: "Frontend Developer",
-  },
-  {
-    id: "priya",
-    name: "Priya Singh",
-    email: "priya@teamflow.dev",
-    role: "Backend Developer",
-  },
-  {
-    id: "aman",
-    name: "Aman Verma",
-    email: "aman@teamflow.dev",
-    role: "QA Engineer",
-  },
-  {
-    id: "neha",
-    name: "Neha Kapoor",
-    email: "neha@teamflow.dev",
-    role: "Product Designer",
-  },
-];
+/* =====================================================
+   HELPERS
+===================================================== */
 
-const seedProjects = [
-  {
-    id: "website-redesign",
-    name: "Website Redesign",
-    description: "A faster, clearer marketing site for the next product launch.",
-    requirements:
-      "Modern responsive experience, accessible components and improved conversion journey.",
-    deadline: "2026-09-15",
-    status: "On Track",
-    creatorId: CURRENT_USER_ID,
-    memberIds: ["rahul", "neha", "aman"],
-  },
-  {
-    id: "mobile-application",
-    name: "Mobile Application",
-    description:
-      "Cross-platform mobile app for customers and field teams.",
-    requirements:
-      "Secure sign-in, offline support, real-time notifications and a simple mobile-first flow.",
-    deadline: "2026-09-25",
-    status: "On Track",
-    creatorId: CURRENT_USER_ID,
-    memberIds: ["priya", "rahul", "aman"],
-  },
-  {
-    id: "ai-dashboard",
-    name: "AI Dashboard",
-    description:
-      "Decision dashboard with practical AI-powered reporting.",
-    requirements:
-      "Actionable metrics, permissions and exportable reports for leadership.",
-    deadline: "2026-09-10",
-    status: "At Risk",
-    creatorId: CURRENT_USER_ID,
-    memberIds: ["priya", "neha"],
-  },
-];
+const getToken = () => {
+  return localStorage.getItem("token");
+};
 
-const seedTasks = [
-  {
-    id: "t1",
-    projectId: "website-redesign",
-    title: "Design the homepage",
-    assigneeId: "neha",
-    status: "In Progress",
-    progress: 75,
-    dueDate: "2026-09-08",
-  },
-  {
-    id: "t2",
-    projectId: "website-redesign",
-    title: "Build reusable page sections",
-    assigneeId: "rahul",
-    status: "In Progress",
-    progress: 65,
-    dueDate: "2026-09-10",
-  },
-  {
-    id: "t3",
-    projectId: "website-redesign",
-    title: "Run accessibility review",
-    assigneeId: "aman",
-    status: "To Do",
-    progress: 20,
-    dueDate: "2026-09-12",
-  },
-  {
-    id: "t4",
-    projectId: "website-redesign",
-    title: "Set up analytics events",
-    assigneeId: null,
-    status: "Unassigned",
-    progress: 0,
-    dueDate: "2026-09-13",
-  },
-  {
-    id: "t5",
-    projectId: "mobile-application",
-    title: "Build authentication API",
-    assigneeId: "priya",
-    status: "Completed",
-    progress: 100,
-    dueDate: "2026-09-06",
-  },
-  {
-    id: "t6",
-    projectId: "mobile-application",
-    title: "Create mobile navigation",
-    assigneeId: "rahul",
-    status: "In Progress",
-    progress: 55,
-    dueDate: "2026-09-14",
-  },
-  {
-    id: "t7",
-    projectId: "mobile-application",
-    title: "Test offline mode",
-    assigneeId: null,
-    status: "Unassigned",
-    progress: 0,
-    dueDate: "2026-09-18",
-  },
-  {
-    id: "t8",
-    projectId: "ai-dashboard",
-    title: "Define executive metrics",
-    assigneeId: "neha",
-    status: "In Progress",
-    progress: 45,
-    dueDate: "2026-09-07",
-  },
-  {
-    id: "t9",
-    projectId: "ai-dashboard",
-    title: "Create data service",
-    assigneeId: "priya",
-    status: "Blocked",
-    progress: 30,
-    dueDate: "2026-09-08",
-  },
-  {
-    id: "t10",
-    projectId: "ai-dashboard",
-    title: "Validate report exports",
-    assigneeId: null,
-    status: "Unassigned",
-    progress: 0,
-    dueDate: "2026-09-09",
-  },
-];
+const normalizeTask = (task) => {
+  return {
+    ...task,
 
-const average = (items) =>
-  items.length
-    ? Math.round(
-        items.reduce((total, item) => total + item.progress, 0) /
-          items.length
-      )
-    : 0;
+    // Backend field
+    id: task.id,
+
+    // Keep both formats so existing frontend pages
+    // can continue working while we migrate them.
+    projectId:
+      task.project_id ??
+      task.projectId ??
+      null,
+
+    title: task.title || "",
+
+    assigneeId:
+      task.assigned_to ??
+      task.assigneeId ??
+      task.assignee_id ??
+      null,
+
+    status: task.status || "TODO",
+
+    progress:
+      Number(task.progress) || 0,
+
+    dueDate:
+      task.due_date ??
+      task.dueDate ??
+      task.deadline ??
+      null,
+
+    claimedBy:
+      task.claimed_by ??
+      null,
+
+    claimedByName:
+      task.claimed_by_name ??
+      null,
+
+    projectName:
+      task.project_name ??
+      "",
+  };
+};
+
+/* =====================================================
+   PROVIDER
+===================================================== */
 
 export function ProjectProvider({ children }) {
-  const [projects, setProjects] = useState(seedProjects);
-  const [tasks, setTasks] = useState(seedTasks);
+  /*
+   * IMPORTANT:
+   *
+   * There are NO seedProjects.
+   * There are NO seedTasks.
+   *
+   * Data comes from the backend.
+   */
+
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+
+  /*
+   * Members are temporarily empty because we do not yet
+   * have the backend members API.
+   *
+   * Once you give me that API, this will also become
+   * backend-driven.
+   */
+
+  const [members, setMembers] = useState([]);
+
   const [claimRequests, setClaimRequests] = useState([]);
   const [activities, setActivities] = useState([]);
 
+  const [loadingProjects, setLoadingProjects] =
+    useState(true);
+
+  const [loadingTasks, setLoadingTasks] =
+    useState(true);
+
+  /* ===================================================
+     FETCH PROJECTS
+  =================================================== */
+
+  const fetchProjects = async () => {
+    try {
+      const token = getToken();
+
+      if (!token) {
+        console.error(
+          "No authentication token found."
+        );
+
+        setProjects([]);
+        return;
+      }
+
+      setLoadingProjects(true);
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      console.log(
+        "PROJECT CONTEXT - PROJECTS:",
+        data
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to fetch projects"
+        );
+      }
+
+      const backendProjects = Array.isArray(
+        data.projects
+      )
+        ? data.projects
+        : [];
+
+      setProjects(backendProjects);
+    } catch (error) {
+      console.error(
+        "ProjectContext projects error:",
+        error
+      );
+
+      setProjects([]);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
+
+  /* ===================================================
+     FETCH ALL TASKS
+  =================================================== */
+
+  const fetchTasks = async () => {
+    try {
+      const token = getToken();
+
+      if (!token) {
+        console.error(
+          "No authentication token found."
+        );
+
+        setTasks([]);
+        return;
+      }
+
+      setLoadingTasks(true);
+
+      const response = await fetch(
+        `${API_BASE_URL}/all-tasks`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      console.log(
+        "PROJECT CONTEXT - ALL TASKS:",
+        data
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to fetch tasks"
+        );
+      }
+
+      const backendTasks = Array.isArray(
+        data.tasks
+      )
+        ? data.tasks.map(normalizeTask)
+        : [];
+
+      setTasks(backendTasks);
+    } catch (error) {
+      console.error(
+        "ProjectContext tasks error:",
+        error
+      );
+
+      setTasks([]);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  /* ===================================================
+     INITIAL BACKEND LOAD
+  =================================================== */
+
+  useEffect(() => {
+    fetchProjects();
+    fetchTasks();
+  }, []);
+
+  /* ===================================================
+     PROJECT PROGRESS
+  =================================================== */
+
   const projectProgress = (projectId) => {
-    return average(
-      tasks.filter((task) => task.projectId === projectId)
+    const projectTasks = tasks.filter(
+      (task) =>
+        Number(task.projectId) ===
+        Number(projectId)
+    );
+
+    if (!projectTasks.length) {
+      return 0;
+    }
+
+    const completedTasks =
+      projectTasks.filter((task) => {
+        const status = String(
+          task.status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          status === "completed" ||
+          status === "complete" ||
+          status === "done" ||
+          status === "closed"
+        );
+      }).length;
+
+    return Math.round(
+      (completedTasks /
+        projectTasks.length) *
+        100
     );
   };
 
-  const addActivity = ({
-    taskId = null,
-    projectId = null,
-    userId = null,
-    action,
-    details,
-  }) => {
-    const activity = {
-      id: `activity-${Date.now()}-${Math.random()}`,
-      taskId,
-      projectId,
-      userId,
-      action,
-      details,
-      timestamp: new Date().toISOString(),
-    };
+  /* ===================================================
+     REFRESH DATA
+  =================================================== */
 
-    setActivities((current) => [activity, ...current]);
+  const refreshProjects = async () => {
+    await fetchProjects();
   };
 
-  // --------------------------------
-  // CREATE PROJECT
-  // --------------------------------
+  const refreshTasks = async () => {
+    await fetchTasks();
+  };
 
-  const createProject = ({
+  const refreshData = async () => {
+    await Promise.all([
+      fetchProjects(),
+      fetchTasks(),
+    ]);
+  };
+
+  /* ===================================================
+     CREATE PROJECT
+     
+     Backend:
+       POST /api/projects
+  =================================================== */
+
+  const createProject = async ({
     name,
-    requirements,
-    deadline,
+    requirements = "",
+    deadline = "",
+    description = "",
   }) => {
-    const id = `${name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "")}-${Date.now()}`;
+    try {
+      const token = getToken();
 
-    const project = {
-      id,
-      name: name.trim(),
+      if (!token) {
+        throw new Error(
+          "Authentication required. Please login again."
+        );
+      }
 
-      // Kept internally so existing project pages don't break.
-      description: "",
+      const requestBody = {
+        name: name.trim(),
+        description:
+          description?.trim() || null,
+        deadline: deadline || null,
+      };
 
-      requirements: requirements.trim(),
+      /*
+       * Requirements is retained in the frontend
+       * function signature for compatibility.
+       *
+       * If your backend later supports a requirements
+       * field, we can add it here.
+       */
 
-      deadline: deadline || "Not set",
+      console.log(
+        "CREATE PROJECT REQUEST:",
+        requestBody
+      );
 
-      status: "Planning",
+      const response = await fetch(
+        `${API_BASE_URL}/projects`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
 
-      // Person creating this project
-      creatorId: CURRENT_USER_ID,
+      const data = await response.json();
 
-      // Initially nobody is part of the project.
-      // Members get added when tasks are assigned/approved.
-      memberIds: [],
-    };
+      console.log(
+        "CREATE PROJECT RESPONSE:",
+        data
+      );
 
-    setProjects((current) => [...current, project]);
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to create project"
+        );
+      }
 
-    addActivity({
-      projectId: id,
-      userId: CURRENT_USER_ID,
-      action: "PROJECT_CREATED",
-      details: `Created project "${project.name}"`,
-    });
+      /*
+       * Refresh from backend.
+       *
+       * We DO NOT add a fake project to state.
+       */
 
-    return project;
+      await fetchProjects();
+
+      return data.project || data;
+    } catch (error) {
+      console.error(
+        "Create project error:",
+        error
+      );
+
+      throw error;
+    }
   };
 
-  // --------------------------------
-  // CREATE TASK
-  // --------------------------------
+  /* ===================================================
+     CREATE TASK
+     
+     Backend:
+       POST /api/projects/:projectId/tasks
+  =================================================== */
 
-  const createTask = ({
+  const createTask = async ({
     projectId,
     title,
     assigneeId = null,
-    dueDate = "Not set",
+    dueDate = null,
   }) => {
-    const taskId = `task-${Date.now()}-${Math.random()}`;
+    try {
+      const token = getToken();
 
-    const task = {
-      id: taskId,
-      projectId,
-      title: title.trim(),
-      assigneeId: assigneeId || null,
-      status: assigneeId ? "To Do" : "Unassigned",
-      progress: 0,
-      dueDate: dueDate || "Not set",
-    };
+      if (!token) {
+        throw new Error(
+          "Authentication required. Please login again."
+        );
+      }
 
-    setTasks((current) => [...current, task]);
+      if (!projectId) {
+        throw new Error(
+          "Project is required."
+        );
+      }
 
-    // If creator assigns the task directly,
-    // automatically add that person to project team.
-    if (assigneeId) {
-      setProjects((current) =>
-        current.map((project) =>
-          project.id === projectId &&
-          !project.memberIds.includes(assigneeId)
-            ? {
-                ...project,
-                memberIds: [...project.memberIds, assigneeId],
-              }
-            : project
-        )
+      if (!title?.trim()) {
+        throw new Error(
+          "Task title is required."
+        );
+      }
+
+      const requestBody = {
+        title: title.trim(),
+
+        assigned_to: assigneeId
+          ? Number(assigneeId)
+          : null,
+
+        due_date:
+          dueDate || null,
+      };
+
+      console.log(
+        "CREATE TASK REQUEST:",
+        requestBody
       );
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${projectId}/tasks`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      const data = await response.json();
+
+      console.log(
+        "CREATE TASK RESPONSE:",
+        data
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to create task"
+        );
+      }
+
+      /*
+       * IMPORTANT:
+       *
+       * Do not manually add the task to state.
+       * Fetch the real database data again.
+       */
+
+      await fetchTasks();
+
+      return data.task || data;
+    } catch (error) {
+      console.error(
+        "Create task error:",
+        error
+      );
+
+      throw error;
     }
-
-    addActivity({
-      taskId,
-      projectId,
-      userId: CURRENT_USER_ID,
-      action: "TASK_CREATED",
-      details: assigneeId
-        ? `Created and assigned "${task.title}"`
-        : `Created unassigned task "${task.title}"`,
-    });
-
-    return task;
   };
 
-  // --------------------------------
-  // ASSIGN TASK
-  // --------------------------------
+  /* ===================================================
+     ASSIGN TASK
+     
+     Backend assignment API has not been provided yet.
+     
+     Therefore we DO NOT fake an assignment locally.
+  =================================================== */
 
-  const assignTask = (taskId, memberId) => {
-    const task = tasks.find((item) => item.id === taskId);
-
-    if (!task) return;
-
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === taskId
-          ? {
-              ...item,
-              assigneeId: memberId,
-              status: "To Do",
-            }
-          : item
-      )
+  const assignTask = async (
+    taskId,
+    memberId
+  ) => {
+    console.warn(
+      "assignTask backend API is not connected yet.",
+      {
+        taskId,
+        memberId,
+      }
     );
 
-    // Add member to project team automatically
-    setProjects((current) =>
-      current.map((project) =>
-        project.id === task.projectId &&
-        !project.memberIds.includes(memberId)
-          ? {
-              ...project,
-              memberIds: [...project.memberIds, memberId],
-            }
-          : project
-      )
-    );
-
-    addActivity({
-      taskId,
-      projectId: task.projectId,
-      userId: CURRENT_USER_ID,
-      action: "TASK_ASSIGNED",
-      details: `Assigned "${task.title}"`,
-    });
+    /*
+     * Do not modify local task data because that would
+     * make the frontend disagree with the database.
+     */
   };
 
-  // --------------------------------
-  // CLAIM TASK
-  // --------------------------------
+  /* ===================================================
+     CLAIM TASK
+     
+     Backend claim API has not been provided here.
+     
+     Do not fake claims locally.
+  =================================================== */
 
-  const requestClaim = (taskId, memberId) => {
-    const task = tasks.find((item) => item.id === taskId);
-
-    if (!task || task.assigneeId) return;
-
-    const alreadyPending = claimRequests.some(
-      (request) =>
-        request.taskId === taskId &&
-        request.status === "Pending"
+  const requestClaim = async (
+    taskId,
+    memberId
+  ) => {
+    console.warn(
+      "requestClaim backend API is not connected yet.",
+      {
+        taskId,
+        memberId,
+      }
     );
-
-    if (alreadyPending) return;
-
-    const project = projects.find(
-      (item) => item.id === task.projectId
-    );
-
-    const request = {
-      id: `claim-${Date.now()}`,
-      taskId,
-      memberId,
-      projectId: task.projectId,
-
-      // This is the person who created the project.
-      managerId: project?.creatorId || CURRENT_USER_ID,
-
-      status: "Pending",
-
-      // Later backend can use this information to send email.
-      notificationStatus: "Email pending backend integration",
-    };
-
-    setClaimRequests((current) => [request, ...current]);
-
-    addActivity({
-      taskId,
-      projectId: task.projectId,
-      userId: memberId,
-      action: "TASK_CLAIM_REQUESTED",
-      details: `Requested to claim "${task.title}"`,
-    });
   };
 
-  // --------------------------------
-  // APPROVE CLAIM
-  // --------------------------------
+  /* ===================================================
+     APPROVE CLAIM
+     
+     Backend claim approval API has not been provided.
+  =================================================== */
 
-  const approveClaim = (requestId) => {
-    const request = claimRequests.find(
-      (item) => item.id === requestId
+  const approveClaim = async (
+    requestId
+  ) => {
+    console.warn(
+      "approveClaim backend API is not connected yet.",
+      {
+        requestId,
+      }
     );
-
-    if (!request) return;
-
-    const task = tasks.find(
-      (item) => item.id === request.taskId
-    );
-
-    if (!task) return;
-
-    // Assign task
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === request.taskId
-          ? {
-              ...item,
-              assigneeId: request.memberId,
-              status: "To Do",
-            }
-          : item
-      )
-    );
-
-    // IMPORTANT:
-    // Member becomes part of the project after claim approval.
-    setProjects((current) =>
-      current.map((project) =>
-        project.id === request.projectId &&
-        !project.memberIds.includes(request.memberId)
-          ? {
-              ...project,
-              memberIds: [
-                ...project.memberIds,
-                request.memberId,
-              ],
-            }
-          : project
-      )
-    );
-
-    setClaimRequests((current) =>
-      current.map((item) =>
-        item.id === requestId
-          ? {
-              ...item,
-              status: "Approved",
-            }
-          : item
-      )
-    );
-
-    addActivity({
-      taskId: request.taskId,
-      projectId: request.projectId,
-      userId: request.memberId,
-      action: "TASK_CLAIM_APPROVED",
-      details: `Claim approved for "${task.title}"`,
-    });
   };
 
-  // --------------------------------
-  // TASK STATUS
-  // --------------------------------
+  /* ===================================================
+     UPDATE TASK STATUS
+     
+     Backend status-update API has not been provided.
+     
+     Do not update local fake state.
+  =================================================== */
 
-  const updateTaskStatus = (
+  const updateTaskStatus = async (
     taskId,
     newStatus,
     userId = CURRENT_USER_ID
   ) => {
-    const task = tasks.find((item) => item.id === taskId);
-
-    if (!task) return;
-
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === taskId
-          ? {
-              ...item,
-              status: newStatus,
-              progress:
-                newStatus === "Completed"
-                  ? 100
-                  : item.progress,
-            }
-          : item
-      )
+    console.warn(
+      "updateTaskStatus backend API is not connected yet.",
+      {
+        taskId,
+        newStatus,
+        userId,
+      }
     );
-
-    addActivity({
-      taskId,
-      projectId: task.projectId,
-      userId,
-      action: "TASK_STATUS_UPDATED",
-      details: `Changed "${task.title}" to ${newStatus}`,
-    });
   };
 
-  // --------------------------------
-  // TASK PROGRESS
-  // --------------------------------
+  /* ===================================================
+     UPDATE TASK PROGRESS
+     
+     Backend progress-update API has not been provided.
+  =================================================== */
 
-  const updateTaskProgress = (
+  const updateTaskProgress = async (
     taskId,
     progress,
     userId = CURRENT_USER_ID
   ) => {
-    const task = tasks.find((item) => item.id === taskId);
-
-    if (!task) return;
-
-    const safeProgress = Math.max(
-      0,
-      Math.min(100, Number(progress))
+    console.warn(
+      "updateTaskProgress backend API is not connected yet.",
+      {
+        taskId,
+        progress,
+        userId,
+      }
     );
-
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === taskId
-          ? {
-              ...item,
-              progress: safeProgress,
-              status:
-                safeProgress === 100
-                  ? "Completed"
-                  : safeProgress > 0
-                  ? "In Progress"
-                  : item.status,
-            }
-          : item
-      )
-    );
-
-    addActivity({
-      taskId,
-      projectId: task.projectId,
-      userId,
-      action: "TASK_PROGRESS_UPDATED",
-      details: `Updated "${task.title}" to ${safeProgress}%`,
-    });
   };
+
+  /* ===================================================
+     CONTEXT VALUE
+  =================================================== */
 
   const value = useMemo(
     () => ({
+      /*
+       * REAL BACKEND DATA
+       */
+
       projects,
       tasks,
-      members: seedMembers,
+      members,
+
+      /*
+       * Existing workflow data.
+       * These will become backend-driven as their APIs
+       * are connected.
+       */
+
       claimRequests,
       activities,
 
+      /*
+       * Loading states
+       */
+
+      loadingProjects,
+      loadingTasks,
+
+      /*
+       * Progress
+       */
+
       projectProgress,
+
+      /*
+       * Refresh
+       */
+
+      refreshProjects,
+      refreshTasks,
+      refreshData,
+
+      /*
+       * Backend-connected creation
+       */
 
       createProject,
       createTask,
-      assignTask,
 
+      /*
+       * Placeholder workflow functions.
+       * They do NOT create fake frontend data.
+       */
+
+      assignTask,
       requestClaim,
       approveClaim,
-
       updateTaskStatus,
       updateTaskProgress,
     }),
-    [projects, tasks, claimRequests, activities]
+    [
+      projects,
+      tasks,
+      members,
+      claimRequests,
+      activities,
+      loadingProjects,
+      loadingTasks,
+    ]
   );
 
   return (
@@ -570,6 +663,10 @@ export function ProjectProvider({ children }) {
     </ProjectContext.Provider>
   );
 }
+
+/* =====================================================
+   HOOK
+===================================================== */
 
 export function useProjects() {
   const context = useContext(ProjectContext);

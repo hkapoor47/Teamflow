@@ -11,14 +11,17 @@ function Projects() {
   const [showModal, setShowModal] = useState(false);
 
   const [projectName, setProjectName] = useState("");
-  const [requirements, setRequirements] = useState("");
+  const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
-  // Fetch all projects
+  // --------------------------------------------------
+  // FETCH ALL PROJECTS
+  // --------------------------------------------------
+
   const fetchProjects = async () => {
     try {
       setLoading(true);
@@ -27,7 +30,9 @@ function Projects() {
       const token = localStorage.getItem("token");
 
       if (!token) {
-        setError("Authentication required. Please login again.");
+        setError(
+          "Authentication required. Please login again."
+        );
         return [];
       }
 
@@ -69,102 +74,118 @@ function Projects() {
     }
   };
 
-  // Fetch projects when page loads
+  // --------------------------------------------------
+  // LOAD PROJECTS WHEN PAGE OPENS
+  // --------------------------------------------------
+
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  // --------------------------------------------------
+  // CLOSE CREATE PROJECT MODAL
+  // --------------------------------------------------
 
   const closeModal = () => {
     setShowModal(false);
 
     setProjectName("");
-    setRequirements("");
+    setDescription("");
     setDeadline("");
     setError("");
   };
 
-  // Create project
+  // --------------------------------------------------
+  // CREATE PROJECT
+  // --------------------------------------------------
+
   const submit = async (event) => {
-  event.preventDefault();
+    event.preventDefault();
 
-  if (
-    !projectName.trim() ||
-    !requirements.trim() ||
-    !deadline
-  ) {
-    return;
-  }
-
-  try {
-    setCreating(true);
-    setError("");
-
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      setError(
-        "Authentication required. Please login again."
-      );
+    if (
+      !projectName.trim() ||
+      !description.trim() ||
+      !deadline
+    ) {
       return;
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/projects`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: projectName.trim(),
-          description: requirements.trim(),
-          deadline,
-        }),
+    try {
+      setCreating(true);
+      setError("");
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError(
+          "Authentication required. Please login again."
+        );
+        return;
       }
-    );
 
-    const data = await response.json();
+      const response = await fetch(
+        `${API_BASE_URL}/projects`,
+        {
+          method: "POST",
 
-    console.log(
-      "CREATE PROJECT RESPONSE:",
-      data
-    );
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
 
-    if (!response.ok) {
-      throw new Error(
-        data.message || "Failed to create project"
+          body: JSON.stringify({
+            name: projectName.trim(),
+            description: description.trim(),
+            deadline,
+          }),
+        }
       );
+
+      const data = await response.json();
+
+      console.log(
+        "CREATE PROJECT RESPONSE:",
+        data
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to create project"
+        );
+      }
+
+      // Fetch latest projects from database
+      await fetchProjects();
+
+      // Close modal and stay on All Projects
+      closeModal();
+    } catch (err) {
+      console.error(
+        "Create project error:",
+        err
+      );
+
+      setError(
+        err.message ||
+          "Unable to create project."
+      );
+    } finally {
+      setCreating(false);
     }
+  };
 
-    // Project has been successfully created.
-    // Now fetch the complete project list again.
-    await fetchProjects();
-
-    // Close the modal and stay on All Projects.
-    closeModal();
-
-  } catch (err) {
-    console.error(
-      "Create project error:",
-      err
-    );
-
-    setError(
-      err.message ||
-        "Unable to create project."
-    );
-  } finally {
-    setCreating(false);
-  }
-};
+  // --------------------------------------------------
+  // RENDER
+  // --------------------------------------------------
 
   return (
     <DashboardLayout>
       <div className="teamflow-page projects-page">
 
         {/* PAGE HEADER */}
+
         <section className="projects-page-header teamflow-heading">
+
           <div>
             <p className="welcome-label">
               PROJECT PORTFOLIO
@@ -188,9 +209,11 @@ function Projects() {
             <span>+</span>
             Create project
           </button>
+
         </section>
 
         {/* PAGE ERROR */}
+
         {error && !showModal && (
           <div className="project-error">
             {error}
@@ -198,7 +221,9 @@ function Projects() {
         )}
 
         {/* PROJECT LIST */}
+
         {loading ? (
+
           <div className="empty-state">
             <strong>
               Loading projects...
@@ -209,7 +234,9 @@ function Projects() {
               from the server.
             </p>
           </div>
+
         ) : projects.length === 0 ? (
+
           <div className="empty-state">
             <strong>
               No projects yet
@@ -220,9 +247,13 @@ function Projects() {
               to get started.
             </p>
           </div>
+
         ) : (
+
           <div className="projects-grid">
+
             {projects.map((project) => {
+
               const description =
                 project.description ||
                 "No project description";
@@ -232,6 +263,7 @@ function Projects() {
                 "ACTIVE";
 
               return (
+
                 <button
                   className="project-card"
                   key={project.id}
@@ -241,6 +273,9 @@ function Projects() {
                     )
                   }
                 >
+
+                  {/* PROJECT HEADER */}
+
                   <div className="project-card-header">
 
                     <div className="project-avatar">
@@ -250,6 +285,7 @@ function Projects() {
                     </div>
 
                     <div className="project-title">
+
                       <h3>
                         {project.name}
                       </h3>
@@ -257,6 +293,7 @@ function Projects() {
                       <p>
                         {description}
                       </p>
+
                     </div>
 
                     <span
@@ -268,30 +305,28 @@ function Projects() {
                     >
                       {status}
                     </span>
+
                   </div>
+
+                  {/* PROJECT DESCRIPTION */}
 
                   <div className="project-card-progress">
 
                     <div className="progress-label">
+
                       <span>
-                        Project progress
+                        Project description
                       </span>
 
-                      <strong>
-                        0%
-                      </strong>
                     </div>
 
-                    <div className="progress-background">
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: "0%",
-                        }}
-                      />
-                    </div>
+                    <p>
+                      {description}
+                    </p>
 
                   </div>
+
+                  {/* PROJECT FOOTER */}
 
                   <div className="project-card-footer">
 
@@ -309,25 +344,32 @@ function Projects() {
                     </span>
 
                   </div>
+
                 </button>
               );
             })}
+
           </div>
         )}
 
         {/* CREATE PROJECT MODAL */}
+
         {showModal && (
+
           <div
             className="project-modal-overlay"
             onMouseDown={(event) => {
+
               if (
                 event.target ===
                 event.currentTarget
               ) {
                 closeModal();
               }
+
             }}
           >
+
             <div
               className="create-project-modal"
               onMouseDown={(event) =>
@@ -335,16 +377,21 @@ function Projects() {
               }
             >
 
+              {/* MODAL HEADER */}
+
               <div className="modal-header">
+
                 <div>
+
                   <h2>
                     Create new project
                   </h2>
 
                   <p>
-                    Set the project requirements
+                    Add the project description
                     and deadline.
                   </p>
+
                 </div>
 
                 <button
@@ -355,9 +402,11 @@ function Projects() {
                 >
                   ×
                 </button>
+
               </div>
 
               {/* MODAL ERROR */}
+
               {error && (
                 <div className="project-error">
                   {error}
@@ -369,7 +418,9 @@ function Projects() {
                 <div className="project-form-grid">
 
                   {/* PROJECT NAME */}
+
                   <div className="form-group">
+
                     <label>
                       Project name
                     </label>
@@ -385,29 +436,35 @@ function Projects() {
                       placeholder="e.g. Customer portal"
                       disabled={creating}
                     />
+
                   </div>
 
-                  {/* REQUIREMENTS */}
+                  {/* PROJECT DESCRIPTION */}
+
                   <div className="form-group">
+
                     <label>
-                      Client requirements
+                      Project description
                     </label>
 
                     <textarea
                       required
-                      value={requirements}
+                      value={description}
                       onChange={(event) =>
-                        setRequirements(
+                        setDescription(
                           event.target.value
                         )
                       }
-                      placeholder="Key scope, needs and success criteria"
+                      placeholder="Describe what this project is about"
                       disabled={creating}
                     />
+
                   </div>
 
                   {/* DEADLINE */}
+
                   <div className="form-group">
+
                     <label>
                       Deadline
                     </label>
@@ -423,9 +480,12 @@ function Projects() {
                       }
                       disabled={creating}
                     />
+
                   </div>
 
                 </div>
+
+                {/* MODAL FOOTER */}
 
                 <div className="modal-footer">
 
@@ -451,9 +511,13 @@ function Projects() {
                 </div>
 
               </form>
+
             </div>
+
           </div>
+
         )}
+
       </div>
     </DashboardLayout>
   );

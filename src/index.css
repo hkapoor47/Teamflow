@@ -4849,3 +4849,393 @@ body, .app-layout, .page-content { background: var(--background); }
 .active-project-row:hover .active-project-main small {
   color: #aebbd0 !important;
 }
+
+/* =========================================================
+   COMPLETED PROJECTS PAGE
+   ========================================================= */
+
+.completed-page {
+  width: 100%;
+}
+
+/* ---------- Header ---------- */
+
+.completed-heading {
+  margin-bottom: 24px;
+}
+
+.completed-heading h2 {
+  margin-bottom: 8px;
+}
+
+.completed-heading .welcome-description {
+  margin: 0;
+}
+
+/* ---------- Back button ---------- */
+
+.completed-back {
+  margin-bottom: 20px;
+}
+
+/* ---------- Main panel ---------- */
+
+.completed-panel {
+  width: 100%;
+  padding: 24px;
+
+  background: #111c2d;
+  border: 1px solid #26364d;
+  border-radius: 16px;
+
+  box-sizing: border-box;
+}
+
+/* ---------- Panel header ---------- */
+
+.completed-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 22px;
+}
+
+.completed-panel-header h3 {
+  margin: 0 0 6px;
+
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.completed-panel-header p {
+  margin: 0;
+
+  color: #8fa3bd;
+  font-size: 13px;
+}
+
+.completed-total {
+  padding: 7px 12px;
+
+  border-radius: 999px;
+
+  background: #163b3b;
+  color: #5eead4;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+/* ---------- Project list ---------- */
+
+.completed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---------- Project card ---------- */
+
+.completed-card {
+  width: 100%;
+  padding: 20px;
+
+  box-sizing: border-box;
+
+  background: #152235;
+  border: 1px solid #2a3b52;
+  border-radius: 14px;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.completed-card:hover {
+  border-color: #38506b;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* ---------- Card top ---------- */
+
+.completed-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+/* ---------- Project information ---------- */
+
+.completed-project-info {
+  display: flex;
+  align-items: center;
+
+  gap: 14px;
+
+  min-width: 0;
+}
+
+.completed-avatar {
+  width: 48px;
+  height: 48px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  background: #c8f7f0;
+  color: #087f78;
+
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.completed-project-text {
+  min-width: 0;
+}
+
+/* ---------- Project title ---------- */
+
+.completed-title-row {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  flex-wrap: wrap;
+}
+
+.completed-title-row h3 {
+  margin: 0;
+
+  color: #ffffff;
+
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.completed-project-text > p {
+  margin: 5px 0 0;
+
+  color: #91a4bd;
+
+  font-size: 13px;
+}
+
+/* ---------- Status ---------- */
+
+.completed-status {
+  display: inline-flex;
+  align-items: center;
+
+  padding: 4px 9px;
+
+  border-radius: 999px;
+
+  background: #123b32;
+  color: #5eead4;
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ---------- QA button ---------- */
+
+.completed-qa-button {
+  flex-shrink: 0;
+
+  padding: 10px 16px;
+
+  border: none;
+  border-radius: 9px;
+
+  background: #24c7bb;
+  color: #071a1a;
+
+  font-size: 13px;
+  font-weight: 650;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.completed-qa-button:hover {
+  background: #35d8cc;
+  transform: translateY(-1px);
+}
+
+.completed-qa-button:active {
+  transform: translateY(0);
+}
+
+/* ---------- Stats ---------- */
+
+.completed-stats {
+  display: grid;
+
+  grid-template-columns:
+    1fr
+    1fr
+    1.4fr
+    1fr;
+
+  margin-top: 20px;
+
+  padding: 16px 0;
+
+  border-top: 1px solid #26374d;
+  border-bottom: 1px solid #26374d;
+}
+
+.completed-stat {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+
+  padding: 0 18px;
+
+  border-right: 1px solid #26374d;
+}
+
+.completed-stat:first-child {
+  padding-left: 0;
+}
+
+.completed-stat:last-child {
+  border-right: none;
+}
+
+.completed-stat span {
+  color: #8195ae;
+
+  font-size: 11px;
+  font-weight: 600;
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.completed-stat strong {
+  color: #ffffff;
+
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.completed-stat small {
+  color: #71859f;
+
+  font-size: 11px;
+}
+
+/* ---------- Progress ---------- */
+
+.completed-progress {
+  margin-top: 16px;
+}
+
+.completed-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 8px;
+
+  font-size: 12px;
+}
+
+.completed-progress-header span {
+  color: #8fa3bd;
+}
+
+.completed-progress-header strong {
+  color: #5eead4;
+}
+
+.completed-progress-track {
+  width: 100%;
+  height: 7px;
+
+  overflow: hidden;
+
+  border-radius: 999px;
+
+  background: #26374d;
+}
+
+.completed-progress-fill {
+  height: 100%;
+
+  border-radius: inherit;
+
+  background: #20c8bb;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 800px) {
+
+  .completed-card-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .completed-qa-button {
+    width: 100%;
+  }
+
+  .completed-stats {
+    grid-template-columns: 1fr 1fr;
+
+    row-gap: 16px;
+  }
+
+  .completed-stat:nth-child(2) {
+    border-right: none;
+  }
+}
+
+
+@media (max-width: 500px) {
+
+  .completed-panel {
+    padding: 16px;
+  }
+
+  .completed-card {
+    padding: 16px;
+  }
+
+  .completed-panel-header {
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+  }
+
+  .completed-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .completed-stat {
+    padding: 0 !important;
+    border-right: none !important;
+  }
+
+}

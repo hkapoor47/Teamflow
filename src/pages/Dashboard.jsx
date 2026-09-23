@@ -1,18 +1,184 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { useProjects } from "../context/ProjectContext.jsx";
 
+const API_BASE_URL = "http://65.0.11.153:5001/api";
+
 function Dashboard() {
   const navigate = useNavigate();
 
-  const { projects, tasks, projectProgress } = useProjects();
+  // Project context is kept only for compatibility with the existing app.
+  // Task data is now fetched directly from the backend.
+  useProjects();
+
+  const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [projectError, setProjectError] = useState("");
 
   // --------------------------------------------------
-  // BASIC TASK COUNTS
+  // BACKEND TASK DATA
   // --------------------------------------------------
 
-  const activeTasks = tasks.filter(
-    (task) => task.status === "In Progress"
+  const [backendTasks, setBackendTasks] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
+
+  // --------------------------------------------------
+  // FETCH PROJECTS FROM BACKEND
+  // --------------------------------------------------
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoadingProjects(true);
+        setProjectError("");
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          throw new Error(
+            "Authentication required. Please login again."
+          );
+        }
+
+        const response = await fetch(
+          `${API_BASE_URL}/projects`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        console.log("DASHBOARD PROJECTS:", data);
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to fetch projects"
+          );
+        }
+
+        setProjects(
+          Array.isArray(data.projects)
+            ? data.projects
+            : []
+        );
+      } catch (error) {
+        console.error(
+          "Dashboard projects error:",
+          error
+        );
+
+        setProjectError(
+          error.message ||
+            "Unable to load projects."
+        );
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  // --------------------------------------------------
+  // FETCH ALL TASKS FROM BACKEND
+  // --------------------------------------------------
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        setLoadingTasks(true);
+
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          throw new Error(
+            "Authentication required. Please login again."
+          );
+        }
+
+        const response = await fetch(
+          `${API_BASE_URL}/all-tasks`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        console.log(
+          "DASHBOARD ALL TASKS:",
+          data
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            data.message ||
+              "Failed to fetch tasks"
+          );
+        }
+
+        const allTasks = Array.isArray(data.tasks)
+          ? data.tasks
+          : [];
+
+        setBackendTasks(allTasks);
+
+        console.log(
+          "TASKS FROM DATABASE:",
+          allTasks
+        );
+
+        console.log(
+          "TOTAL TASKS:",
+          allTasks.length
+        );
+      } catch (error) {
+        console.error(
+          "Dashboard tasks error:",
+          error
+        );
+
+        setBackendTasks([]);
+      } finally {
+        setLoadingTasks(false);
+      }
+    };
+
+    fetchTasks();
+  }, []);
+
+  // --------------------------------------------------
+  // TOTAL TASKS
+  // --------------------------------------------------
+
+  const totalTasks = backendTasks.length;
+
+  // --------------------------------------------------
+  // ACTIVE / IN-PROGRESS TASKS
+  // --------------------------------------------------
+
+  const activeTasks = backendTasks.filter(
+    (task) => {
+      const status = String(
+        task.status || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        status === "in progress" ||
+        status === "in_progress" ||
+        status === "in-progress"
+      );
+    }
   ).length;
 
   // --------------------------------------------------
@@ -20,55 +186,24 @@ function Dashboard() {
   // --------------------------------------------------
 
   const completedProjects = projects.filter(
-    (project) => projectProgress(project.id) >= 100
+    (project) =>
+      String(project.status || "")
+        .toUpperCase() === "COMPLETED"
   );
 
   // --------------------------------------------------
   // ACTIVE PROJECTS
-  // Ranked by active work + deadline urgency
-  // Completed projects are excluded.
   // --------------------------------------------------
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const activeProjects = projects.filter(
+    (project) =>
+      String(project.status || "")
+        .toUpperCase() !== "COMPLETED"
+  );
 
-  const activeProjects = [...projects]
-    .map((project) => {
-      const projectTasks = tasks.filter(
-        (task) => task.projectId === project.id
-      );
-
-      const activeCount = projectTasks.filter(
-        (task) => task.status === "In Progress"
-      ).length;
-
-      const dueDate =
-        project.deadline && project.deadline !== "Not set"
-          ? new Date(`${project.deadline}T00:00:00`)
-          : null;
-
-      const daysLeft = dueDate
-        ? Math.ceil(
-            (dueDate - today) / (1000 * 60 * 60 * 24)
-          )
-        : 999;
-
-      const urgencyScore =
-        activeCount * 2 +
-        (daysLeft > 0 ? 10 / daysLeft : 20);
-
-      return {
-        project,
-        urgencyScore,
-      };
-    })
-    .filter(
-      ({ project }) => projectProgress(project.id) < 100
-    )
-    .sort(
-      (a, b) => b.urgencyScore - a.urgencyScore
-    )
-    .map(({ project }) => project);
+  // --------------------------------------------------
+  // RENDER
+  // --------------------------------------------------
 
   return (
     <DashboardLayout>
@@ -80,15 +215,20 @@ function Dashboard() {
 
         <section className="welcome teamflow-heading">
           <div>
+
             <p className="welcome-label">
               TEAMFLOW WORKSPACE
             </p>
 
-            <h2>Dashboard</h2>
+            <h2>
+              Dashboard
+            </h2>
 
             <p className="welcome-description">
-              A clear view of delivery, deadlines and the people doing the work.
+              A clear view of delivery, deadlines and the
+              people doing the work.
             </p>
+
           </div>
         </section>
 
@@ -105,82 +245,172 @@ function Dashboard() {
 
           <button
             className="overview-card"
-            onClick={() => navigate("/projects")}
+            onClick={() =>
+              navigate("/projects")
+            }
           >
+
             <span className="overview-icon teal">
               ▣
             </span>
 
             <span>
-              <small>Total projects</small>
 
-              <strong>{projects.length}</strong>
+              <small>
+                Total projects
+              </small>
 
-              <em>View every project</em>
+              <strong>
+                {loadingProjects
+                  ? "..."
+                  : projects.length}
+              </strong>
+
+              <em>
+                View every project
+              </em>
+
             </span>
+
           </button>
 
           {/* TOTAL TASKS */}
 
           <button
             className="overview-card"
-            onClick={() => navigate("/tasks")}
+            onClick={() =>
+              navigate("/tasks")
+            }
           >
+
             <span className="overview-icon blue">
               ✓
             </span>
 
             <span>
-              <small>Total tasks</small>
 
-              <strong>{tasks.length}</strong>
+              <small>
+                Total tasks
+              </small>
 
-              <em>{activeTasks} in progress</em>
+              <strong>
+                {loadingTasks
+                  ? "..."
+                  : totalTasks}
+              </strong>
+
+              <em>
+                {loadingTasks
+                  ? "Loading..."
+                  : `${activeTasks} in progress`}
+              </em>
+
             </span>
+
           </button>
 
           {/* COMPLETED PROJECTS */}
 
           <button
-  className="overview-card"
-  onClick={() => navigate("/completed-projects")}
->
-  <span className="overview-icon teal">
-    ✓
-  </span>
+            className="overview-card"
+            onClick={() =>
+              navigate(
+                "/completed-projects"
+              )
+            }
+          >
 
-  <span>
-    <small>Completed projects</small>
+            <span className="overview-icon teal">
+              ✓
+            </span>
 
-    <strong>{completedProjects.length}</strong>
+            <span>
 
-    <em>Successfully delivered</em>
-  </span>
-</button>
+              <small>
+                Completed projects
+              </small>
+
+              <strong>
+                {loadingProjects
+                  ? "..."
+                  : completedProjects.length}
+              </strong>
+
+              <em>
+                Successfully delivered
+              </em>
+
+            </span>
+
+          </button>
 
         </section>
 
         {/* --------------------------------------------- */}
-        {/* ACTIVE / RECENT PROJECTS */}
+        {/* ACTIVE PROJECTS */}
         {/* --------------------------------------------- */}
 
         <section className="panel active-projects-panel">
 
           <div className="panel-header">
+
             <div>
-              <h3>Active projects</h3>
+
+              <h3>
+                Active projects
+              </h3>
 
               <p>
                 Projects currently being worked on.
               </p>
+
             </div>
+
           </div>
 
           <div className="active-project-list dashboard-project-scroll">
 
-            {activeProjects.length === 0 ? (
+            {/* LOADING */}
+
+            {loadingProjects ? (
+
               <div className="empty-state">
-                <span>✓</span>
+
+                <strong>
+                  Loading projects...
+                </strong>
+
+                <p>
+                  Getting projects from the server.
+                </p>
+
+              </div>
+
+            ) : projectError ? (
+
+              /* ERROR */
+
+              <div className="empty-state">
+
+                <strong>
+                  Unable to load projects
+                </strong>
+
+                <p>
+                  {projectError}
+                </p>
+
+              </div>
+
+            ) : activeProjects.length === 0 ? (
+
+              /* EMPTY */
+
+              <div className="empty-state">
+
+                <span>
+                  ✓
+                </span>
 
                 <strong>
                   No active projects
@@ -189,74 +419,78 @@ function Dashboard() {
                 <p>
                   All projects are currently completed.
                 </p>
+
               </div>
+
             ) : (
-              activeProjects.map((project) => {
 
-                const progress =
-                  projectProgress(project.id);
+              /* PROJECT LIST */
 
-                const projectTasks =
-                  tasks.filter(
-                    (task) =>
-                      task.projectId === project.id
-                  );
+              activeProjects.map(
+                (project) => {
 
-                const projectActiveTasks =
-                  projectTasks.filter(
-                    (task) =>
-                      task.status === "In Progress"
-                  ).length;
+                  return (
+                    <button
+                      className="active-project-row"
+                      key={project.id}
+                      onClick={() =>
+                        navigate(
+                          `/projects/${project.id}`
+                        )
+                      }
+                    >
 
-                return (
-                  <button
-                    className="active-project-row"
-                    key={project.id}
-                    onClick={() =>
-                      navigate(
-                        `/projects/${project.id}`
-                      )
-                    }
-                  >
+                      {/* PROJECT ICON */}
 
-                    {/* PROJECT ICON */}
+                      <span className="project-avatar">
 
-                    <span className="project-avatar">
-                      {project.name.charAt(0)}
-                    </span>
+                        {project.name
+                          ?.charAt(0)
+                          ?.toUpperCase() ||
+                          "P"}
 
-                    {/* PROJECT INFO */}
-
-                    <span className="active-project-main">
-
-                      <strong className="active-project-name">
-                        {project.name}
-                      </strong>
-
-                      <small>
-                        {projectActiveTasks} active tasks · Due{" "}
-                        {project.deadline}
-                      </small>
-
-                      <span className="mini-progress">
-                        <i
-                          style={{
-                            width: `${progress}%`,
-                          }}
-                        />
                       </span>
 
-                    </span>
+                      {/* PROJECT INFO */}
 
-                    {/* PROGRESS */}
+                      <span className="active-project-main">
 
-                    <span className="progress-number">
-                      {progress}%
-                    </span>
+                        <strong className="active-project-name">
+                          {project.name}
+                        </strong>
 
-                  </button>
-                );
-              })
+                        <small>
+
+                          Status:{" "}
+                          {project.status ||
+                            "ACTIVE"}
+
+                          {" · "}
+
+                          Due{" "}
+
+                          {project.deadline
+                            ? new Date(
+                                project.deadline
+                              ).toLocaleDateString()
+                            : "Not set"}
+
+                        </small>
+
+                      </span>
+
+                      {/* PROJECT STATUS */}
+
+                      <span className="progress-number">
+                        {project.status ||
+                          "ACTIVE"}
+                      </span>
+
+                    </button>
+                  );
+                }
+              )
+
             )}
 
           </div>
