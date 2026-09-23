@@ -24,11 +24,8 @@ const normalizeTask = (task) => {
   return {
     ...task,
 
-    // Backend field
     id: task.id,
 
-    // Keep both formats so existing frontend pages
-    // can continue working while we migrate them.
     projectId:
       task.project_id ??
       task.projectId ??
@@ -44,8 +41,7 @@ const normalizeTask = (task) => {
 
     status: task.status || "TODO",
 
-    progress:
-      Number(task.progress) || 0,
+    progress: Number(task.progress) || 0,
 
     dueDate:
       task.due_date ??
@@ -72,26 +68,10 @@ const normalizeTask = (task) => {
 ===================================================== */
 
 export function ProjectProvider({ children }) {
-  /*
-   * IMPORTANT:
-   *
-   * There are NO seedProjects.
-   * There are NO seedTasks.
-   *
-   * Data comes from the backend.
-   */
-
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
 
-  /*
-   * Members are temporarily empty because we do not yet
-   * have the backend members API.
-   *
-   * Once you give me that API, this will also become
-   * backend-driven.
-   */
-
+  // No confirmed members API yet.
   const [members, setMembers] = useState([]);
 
   const [claimRequests, setClaimRequests] = useState([]);
@@ -112,10 +92,7 @@ export function ProjectProvider({ children }) {
       const token = getToken();
 
       if (!token) {
-        console.error(
-          "No authentication token found."
-        );
-
+        console.error("No authentication token found.");
         setProjects([]);
         return;
       }
@@ -146,11 +123,10 @@ export function ProjectProvider({ children }) {
         );
       }
 
-      const backendProjects = Array.isArray(
-        data.projects
-      )
-        ? data.projects
-        : [];
+      const backendProjects =
+        Array.isArray(data.projects)
+          ? data.projects
+          : [];
 
       setProjects(backendProjects);
     } catch (error) {
@@ -174,10 +150,7 @@ export function ProjectProvider({ children }) {
       const token = getToken();
 
       if (!token) {
-        console.error(
-          "No authentication token found."
-        );
-
+        console.error("No authentication token found.");
         setTasks([]);
         return;
       }
@@ -208,11 +181,10 @@ export function ProjectProvider({ children }) {
         );
       }
 
-      const backendTasks = Array.isArray(
-        data.tasks
-      )
-        ? data.tasks.map(normalizeTask)
-        : [];
+      const backendTasks =
+        Array.isArray(data.tasks)
+          ? data.tasks.map(normalizeTask)
+          : [];
 
       setTasks(backendTasks);
     } catch (error) {
@@ -295,9 +267,6 @@ export function ProjectProvider({ children }) {
 
   /* ===================================================
      CREATE PROJECT
-     
-     Backend:
-       POST /api/projects
   =================================================== */
 
   const createProject = async ({
@@ -321,14 +290,6 @@ export function ProjectProvider({ children }) {
           description?.trim() || null,
         deadline: deadline || null,
       };
-
-      /*
-       * Requirements is retained in the frontend
-       * function signature for compatibility.
-       *
-       * If your backend later supports a requirements
-       * field, we can add it here.
-       */
 
       console.log(
         "CREATE PROJECT REQUEST:",
@@ -361,12 +322,6 @@ export function ProjectProvider({ children }) {
         );
       }
 
-      /*
-       * Refresh from backend.
-       *
-       * We DO NOT add a fake project to state.
-       */
-
       await fetchProjects();
 
       return data.project || data;
@@ -382,9 +337,6 @@ export function ProjectProvider({ children }) {
 
   /* ===================================================
      CREATE TASK
-     
-     Backend:
-       POST /api/projects/:projectId/tasks
   =================================================== */
 
   const createTask = async ({
@@ -416,13 +368,10 @@ export function ProjectProvider({ children }) {
 
       const requestBody = {
         title: title.trim(),
-
         assigned_to: assigneeId
           ? Number(assigneeId)
           : null,
-
-        due_date:
-          dueDate || null,
+        due_date: dueDate || null,
       };
 
       console.log(
@@ -456,13 +405,6 @@ export function ProjectProvider({ children }) {
         );
       }
 
-      /*
-       * IMPORTANT:
-       *
-       * Do not manually add the task to state.
-       * Fetch the real database data again.
-       */
-
       await fetchTasks();
 
       return data.task || data;
@@ -478,10 +420,8 @@ export function ProjectProvider({ children }) {
 
   /* ===================================================
      ASSIGN TASK
-     
-     Backend assignment API has not been provided yet.
-     
-     Therefore we DO NOT fake an assignment locally.
+
+     Backend assignment API not provided yet.
   =================================================== */
 
   const assignTask = async (
@@ -495,38 +435,66 @@ export function ProjectProvider({ children }) {
         memberId,
       }
     );
-
-    /*
-     * Do not modify local task data because that would
-     * make the frontend disagree with the database.
-     */
   };
 
   /* ===================================================
      CLAIM TASK
-     
-     Backend claim API has not been provided here.
-     
-     Do not fake claims locally.
+
+     CORRECT BACKEND:
+     POST /api/projects/:taskId/claim
   =================================================== */
 
-  const requestClaim = async (
-    taskId,
-    memberId
-  ) => {
-    console.warn(
-      "requestClaim backend API is not connected yet.",
-      {
-        taskId,
-        memberId,
+  const requestClaim = async (taskId) => {
+    try {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error(
+          "Please login again."
+        );
       }
-    );
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${taskId}/claim`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      console.log(
+        "CLAIM TASK RESPONSE:",
+        data
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            "Failed to claim task"
+        );
+      }
+
+      // Refresh from database.
+      await fetchTasks();
+
+      return data;
+    } catch (error) {
+      console.error(
+        "Claim task error:",
+        error
+      );
+
+      throw error;
+    }
   };
 
   /* ===================================================
-     APPROVE CLAIM
-     
-     Backend claim approval API has not been provided.
+     OTHER WORKFLOW FUNCTIONS
   =================================================== */
 
   const approveClaim = async (
@@ -539,14 +507,6 @@ export function ProjectProvider({ children }) {
       }
     );
   };
-
-  /* ===================================================
-     UPDATE TASK STATUS
-     
-     Backend status-update API has not been provided.
-     
-     Do not update local fake state.
-  =================================================== */
 
   const updateTaskStatus = async (
     taskId,
@@ -562,12 +522,6 @@ export function ProjectProvider({ children }) {
       }
     );
   };
-
-  /* ===================================================
-     UPDATE TASK PROGRESS
-     
-     Backend progress-update API has not been provided.
-  =================================================== */
 
   const updateTaskProgress = async (
     taskId,
@@ -590,55 +544,24 @@ export function ProjectProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      /*
-       * REAL BACKEND DATA
-       */
-
       projects,
       tasks,
       members,
 
-      /*
-       * Existing workflow data.
-       * These will become backend-driven as their APIs
-       * are connected.
-       */
-
       claimRequests,
       activities,
-
-      /*
-       * Loading states
-       */
 
       loadingProjects,
       loadingTasks,
 
-      /*
-       * Progress
-       */
-
       projectProgress,
-
-      /*
-       * Refresh
-       */
 
       refreshProjects,
       refreshTasks,
       refreshData,
 
-      /*
-       * Backend-connected creation
-       */
-
       createProject,
       createTask,
-
-      /*
-       * Placeholder workflow functions.
-       * They do NOT create fake frontend data.
-       */
 
       assignTask,
       requestClaim,

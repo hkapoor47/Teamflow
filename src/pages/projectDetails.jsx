@@ -718,14 +718,18 @@ function ProjectDetails() {
 
                               </div>
 
-                            ) : task.claimed_by_name ? (
+                            ) : task.claimed_by_name ? ||
+                                task.claimedByName ? (
 
                               <div className="table-member">
 
                                 <div className="member-avatar">
 
-                                  {task.claimed_by_name
-                                    ?.charAt(0)
+                                  {(task.claimed_by_name ||
+                                     task.claimedByName ||
+                                      ""
+                                    )
+                                    .charAt(0)
                                     ?.toUpperCase()}
 
                                 </div>
@@ -733,7 +737,7 @@ function ProjectDetails() {
                                 <div>
 
                                   <strong>
-                                    {task.claimed_by_name}
+                                    {task.claimed_by_name || task.claimedByName}
                                   </strong>
 
                                   <span>
