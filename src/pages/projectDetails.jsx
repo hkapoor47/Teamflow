@@ -718,7 +718,7 @@ function ProjectDetails() {
 
                               </div>
 
-                            ) : task.claimed_by_name ? ||
+                            ) : task.claimed_by_name  ||
                                 task.claimedByName ? (
 
                               <div className="table-member">
