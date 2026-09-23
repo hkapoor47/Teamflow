@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
+import { useProjects } from "../context/ProjectContext.jsx";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 
 function Tickets() {
+  const { requestClaim, refreshTasks } = useProjects();
+
   const [tickets, setTickets] = useState([]);
+  const [claimingTicketId, setClaimingTicketId] = useState(null);
 
   useEffect(() => {
     const savedTickets = JSON.parse(
@@ -25,18 +29,43 @@ function Tickets() {
   // CLAIM TICKET
   // ============================
 
-  const claimTicket = (ticketId) => {
-    const updatedTickets = tickets.map((ticket) =>
-      ticket.id === ticketId
-        ? {
-            ...ticket,
-            status: "Claimed",
-            assignedTo: "You",
-          }
-        : ticket
+  const claimTicket = async (ticketId) => {
+    const ticket = tickets.find(
+      (item) => item.id === ticketId
     );
 
-    updateTickets(updatedTickets);
+    const taskId = ticket?.taskId || ticket?.backendTaskId;
+
+    if (!taskId) {
+      alert(
+        "This ticket is not linked to a backend task."
+      );
+      return;
+    }
+
+    try {
+      setClaimingTicketId(ticketId);
+
+      await requestClaim(taskId);
+
+      const updatedTickets = tickets.map((item) =>
+        item.id === ticketId
+          ? {
+              ...item,
+              status: "Claimed",
+              assignedTo: "You",
+            }
+          : item
+      );
+
+      updateTickets(updatedTickets);
+      await refreshTasks();
+    } catch (error) {
+      console.error("Claim ticket error:", error);
+      alert(error.message || "Failed to claim ticket.");
+    } finally {
+      setClaimingTicketId(null);
+    }
   };
 
   // ============================
@@ -304,8 +333,13 @@ function Tickets() {
                         onClick={() =>
                           claimTicket(ticket.id)
                         }
+                        disabled={
+                          claimingTicketId === ticket.id
+                        }
                       >
-                        Claim Ticket
+                        {claimingTicketId === ticket.id
+                          ? "Claiming..."
+                          : "Claim Ticket"}
                       </button>
 
                     )}

@@ -348,7 +348,7 @@ export function ProjectProvider({ children }) {
         );
       }
 
-      setUsers(
+      setMembers(
         Array.isArray(data.users)
           ? data.users
           : []
@@ -374,6 +374,8 @@ export function ProjectProvider({ children }) {
     fetchProjects();
 
     fetchTasks();
+
+    fetchUsers();
 
   }, []);
 
@@ -433,7 +435,7 @@ export function ProjectProvider({ children }) {
 
       (completedTasks /
 
-        projectTasks.length) \*
+        projectTasks.length) *
 
         100
 
@@ -596,6 +598,9 @@ export function ProjectProvider({ children }) {
   const createTask = async ({
     projectId = null,
     title,
+    description = "",
+    priority = "medium",
+    status = "pending",
     assigneeId = null,
     dueDate = null,
   }) => {
@@ -616,6 +621,9 @@ export function ProjectProvider({ children }) {
 
       const requestBody = {
         title: title.trim(),
+        description: description?.trim() || null,
+        priority: priority || "medium",
+        status: status || "pending",
         assigned_to: assigneeId
           ? Number(assigneeId)
           : null,

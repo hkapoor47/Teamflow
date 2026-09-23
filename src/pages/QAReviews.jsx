@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useProjects } from "../context/ProjectContext.jsx";
 import { useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 
@@ -28,8 +29,14 @@ const projects = {
 function QAReviews() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const { projects: backendProjects, createTask, refreshTasks } = useProjects();
 
   const project = projects[projectId];
+  const backendProject = backendProjects.find(
+    (item) =>
+      String(item.name || "").trim().toLowerCase() ===
+      String(project?.name || "").trim().toLowerCase()
+  );
 
   const [testCases, setTestCases] = useState([
     {
@@ -141,7 +148,7 @@ function QAReviews() {
   // CREATE TICKET
   // -----------------------------------
 
-  const createTicket = () => {
+  const createTicket = async () => {
     if (
       !ticketTitle.trim() ||
       !ticketDescription.trim() ||
@@ -151,65 +158,84 @@ function QAReviews() {
       return;
     }
 
-    const newTicket = {
-      id: `TKT-${String(tickets.length + 1).padStart(3, "0")}`,
-
-      projectId: projectId,
-
-      projectName: project.name,
-
-      title: ticketTitle,
-
-      description: ticketDescription,
-
-      priority: ticketPriority,
-
-      deadline: ticketDeadline,
-
-      status: "Open",
-
-      assignedTo: null,
-
-      createdAt: new Date().toISOString(),
-
-      qaStatus: "Failed",
-
-      testCaseId: selectedTest?.id,
-    };
-
-    const updatedTickets = [...tickets, newTicket];
-
-    setTickets(updatedTickets);
-
-    // Save tickets so Tickets.jsx can use them later
-    localStorage.setItem(
-      "teamflow_tickets",
-      JSON.stringify(updatedTickets)
-    );
-
-    // Mark the test case as failed
-    if (selectedTest) {
-      setTestCases((currentTests) =>
-        currentTests.map((test) =>
-          test.id === selectedTest.id
-            ? {
-                ...test,
-                status: "Failed",
-              }
-            : test
-        )
+    if (!backendProject?.id) {
+      alert(
+        "This project could not be matched with the backend project. Please refresh the page."
       );
+      return;
     }
 
-    // Close modal
-    setShowTicketModal(false);
+    try {
+      const createdTask = await createTask({
+        projectId: backendProject.id,
+        title: ticketTitle,
+        description: ticketDescription,
+        priority: ticketPriority.toLowerCase(),
+        status: "pending",
+        dueDate: ticketDeadline,
+      });
 
-    setSelectedTest(null);
+      const newTicket = {
+        id: createdTask?.id
+          ? `TKT-${createdTask.id}`
+          : `TKT-${String(tickets.length + 1).padStart(3, "0")}`,
+        taskId: createdTask?.id || null,
+        projectId: backendProject.id,
+        projectName: project.name,
+        title: ticketTitle,
+        description: ticketDescription,
+        priority: ticketPriority,
+        deadline: ticketDeadline,
+        status: "Open",
+        assignedTo: null,
+        createdAt: new Date().toISOString(),
+        qaStatus: "Failed",
+        testCaseId: selectedTest?.id,
+      };
 
-    setTicketTitle("");
-    setTicketDescription("");
-    setTicketPriority("Medium");
-    setTicketDeadline("");
+      setTickets((currentTickets) => {
+        const updatedTickets = [
+          ...currentTickets,
+          newTicket,
+        ];
+
+        localStorage.setItem(
+          "teamflow_tickets",
+          JSON.stringify(updatedTickets)
+        );
+
+        return updatedTickets;
+      });
+
+      await refreshTasks();
+
+      // Mark the test case as failed
+      if (selectedTest) {
+        setTestCases((currentTests) =>
+          currentTests.map((test) =>
+            test.id === selectedTest.id
+              ? {
+                  ...test,
+                  status: "Failed",
+                }
+              : test
+          )
+        );
+      }
+
+      // Close modal
+      setShowTicketModal(false);
+      setSelectedTest(null);
+      setTicketTitle("");
+      setTicketDescription("");
+      setTicketPriority("Medium");
+      setTicketDeadline("");
+
+      alert("Ticket created successfully.");
+    } catch (error) {
+      console.error("Create QA ticket error:", error);
+      alert(error.message || "Failed to create ticket.");
+    }
   };
 
   // -----------------------------------
