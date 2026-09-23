@@ -32,19 +32,17 @@ function CompletedProjects() {
 
         {/* Header */}
         <section className="teamflow-heading">
-          <p className="welcome-label">
-            TEAMFLOW WORKSPACE
-          </p>
+          <p className="welcome-label">TEAMFLOW WORKSPACE</p>
 
           <h2>Completed Projects</h2>
 
           <p className="welcome-description">
-            Projects where all tasks have been completed and are ready for QA testing.
+            Projects where all tasks are completed and ready for QA testing.
           </p>
         </section>
 
         {/* Back button */}
-        <div style={{ marginBottom: "24px" }}>
+        <div className="completed-back-wrapper">
           <button
             onClick={() => navigate("/dashboard")}
             className="secondary-button"
@@ -53,133 +51,139 @@ function CompletedProjects() {
           </button>
         </div>
 
-        {/* Completed projects */}
-        <section className="panel">
+        {/* Completed Projects Panel */}
+        <section className="panel completed-projects-panel">
 
-          <div className="panel-header">
+          {/* Panel Header */}
+          <div className="panel-header completed-panel-header">
             <div>
               <h3>Completed Projects</h3>
               <p>
-                Start QA testing for a completed project.
+                Select a project to begin the QA testing process.
               </p>
             </div>
 
-            <span className="completed-badge">
+            <span className="completed-count-badge">
               {completedProjects.length} Completed
             </span>
           </div>
 
+          {/* Empty State */}
           {completedProjects.length === 0 ? (
-
             <div className="empty-state">
-              <span>✓</span>
+              <span className="empty-check">✓</span>
 
-              <strong>
-                No completed projects
-              </strong>
+              <strong>No completed projects</strong>
 
               <p>
-                A project will appear here once all its
-                tasks have been completed.
+                A project will appear here once all its tasks have been
+                completed.
               </p>
             </div>
-
           ) : (
-
             <div className="completed-project-list">
 
               {completedProjects.map((project) => (
-
                 <div
                   key={project.id}
-                  className="completed-project-item"
+                  className="completed-project-card"
                 >
 
-                  {/* Project information */}
-                  <div className="completed-project-main">
+                  {/* Top Section */}
+                  <div className="completed-card-top">
 
-                    <div className="project-avatar">
-                      {project.name.charAt(0)}
-                    </div>
+                    <div className="completed-project-info">
 
-                    <div className="completed-project-content">
+                      <div className="project-avatar">
+                        {project.name.charAt(0)}
+                      </div>
 
-                      <div className="completed-project-title-row">
-
-                        <div>
+                      <div>
+                        <div className="completed-title-line">
                           <h3>{project.name}</h3>
 
-                          <p>
-                            {project.description}
-                          </p>
+                          <span className="completed-status">
+                            ✓ Completed
+                          </span>
                         </div>
 
-                        <span className="completed-badge">
-                          ✓ Completed
-                        </span>
-
-                      </div>
-
-                      {/* Project details */}
-                      <div className="completed-project-meta">
-
-                        <span>
-                          ✓ {project.tasks} tasks completed
-                        </span>
-
-                        <span>
-                          👥 {project.members} members
-                        </span>
-
-                        <span>
-                          Completed: {project.completedDate}
-                        </span>
-
-                      </div>
-
-                      {/* Progress */}
-                      <div className="project-progress-wrapper">
-
-                        <div className="project-progress-header">
-                          <span>Project Progress</span>
-                          <strong>{project.progress}%</strong>
-                        </div>
-
-                        <div className="project-progress-bar">
-                          <div
-                            className="project-progress-fill"
-                            style={{
-                              width: `${project.progress}%`,
-                            }}
-                          />
-                        </div>
-
+                        <p>{project.description}</p>
                       </div>
 
                     </div>
-
-                  </div>
-
-                  {/* QA action */}
-                  <div className="completed-project-action">
 
                     <button
                       onClick={() =>
                         navigate(`/qa-reviews/${project.id}`)
                       }
-                      className="primary-button"
+                      className="primary-button qa-button"
                     >
                       Start QA Testing →
                     </button>
 
                   </div>
 
-                </div>
+                  {/* Stats */}
+                  <div className="completed-project-stats">
 
+                    <div className="completed-stat">
+                      <span className="stat-label">Tasks</span>
+                      <strong>{project.tasks}</strong>
+                      <small>Completed</small>
+                    </div>
+
+                    <div className="completed-stat">
+                      <span className="stat-label">Team</span>
+                      <strong>{project.members}</strong>
+                      <small>Members</small>
+                    </div>
+
+                    <div className="completed-stat">
+                      <span className="stat-label">Completed</span>
+                      <strong>
+                        {new Date(project.completedDate).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }
+                        )}
+                      </strong>
+                      <small>Completion date</small>
+                    </div>
+
+                    <div className="completed-stat">
+                      <span className="stat-label">Progress</span>
+                      <strong>{project.progress}%</strong>
+                      <small>Project complete</small>
+                    </div>
+
+                  </div>
+
+                  {/* Progress */}
+                  <div className="completed-progress-section">
+
+                    <div className="completed-progress-header">
+                      <span>Project Progress</span>
+                      <strong>{project.progress}%</strong>
+                    </div>
+
+                    <div className="completed-progress-bar">
+                      <div
+                        className="completed-progress-fill"
+                        style={{
+                          width: `${project.progress}%`,
+                        }}
+                      />
+                    </div>
+
+                  </div>
+
+                </div>
               ))}
 
             </div>
-
           )}
 
         </section>
@@ -190,3 +194,5 @@ function CompletedProjects() {
 }
 
 export default CompletedProjects;
+
+

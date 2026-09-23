@@ -4813,3 +4813,39 @@ body, .app-layout, .page-content { background: var(--background); }
     gap: 8px;
   }
 }
+
+/* =========================================
+   DASHBOARD - ACTIVE PROJECT ROW
+========================================= */
+
+.active-project-row {
+  color: #ffffff;
+}
+
+.active-project-row .active-project-name {
+  color: #ffffff !important;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.active-project-row:hover .active-project-name {
+  color: #ffffff !important;
+}
+
+.active-project-row:focus .active-project-name {
+  color: #ffffff !important;
+}
+
+.active-project-row:active .active-project-name {
+  color: #ffffff !important;
+}
+/* Keep the project description/date readable */
+
+.active-project-row .active-project-main small {
+  color: #aebbd0 !important;
+}
+
+.active-project-row:hover .active-project-main small {
+  color: #aebbd0 !important;
+}

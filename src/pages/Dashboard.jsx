@@ -142,21 +142,21 @@ function Dashboard() {
           {/* COMPLETED PROJECTS */}
 
           <button
-            className="stat-card"
-            onClick={() => navigate("/completed-projects")}
-          >
-            <span className="stat-icon">
-              ✓
-            </span>
+  className="overview-card"
+  onClick={() => navigate("/completed-projects")}
+>
+  <span className="overview-icon teal">
+    ✓
+  </span>
 
-            <span>
-              <small>Completed projects</small>
+  <span>
+    <small>Completed projects</small>
 
-              <strong>{completedProjects.length}</strong>
+    <strong>{completedProjects.length}</strong>
 
-              <em>Successfully delivered</em>
-            </span>
-          </button>
+    <em>Successfully delivered</em>
+  </span>
+</button>
 
         </section>
 
@@ -229,7 +229,7 @@ function Dashboard() {
 
                     <span className="active-project-main">
 
-                      <strong>
+                      <strong className="active-project-name">
                         {project.name}
                       </strong>
 
