@@ -61,7 +61,14 @@ function QAReviews() {
   const [createTestError, setCreateTestError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const [tickets, setTickets] = useState([]);
+  const [tickets, setTickets] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("teamflow_tickets") || "[]");
+      return Array.isArray(saved) ? saved : [];
+    } catch {
+      return [];
+    }
+  });
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
 
@@ -70,6 +77,7 @@ function QAReviews() {
   const [ticketPriority, setTicketPriority] = useState("Medium");
   const [ticketDeadline, setTicketDeadline] = useState("");
   const [creatingTicket, setCreatingTicket] = useState(false);
+  const [claimingTicketId, setClaimingTicketId] = useState(null);
 
   /* =====================================================
      LOAD QA TESTS
@@ -106,6 +114,110 @@ function QAReviews() {
     };
 
     loadQATests();
+  }, [backendProject?.id]);
+
+  /* =====================================================
+     LOAD TICKETS
+     GET /api/projects/:projectId/tickets
+  ===================================================== */
+
+  useEffect(() => {
+    const loadTickets = async () => {
+      if (!backendProject?.id) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const response = await fetch(
+          `${API_BASE_URL}/projects/${backendProject.id}/tickets`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const responseText = await response.text();
+        let data = {};
+
+        try {
+          data = responseText ? JSON.parse(responseText) : {};
+        } catch {
+          throw new Error("Invalid ticket API response.");
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data.message ||
+              `Failed to fetch tickets (${response.status})`
+          );
+        }
+
+        const apiTickets =
+          data.tickets ||
+          data.data ||
+          data;
+
+        if (Array.isArray(apiTickets)) {
+          const normalizedTickets = apiTickets.map((ticket) => ({
+            ...ticket,
+            ticketId: ticket.ticketId ?? ticket.id ?? null,
+            projectId:
+              ticket.projectId ??
+              ticket.project_id ??
+              backendProject.id,
+            title: ticket.title ?? "",
+            description: ticket.description ?? "",
+            priority: ticket.priority ?? "Medium",
+            deadline:
+              ticket.deadline ??
+              ticket.due_date ??
+              null,
+            status: ticket.status ?? "Open",
+            qa_test_id:
+              ticket.qa_test_id ??
+              ticket.qaTestId ??
+              ticket.test_case_id ??
+              ticket.testCaseId ??
+              null,
+          }));
+
+          setTickets(normalizedTickets);
+          localStorage.setItem(
+            "teamflow_tickets",
+            JSON.stringify(normalizedTickets)
+          );
+          return;
+        }
+
+        throw new Error("Ticket API did not return a ticket list.");
+      } catch (error) {
+        console.warn(
+          "Ticket GET failed; using locally-created tickets:",
+          error
+        );
+
+        try {
+          const saved = JSON.parse(
+            localStorage.getItem("teamflow_tickets") || "[]"
+          );
+
+          if (Array.isArray(saved)) {
+            setTickets(
+              saved.filter(
+                (ticket) =>
+                  String(ticket.projectId ?? ticket.project_id) ===
+                  String(backendProject.id)
+              )
+            );
+          }
+        } catch {}
+      }
+    };
+
+    loadTickets();
   }, [backendProject?.id]);
 
   /* =====================================================
@@ -310,18 +422,267 @@ function QAReviews() {
   };
 
   /* =====================================================
-     CLAIM TICKET
-
-     Ticket API will be connected here next.
-     For now this only shows a message so no fake API call
-     is made.
+     TICKET HELPERS
   ===================================================== */
 
-  const handleClaimTicket = (test) => {
-    setQaError("");
-    setSuccessMessage(
-      `Ticket claim selected for "${test.name || "this QA test"}".`
+  const getQATestId = (test) =>
+    test?.id ?? test?.test_id ?? test?.qa_test_id ?? test?.qaTestId;
+
+  const getTicketQATestId = (ticket) =>
+    ticket?.qa_test_id ??
+    ticket?.qaTestId ??
+    ticket?.testCaseId ??
+    ticket?.test_case_id;
+
+  // IMPORTANT: only a ticket linked to THIS exact QA test counts.
+  // A failed test without a linked ticket must show "Raise Ticket".
+  const getTicketForTest = (test) => {
+    const testId = getQATestId(test);
+    if (testId == null) return null;
+
+    return (
+      tickets.find((ticket) => {
+        const ticketTestId = getTicketQATestId(ticket);
+        return (
+          ticketTestId != null &&
+          String(ticketTestId) === String(testId)
+        );
+      }) || null
     );
+  };
+
+  const getTicketClaimantName = (ticket) => {
+    const directName =
+      ticket?.claimed_by_name ??
+      ticket?.claimant_name ??
+      ticket?.assignee_name ??
+      ticket?.assigned_to_name ??
+      ticket?.claimedByName ??
+      ticket?.assignedToName;
+
+    if (directName) return String(directName);
+
+    const user =
+      ticket?.claimed_by ??
+      ticket?.claimant ??
+      ticket?.assignee ??
+      ticket?.assigned_to;
+
+    if (typeof user === "string") return user;
+    if (user && typeof user === "object") {
+      return (
+        user.name ||
+        user.full_name ||
+        user.username ||
+        user.email ||
+        user.id ||
+        null
+      );
+    }
+
+    return null;
+  };
+
+  const handleClaimTicketByTicket = async (ticket) => {
+    if (!ticket) return;
+
+    const ticketId = ticket.ticketId ?? ticket.id;
+    if (!ticketId) {
+      setQaError("This ticket does not have a valid ticket ID.");
+      return;
+    }
+
+    try {
+      setQaError("");
+      setSuccessMessage("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/tickets/${ticketId}/claim`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const responseText = await response.text();
+      let data = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        throw new Error(
+          `Claim ticket API returned an invalid response (${response.status}).`
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            `Failed to claim ticket (${response.status})`
+        );
+      }
+
+      const claimed = data.ticket || data.data || data;
+      const claimedName =
+        getTicketClaimantName(claimed) ||
+        getTicketClaimantName(ticket) ||
+        "You";
+
+      setTickets((currentTickets) => {
+        const updated = currentTickets.map((item) =>
+          String(item.ticketId ?? item.id) === String(ticketId)
+            ? {
+                ...item,
+                ...(claimed || {}),
+                ticketId: claimed?.id ?? item.ticketId ?? item.id,
+                status: claimed?.status || "claimed",
+                claimed_by_name: claimedName,
+                claimedByName: claimedName,
+                assignedTo:
+                  claimed?.assigned_to ??
+                  claimed?.assignedTo ??
+                  item.assignedTo ??
+                  null,
+              }
+            : item
+        );
+
+        try {
+          localStorage.setItem(
+            "teamflow_tickets",
+            JSON.stringify(updated)
+          );
+        } catch {}
+
+        return updated;
+      });
+
+      setSuccessMessage(
+        `Ticket ${ticket.id || ticketId} claimed by ${claimedName}.`
+      );
+    } catch (error) {
+      console.error("Claim ticket error:", error);
+      setQaError(error.message || "Failed to claim ticket.");
+    } finally {
+      setClaimingTicketId(null);
+    }
+  };
+
+  const handleClaimTicket = async (test) => {
+    const ticket = getTicketForTest(test);
+
+    if (!ticket) {
+      setQaError("No ticket has been created for this failed test yet.");
+      return;
+    }
+
+    const ticketId = ticket.ticketId ?? ticket.id;
+
+    if (!ticketId) {
+      setQaError("This ticket does not have a valid ticket ID.");
+      return;
+    }
+
+    try {
+      setQaError("");
+      setSuccessMessage("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      // POST /api/tickets/:ticketId/claim
+      const response = await fetch(
+        `${API_BASE_URL}/tickets/${ticketId}/claim`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const responseText = await response.text();
+      let data = {};
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        throw new Error(
+          `Claim ticket API returned an invalid response (${response.status}).`
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            `Failed to claim ticket (${response.status})`
+        );
+      }
+
+      const claimed = data.ticket || data.data || data;
+
+      setTickets((currentTickets) => {
+        const updated = currentTickets.map((item) =>
+          String(item.ticketId ?? item.id) === String(ticketId)
+            ? {
+                ...item,
+                ...(claimed || {}),
+                ticketId: claimed?.id ?? item.ticketId ?? item.id,
+                status: claimed?.status || "claimed",
+                assignedTo:
+                  claimed?.assigned_to ??
+                  claimed?.assignedTo ??
+                  item.assignedTo ??
+                  null,
+              }
+            : item
+        );
+
+        try {
+          const allSaved = JSON.parse(
+            localStorage.getItem("teamflow_tickets") || "[]"
+          );
+          const merged = Array.isArray(allSaved)
+            ? allSaved.map((item) =>
+                String(item.ticketId ?? item.id) === String(ticketId)
+                  ? updated.find(
+                      (u) =>
+                        String(u.ticketId ?? u.id) === String(ticketId)
+                    ) || item
+                  : item
+              )
+            : updated;
+
+          localStorage.setItem(
+            "teamflow_tickets",
+            JSON.stringify(merged)
+          );
+        } catch {}
+
+        return updated;
+      });
+
+      setSuccessMessage(
+        `Ticket ${ticket.id || ticketId} claimed successfully.`
+      );
+    } catch (error) {
+      console.error("Claim ticket error:", error);
+      setQaError(error.message || "Failed to claim ticket.");
+    } finally {
+      setClaimingTicketId(null);
+    }
   };
 
   /* =====================================================
@@ -398,31 +759,103 @@ function QAReviews() {
       setCreatingTicket(true);
       setQaError("");
 
-      const createdTask = await createTask({
-        projectId: backendProject.id,
-        title: ticketTitle.trim(),
-        description: ticketDescription.trim(),
-        priority: ticketPriority.toLowerCase(),
-        status: "pending",
-        dueDate: ticketDeadline,
-      });
+      /*
+       * CREATE TICKET
+       *
+       * Backend API:
+       * POST /api/projects/:projectId/tickets
+       *
+       * The project id is taken from the matched backend project.
+       */
+      const token = localStorage.getItem("token");
 
-      const newTicket = {
-        id: createdTask?.id
-          ? `TKT-${createdTask.id}`
-          : `TKT-${String(tickets.length + 1).padStart(3, "0")}`,
-        taskId: createdTask?.id || null,
-        projectId: backendProject.id,
-        projectName: project.name,
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const requestBody = {
+        qa_test_id: selectedTest?.id,
         title: ticketTitle.trim(),
         description: ticketDescription.trim(),
         priority: ticketPriority,
-        deadline: ticketDeadline,
-        status: "Open",
-        assignedTo: null,
-        createdAt: new Date().toISOString(),
+        due_date: ticketDeadline,
+      };
+
+      console.log("CREATE TICKET REQUEST:", {
+        endpoint: `${API_BASE_URL}/projects/${backendProject.id}/tickets`,
+        body: requestBody,
+      });
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${backendProject.id}/tickets`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
+
+      const responseText = await response.text();
+
+      let data = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        throw new Error(
+          `Ticket API returned an invalid response (${response.status}).`
+        );
+      }
+
+      console.log("CREATE TICKET RESPONSE:", data);
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            `Failed to create ticket (${response.status})`
+        );
+      }
+
+      const createdTicket =
+        data.ticket ||
+        data.data ||
+        data;
+
+      const newTicket = {
+        id: createdTicket?.id
+          ? `TKT-${createdTicket.id}`
+          : `TKT-${String(tickets.length + 1).padStart(3, "0")}`,
+        ticketId: createdTicket?.id || null,
+        projectId: backendProject.id,
+        projectName: project.name,
+        title:
+          createdTicket?.title ||
+          ticketTitle.trim(),
+        description:
+          createdTicket?.description ||
+          ticketDescription.trim(),
+        priority:
+          createdTicket?.priority ||
+          ticketPriority,
+        deadline:
+          createdTicket?.due_date ||
+          createdTicket?.deadline ||
+          ticketDeadline,
+        status:
+          createdTicket?.status ||
+          "Open",
+        assignedTo:
+          createdTicket?.assigned_to ||
+          null,
+        createdAt:
+          createdTicket?.created_at ||
+          new Date().toISOString(),
         qaStatus: "Failed",
-        testCaseId: selectedTest?.id || null,
+        testCaseId: getQATestId(selectedTest) || null,
+        qa_test_id: getQATestId(selectedTest) || null,
       };
 
       setTickets((currentTickets) => {
@@ -439,7 +872,11 @@ function QAReviews() {
         return updatedTickets;
       });
 
-      await refreshTasks();
+      setTestCases((currentTests) =>
+        currentTests.filter(
+          (test) => String(getQATestId(test)) !== String(getQATestId(selectedTest))
+        )
+      );
 
       setShowTicketModal(false);
       setSelectedTest(null);
@@ -762,26 +1199,17 @@ function QAReviews() {
                         </span>
                       )}
 
-                      {status === "failed" && (
+                      {status !== "failed" && (
                         <button
-                          className="qa-action-ticket"
+                          className="qa-action-delete"
                           onClick={() =>
-                            handleClaimTicket(test)
+                            handleDeleteQATest(test.id)
                           }
+                          title="Delete test"
                         >
-                          Claim Ticket
+                          Delete
                         </button>
                       )}
-
-                      <button
-                        className="qa-action-delete"
-                        onClick={() =>
-                          handleDeleteQATest(test.id)
-                        }
-                        title="Delete test"
-                      >
-                        Delete
-                      </button>
                     </div>
                   </article>
                 );
@@ -863,13 +1291,6 @@ function QAReviews() {
                   Issues discovered during testing.
                 </p>
               </div>
-
-              <button
-                className="qa-secondary-create"
-                onClick={() => navigate("/tickets")}
-              >
-                View All Tickets →
-              </button>
             </div>
 
             <div className="qa-ticket-list">
@@ -891,7 +1312,21 @@ function QAReviews() {
                   <div className="qa-ticket-meta">
                     <span>{ticket.priority}</span>
                     <span>Due: {ticket.deadline}</span>
-                    <span>{ticket.status}</span>
+
+                    {getTicketClaimantName(ticket) ? (
+                      <span className="qa-ticket-claimed">
+                        Claimed by {getTicketClaimantName(ticket)}
+                      </span>
+                    ) : (
+                      <button
+                        className="qa-claim-ticket-button"
+                        onClick={() =>
+                          handleClaimTicketByTicket(ticket)
+                        }
+                      >
+                        Claim Ticket
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1652,11 +2087,44 @@ function QAReviews() {
             font-size: 13px;
           }
 
+          .qa-claim-ticket-button {
+            border: 1px solid #3f8fc5;
+            border-radius: 8px;
+            padding: 8px 13px;
+            background: #142f47;
+            color: #8fcaf4;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.18s ease, border-color 0.18s ease;
+          }
+
+          .qa-claim-ticket-button:hover {
+            background: #1a405e;
+            border-color: #61b4ed;
+          }
+
+          .qa-claim-ticket-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+
           .qa-ticket-meta {
             display: flex;
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
+            justify-content: flex-end;
+          }
+
+          .qa-ticket-claimed {
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #123c36;
+            color: #6ce2c1;
+            font-size: 12px;
+            font-weight: 800;
           }
 
           .qa-ticket-meta span {
@@ -1679,10 +2147,11 @@ function QAReviews() {
           }
 
           .qa-modal {
-            width: min(560px, 100%);
+            width: min(700px, calc(100vw - 48px));
+            max-width: 700px;
             max-height: 90vh;
             overflow-y: auto;
-            padding: 25px;
+            padding: 28px;
             border: 1px solid #314960;
             border-radius: 16px;
             background: #101d2d;
@@ -1694,6 +2163,14 @@ function QAReviews() {
             justify-content: space-between;
             gap: 15px;
             margin-bottom: 22px;
+          }
+
+          @media (max-width: 700px) {
+            .qa-modal {
+              width: calc(100vw - 28px);
+              max-width: none;
+              padding: 20px;
+            }
           }
 
           .qa-modal-header h3 {
