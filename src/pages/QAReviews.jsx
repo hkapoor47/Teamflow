@@ -95,7 +95,20 @@ function QAReviews() {
         setQaError("");
 
         const data = await fetchQATests(backendProject.id);
-        const tests = Array.isArray(data) ? data : [];
+        const allTests = Array.isArray(data) ? data : [];
+
+        // Keep QA tests strictly isolated to the current backend project.
+        const tests = allTests.filter((test) => {
+          const testProjectId =
+            test?.project_id ??
+            test?.projectId ??
+            test?.projectID;
+
+          return (
+            testProjectId != null &&
+            String(testProjectId) === String(backendProject.id)
+          );
+        });
 
         setTestCases(tests);
 
@@ -276,13 +289,34 @@ function QAReviews() {
         const latestTests = await fetchQATests(backendProject.id);
 
         if (Array.isArray(latestTests)) {
-          tests = latestTests;
+          tests = latestTests.filter((test) => {
+            const testProjectId =
+              test?.project_id ??
+              test?.projectId ??
+              test?.projectID;
+
+            return (
+              testProjectId != null &&
+              String(testProjectId) === String(backendProject.id)
+            );
+          });
 
           // In case the GET response is stale and does not contain the
-          // newly-created record yet, keep the POST response visible.
+          // newly-created record yet, keep the POST response visible only
+          // if it belongs to this same project.
+          const createdProjectId =
+            createdTest?.project_id ??
+            createdTest?.projectId ??
+            createdTest?.projectID;
+
           if (
             createdTest?.id &&
-            !tests.some((test) => String(test.id) === String(createdTest.id))
+            createdProjectId != null &&
+            String(createdProjectId) === String(backendProject.id) &&
+            !tests.some(
+              (test) =>
+                String(test.id) === String(createdTest.id)
+            )
           ) {
             tests = [...tests, createdTest];
           }
@@ -878,6 +912,18 @@ function QAReviews() {
         )
       );
 
+      // The failed QA test is now represented by the ticket.
+      // Remove it from Test Cases so it is shown only under QA Tickets.
+      if (selectedTest?.id != null) {
+        setTestCases((currentTests) =>
+          currentTests.filter(
+            (test) =>
+              String(getQATestId(test)) !==
+              String(selectedTest.id)
+          )
+        );
+      }
+
       setShowTicketModal(false);
       setSelectedTest(null);
       setTicketTitle("");
@@ -1129,7 +1175,32 @@ function QAReviews() {
             </div>
 
             <div className="qa-test-list">
-              {testCases.map((test, index) => {
+              {testCases
+                .filter((test) => {
+                  const testProjectId =
+                    test?.project_id ??
+                    test?.projectId ??
+                    test?.projectID;
+
+                  // Final guard against another project's QA tests.
+                  if (
+                    testProjectId == null ||
+                    String(testProjectId) !== String(backendProject?.id)
+                  ) {
+                    return false;
+                  }
+
+                  const status = normalizedStatus(test.status);
+
+                  // Once a failed QA test has a ticket, it moves to
+                  // the QA Tickets section and must disappear here.
+                  if (status === "failed") {
+                    return !getTicketForTest(test);
+                  }
+
+                  return true;
+                })
+                .map((test, index) => {
                 const status = normalizedStatus(test.status);
                 const label = getStatusLabel(test.status);
 
@@ -1213,7 +1284,7 @@ function QAReviews() {
                     </div>
                   </article>
                 );
-              })}
+                })}
             </div>
           </section>
         )}
