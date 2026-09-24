@@ -14,7 +14,7 @@ import {
 
 const ProjectContext = createContext(null);
 
-const API_BASE_URL = "http\://65.0.11.153:5001/api";
+const API_BASE_URL = "http://65.0.11.153:5001/api";
 
 const CURRENT_USER_ID = "harshita";
 
@@ -22,7 +22,7 @@ const CURRENT_USER_ID = "harshita";
 
    HELPERS
 
-\===================================================== */
+===================================================== */
 
 const getToken = () => {
 
@@ -98,7 +98,7 @@ const normalizeTask = (task) => {
 
    PROVIDER
 
-\===================================================== */
+===================================================== */
 
 export function ProjectProvider({ children }) {
 
@@ -320,7 +320,7 @@ export function ProjectProvider({ children }) {
 
       if (!token) {
         console.error("No authentication token found.");
-        setUsers([]);
+        setMembers([]);
         return;
       }
 
@@ -359,7 +359,7 @@ export function ProjectProvider({ children }) {
         error
       );
 
-      setUsers([]);
+      setMembers([]);
     }
   };
 
@@ -685,6 +685,155 @@ export function ProjectProvider({ children }) {
 
   /* ===================================================
 
+     QA TEST APIs
+
+     POST   /api/projects/:projectId/qa-tests
+     GET    /api/projects/:projectId/qa-tests
+     PATCH  /api/qa-tests/:testId
+     DELETE /api/qa-tests/:testId
+
+  =================================================== */
+
+  const fetchQATests = async (projectId) => {
+    try {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${projectId}/qa-tests`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to fetch QA tests"
+        );
+      }
+
+      return data.testCases || data.qaTests || data;
+    } catch (error) {
+      console.error("Fetch QA tests error:", error);
+      throw error;
+    }
+  };
+
+  const createQATest = async (projectId, testData) => {
+    try {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${projectId}/qa-tests`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(testData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to create QA test"
+        );
+      }
+
+      return data.testCase || data.qaTest || data;
+    } catch (error) {
+      console.error("Create QA test error:", error);
+      throw error;
+    }
+  };
+
+  const updateQATest = async (testId, status) => {
+    try {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/qa-tests/${testId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to update QA test"
+        );
+      }
+
+      return data.testCase || data.qaTest || data;
+    } catch (error) {
+      console.error("Update QA test error:", error);
+      throw error;
+    }
+  };
+
+  const deleteQATest = async (testId) => {
+    try {
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/qa-tests/${testId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // DELETE APIs may return 204 / an empty body.
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to delete QA test"
+        );
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Delete QA test error:", error);
+      throw error;
+    }
+  };
+
+  /* ===================================================
+
      ASSIGN TASK
 
      Backend assignment API not provided yet.
@@ -923,6 +1072,14 @@ export function ProjectProvider({ children }) {
 
       createTask,
 
+      fetchQATests,
+
+      createQATest,
+
+      updateQATest,
+
+      deleteQATest,
+
       assignTask,
 
       requestClaim,
@@ -951,17 +1108,24 @@ export function ProjectProvider({ children }) {
 
       loadingTasks,
 
+      projectProgress,
+
+      fetchQATests,
+      createQATest,
+      updateQATest,
+      deleteQATest,
+
     ]
 
   );
 
   return (
 
-    \<ProjectContext.Provider value={value}>
+    <ProjectContext.Provider value={value}>
 
       {children}
 
-    \</ProjectContext.Provider>
+    </ProjectContext.Provider>
 
   );
 
@@ -971,7 +1135,7 @@ export function ProjectProvider({ children }) {
 
    HOOK
 
-\===================================================== */
+===================================================== */
 
 export function useProjects() {
 
