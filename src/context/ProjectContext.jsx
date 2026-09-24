@@ -762,7 +762,7 @@ export function ProjectProvider({ children }) {
     }
   };
 
-  const updateQATest = async (testId, status) => {
+  const updateQATest = async (projectId, testId, status) => {
     try {
       const token = getToken();
 
@@ -771,7 +771,7 @@ export function ProjectProvider({ children }) {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/qa-tests/${testId}`,
+        `${API_BASE_URL}/projects/${projectId}/qa-tests/${testId}`,
         {
           method: "PATCH",
           headers: {
@@ -782,7 +782,16 @@ export function ProjectProvider({ children }) {
         }
       );
 
-      const data = await response.json();
+      const text = await response.text();
+
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          `QA update API returned an invalid response (${response.status}).`
+        );
+      }
 
       if (!response.ok) {
         throw new Error(

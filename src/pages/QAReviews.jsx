@@ -3,6 +3,8 @@ import { useProjects } from "../context/ProjectContext.jsx";
 import { useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 
+const API_BASE_URL = "http://65.0.11.153:5001/api";
+
 const projects = {
   "website-redesign": {
     name: "Website Redesign",
@@ -245,6 +247,7 @@ function QAReviews() {
       setSuccessMessage("");
 
       const updatedTest = await updateQATest(
+        backendProject.id,
         testId,
         "passed"
       );
@@ -276,6 +279,7 @@ function QAReviews() {
       setSuccessMessage("");
 
       const updatedTest = await updateQATest(
+        backendProject.id,
         test.id,
         "failed"
       );
@@ -303,6 +307,21 @@ function QAReviews() {
         error.message || "Failed to update QA test."
       );
     }
+  };
+
+  /* =====================================================
+     CLAIM TICKET
+
+     Ticket API will be connected here next.
+     For now this only shows a message so no fake API call
+     is made.
+  ===================================================== */
+
+  const handleClaimTicket = (test) => {
+    setQaError("");
+    setSuccessMessage(
+      `Ticket claim selected for "${test.name || "this QA test"}".`
+    );
   };
 
   /* =====================================================
@@ -715,36 +734,42 @@ function QAReviews() {
                     </div>
 
                     <div className="qa-test-actions">
-                      {status !== "passed" && (
-                        <button
-                          className="qa-action-pass"
-                          onClick={() =>
-                            markPassed(test.id)
-                          }
-                        >
-                          ✓ Pass
-                        </button>
+                      {status === "pending" && (
+                        <>
+                          <button
+                            className="qa-action-pass"
+                            onClick={() =>
+                              markPassed(test.id)
+                            }
+                          >
+                            ✓ Pass
+                          </button>
+
+                          <button
+                            className="qa-action-fail"
+                            onClick={() =>
+                              markFailed(test)
+                            }
+                          >
+                            ✕ Fail
+                          </button>
+                        </>
                       )}
 
-                      {status !== "failed" && (
-                        <button
-                          className="qa-action-fail"
-                          onClick={() =>
-                            markFailed(test)
-                          }
-                        >
-                          ✕ Fail
-                        </button>
+                      {status === "passed" && (
+                        <span className="qa-result-label qa-result-passed">
+                          ✓ Passed
+                        </span>
                       )}
 
                       {status === "failed" && (
                         <button
                           className="qa-action-ticket"
                           onClick={() =>
-                            openTicketModal(test)
+                            handleClaimTicket(test)
                           }
                         >
-                          Raise Ticket
+                          Claim Ticket
                         </button>
                       )}
 
@@ -1438,6 +1463,23 @@ function QAReviews() {
             font-size: 12px;
             font-weight: 800;
             cursor: pointer;
+          }
+
+          .qa-result-label {
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+          }
+
+          .qa-result-passed {
+            background: #123c36;
+            color: #6ce2c1;
+          }
+
+          .qa-result-failed {
+            background: #40242c;
+            color: #ff9aa8;
           }
 
           .qa-action-pass {
