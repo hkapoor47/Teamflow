@@ -14,7 +14,7 @@ import {
 
 const ProjectContext = createContext(null);
 
-const API_BASE_URL = "http://65.0.11.153:5001/api";
+const API_BASE_URL = "http\://65.0.11.153:5001/api";
 
 const CURRENT_USER_ID = "harshita";
 
@@ -22,7 +22,7 @@ const CURRENT_USER_ID = "harshita";
 
    HELPERS
 
-===================================================== */
+\===================================================== */
 
 const getToken = () => {
 
@@ -98,7 +98,7 @@ const normalizeTask = (task) => {
 
    PROVIDER
 
-===================================================== */
+\===================================================== */
 
 export function ProjectProvider({ children }) {
 
@@ -685,164 +685,6 @@ export function ProjectProvider({ children }) {
 
   /* ===================================================
 
-     QA TEST APIs
-
-     POST   /api/projects/:projectId/qa-tests
-     GET    /api/projects/:projectId/qa-tests
-     PATCH  /api/qa-tests/:testId
-     DELETE /api/qa-tests/:testId
-
-  =================================================== */
-
-  const fetchQATests = async (projectId) => {
-    try {
-      const token = getToken();
-
-      if (!token) {
-        throw new Error("Authentication required. Please login again.");
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/projects/${projectId}/qa-tests`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to fetch QA tests"
-        );
-      }
-
-      return data.testCases || data.qaTests || data;
-    } catch (error) {
-      console.error("Fetch QA tests error:", error);
-      throw error;
-    }
-  };
-
-  const createQATest = async (projectId, testData) => {
-    try {
-      const token = getToken();
-
-      if (!token) {
-        throw new Error("Authentication required. Please login again.");
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/projects/${projectId}/qa-tests`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(testData),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to create QA test"
-        );
-      }
-
-      return data.testCase || data.qaTest || data;
-    } catch (error) {
-      console.error("Create QA test error:", error);
-      throw error;
-    }
-  };
-
-  const updateQATest = async (projectId, testId, status) => {
-    try {
-      const token = getToken();
-
-      if (!token) {
-        throw new Error("Authentication required. Please login again.");
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/projects/${projectId}/qa-tests/${testId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status }),
-        }
-      );
-
-      const text = await response.text();
-
-      let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error(
-          `QA update API returned an invalid response (${response.status}).`
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to update QA test"
-        );
-      }
-
-      return data.testCase || data.qaTest || data;
-    } catch (error) {
-      console.error("Update QA test error:", error);
-      throw error;
-    }
-  };
-
-  const deleteQATest = async (testId) => {
-    try {
-      const token = getToken();
-
-      if (!token) {
-        throw new Error("Authentication required. Please login again.");
-      }
-
-      const response = await fetch(
-        `${API_BASE_URL}/qa-tests/${testId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      // DELETE APIs may return 204 / an empty body.
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : {};
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to delete QA test"
-        );
-      }
-
-      return data;
-    } catch (error) {
-      console.error("Delete QA test error:", error);
-      throw error;
-    }
-  };
-
-  /* ===================================================
-
      ASSIGN TASK
 
      Backend assignment API not provided yet.
@@ -989,60 +831,95 @@ export function ProjectProvider({ children }) {
 
   };
 
-  const updateTaskStatus = async (
+  const completeTask = async (taskId) => {
+    try {
+      const token = getToken();
 
-    taskId,
-
-    newStatus,
-
-    userId = CURRENT_USER_ID
-
-  ) => {
-
-    console.warn(
-
-      "updateTaskStatus backend API is not connected yet.",
-
-      {
-
-        taskId,
-
-        newStatus,
-
-        userId,
-
+      if (!token) {
+        throw new Error("Please login again.");
       }
 
-    );
+      const response = await fetch(
+        `${API_BASE_URL}/projects/tasks/${taskId}/complete`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to complete task"
+        );
+      }
+
+      await Promise.all([fetchTasks(), fetchProjects()]);
+      return data;
+    } catch (error) {
+      console.error("Complete task error:", error);
+      throw error;
+    }
   };
 
-  const updateTaskProgress = async (
+  const completeProject = async (projectId) => {
+    try {
+      const token = getToken();
 
-    taskId,
-
-    progress,
-
-    userId = CURRENT_USER_ID
-
-  ) => {
-
-    console.warn(
-
-      "updateTaskProgress backend API is not connected yet.",
-
-      {
-
-        taskId,
-
-        progress,
-
-        userId,
-
+      if (!token) {
+        throw new Error("Please login again.");
       }
 
-    );
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${projectId}/complete`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to complete project"
+        );
+      }
+
+      await Promise.all([fetchTasks(), fetchProjects()]);
+      return data;
+    } catch (error) {
+      console.error("Complete project error:", error);
+      throw error;
+    }
+  };
+
+  const updateTaskStatus = async (taskId, newStatus) => {
+    const normalizedStatus = String(newStatus || "")
+      .trim()
+      .toUpperCase();
+
+    if (normalizedStatus !== "COMPLETED") {
+      throw new Error(
+        "Only COMPLETED status is currently supported by the backend."
+      );
+    }
+
+    return completeTask(taskId);
+  };
+
+  const updateTaskProgress = async (taskId, progress) => {
+    console.warn(
+      "Progress update API is not implemented in the current backend.",
+      { taskId, progress }
+    );
   };
 
   /* ===================================================
@@ -1081,14 +958,6 @@ export function ProjectProvider({ children }) {
 
       createTask,
 
-      fetchQATests,
-
-      createQATest,
-
-      updateQATest,
-
-      deleteQATest,
-
       assignTask,
 
       requestClaim,
@@ -1117,13 +986,6 @@ export function ProjectProvider({ children }) {
 
       loadingTasks,
 
-      projectProgress,
-
-      fetchQATests,
-      createQATest,
-      updateQATest,
-      deleteQATest,
-
     ]
 
   );
@@ -1144,7 +1006,7 @@ export function ProjectProvider({ children }) {
 
    HOOK
 
-===================================================== */
+\===================================================== */
 
 export function useProjects() {
 

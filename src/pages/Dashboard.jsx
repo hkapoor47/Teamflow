@@ -11,7 +11,7 @@ function Dashboard() {
   // Project context is kept only for compatibility with the existing app.
   // Task data is now fetched directly from the backend.
   useProjects();
-
+w
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [projectError, setProjectError] = useState("");
