@@ -387,9 +387,13 @@ export function ProjectProvider({ children }) {
 
   const projectProgress = (projectId) => {
 
+    // Standalone tasks have projectId === null and are never counted
+    // toward any project's progress.
     const projectTasks = tasks.filter(
 
       (task) =>
+
+        task.projectId != null &&
 
         Number(task.projectId) ===
 
