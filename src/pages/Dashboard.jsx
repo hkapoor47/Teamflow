@@ -14,31 +14,53 @@ const API_BASE_URL = "http://65.0.11.153:5001/api";
 
 function Dashboard() {
 
-const navigate = useNavigate();
-
-useProjects();
+  const navigate = useNavigate();
 
 
 
-const [projects, setProjects] = useState([]);
+  // Project context is kept only for compatibility with the existing app.
 
-const [loadingProjects, setLoadingProjects] = useState(true);
+  // Task data is now fetched directly from the backend.
 
-const [projectError, setProjectError] = useState("");
-
-
+  useProjects();
 
 
 
-const [backendTasks, setBackendTasks] = useState([]);
+  const [projects, setProjects] = useState([]);
 
-const [loadingTasks, setLoadingTasks] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  const [projectError, setProjectError] = useState("");
 
 
-useEffect(() => {
-const fetchProjects = async () => {
 
-try {
+  // --------------------------------------------------
+
+  // BACKEND TASK DATA
+
+  // --------------------------------------------------
+
+
+
+  const [backendTasks, setBackendTasks] = useState([]);
+
+  const [loadingTasks, setLoadingTasks] = useState(true);
+
+
+
+  // --------------------------------------------------
+
+  // FETCH PROJECTS FROM BACKEND
+
+  // --------------------------------------------------
+
+
+
+  useEffect(() => {
+
+    const fetchProjects = async () => {
+
+      try {
 
         setLoadingProjects(true);
 
@@ -118,7 +140,9 @@ try {
 
           "Dashboard projects error:",
 
-          error);
+          error
+
+        );
 
 
 
@@ -342,26 +366,6 @@ try {
 
   // --------------------------------------------------
 
-  // COMPLETED PROJECTS
-
-  // --------------------------------------------------
-
-
-
-  const completedProjects = projects.filter(
-
-    (project) =>
-
-      String(project.status || "")
-
-        .toUpperCase() === "COMPLETED"
-
-  );
-
-
-
-  // --------------------------------------------------
-
   // ACTIVE PROJECTS
 
   // --------------------------------------------------
@@ -455,8 +459,14 @@ try {
           className="overview-grid dashboard-overview-grid"
 
           aria-label="Project overview"
-
-        >
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: "20px",
+            width: "100%",
+            marginBottom: "24px",
+          }}
+        >
 
 
 
@@ -468,7 +478,8 @@ try {
 
             className="overview-card"
 
-            onClick={() =>
+            style={{ width: "100%", minHeight: "150px", padding: "28px 30px", display: "flex", alignItems: "center", gap: "22px", textAlign: "left", boxSizing: "border-box" }}
+            onClick={() =>
 
               navigate("/projects")
 
@@ -478,7 +489,7 @@ try {
 
 
 
-            <span className="overview-icon teal">
+            <span className="overview-icon teal" style={{ width: "64px", height: "64px", minWidth: "64px", display: "grid", placeItems: "center", fontSize: "22px" }}>
 
               ▣
 
@@ -534,7 +545,8 @@ try {
 
             className="overview-card"
 
-            onClick={() =>
+            style={{ width: "100%", minHeight: "150px", padding: "28px 30px", display: "flex", alignItems: "center", gap: "22px", textAlign: "left", boxSizing: "border-box" }}
+            onClick={() =>
 
               navigate("/tasks")
 
@@ -544,7 +556,7 @@ try {
 
 
 
-            <span className="overview-icon blue">
+            <span className="overview-icon blue" style={{ width: "64px", height: "64px", minWidth: "64px", display: "grid", placeItems: "center", fontSize: "24px" }}>
 
               ✓
 
@@ -593,80 +605,7 @@ try {
 
 
           </button>
-
-
-
-          {/* COMPLETED PROJECTS */}
-
-
-
-          <button
-
-            className="overview-card"
-
-            onClick={() =>
-
-              navigate(
-
-                "/completed-projects"
-
-              )
-
-            }
-
-          >
-
-
-
-            <span className="overview-icon teal">
-
-              ✓
-
-            </span>
-
-
-
-            <span>
-
-
-
-              <small>
-
-                Completed projects
-
-              </small>
-
-
-
-              <strong>
-
-                {loadingProjects
-
-                  ? "..."
-
-                  : completedProjects.length}
-
-              </strong>
-
-
-
-              <em>
-
-                Successfully delivered
-
-              </em>
-
-
-
-            </span>
-
-
-
-          </button>
-
-
-
-        </section>
+</section>
 
 
 

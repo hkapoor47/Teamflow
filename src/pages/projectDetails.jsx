@@ -474,6 +474,15 @@ function ProjectDetails() {
 
 
 
+  // Keep this hook before every conditional return. React requires the same hook order on every render.
+  useEffect(() => {
+    if (backendProjectId && qaExpanded) {
+      loadQaTests();
+      loadQaTickets();
+    }
+  }, [backendProjectId, qaExpanded]);
+
+
   if (loadingProject && !project) {
 
     return (
@@ -1038,13 +1047,6 @@ function ProjectDetails() {
     await Promise.all([loadQaTests(), loadQaTickets()]);
     await fetchProjectTasks(backendProjectId);
   };
-
-  useEffect(() => {
-    if (backendProjectId && qaExpanded) {
-      loadQaTests();
-      loadQaTickets();
-    }
-  }, [backendProjectId, qaExpanded]);
 
   const startQaTesting = (taskId) => {
     setSelectedQaTaskId(taskId);
