@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { useProjects } from "../context/ProjectContext.jsx";
 
@@ -59,7 +59,9 @@ function Tasks() {
   const [ticketDeadline, setTicketDeadline] = useState("");
   const [ticketCreating, setTicketCreating] = useState(false);
   const [createdTicket, setCreatedTicket] = useState(null);
+  const [createdTickets, setCreatedTickets] = useState([]);
   const [ticketActionLoading, setTicketActionLoading] = useState(false);
+  const qaSectionRef = useRef(null);
   const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
@@ -170,6 +172,11 @@ function Tasks() {
 
   const loadQaForTask = async (task) => {
     if (!task?.id) return;
+
+    // Move the user directly to the QA workspace when QA Testing is clicked.
+    requestAnimationFrame(() => {
+      qaSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
 
     const token = getToken();
     if (!token) {
@@ -556,6 +563,7 @@ function Tasks() {
       }
 
       setCreatedTicket(ticket);
+      setCreatedTickets((current) => [...current, ticket]);
       setShowTicketModal(false);
       notify("Ticket created successfully.");
     } catch (error) {
@@ -588,17 +596,17 @@ function Tasks() {
     });
   };
 
-  const claimCreatedTicket = async () => {
-    if (!createdTicket) return;
+  const claimCreatedTicket = async (ticketToClaim = createdTicket) => {
+    if (!ticketToClaim) return;
 
-    const ticketAssigneeId = getTicketAssigneeId(createdTicket);
+    const ticketAssigneeId = getTicketAssigneeId(ticketToClaim);
     if (ticketAssigneeId != null && String(ticketAssigneeId) !== String(currentUserId)) {
       setQaError("Only the person assigned to this task can claim its QA ticket.");
       return;
     }
 
     const token = getToken();
-    const ticketId = createdTicket.id;
+    const ticketId = ticketToClaim.id;
 
     setTicketActionLoading(true);
     setQaError("");
@@ -606,7 +614,7 @@ function Tasks() {
     try {
       let claimed = null;
 
-      if (!createdTicket.localOnly && token && !String(ticketId).startsWith("LOCAL-")) {
+      if (!ticketToClaim.localOnly && token && !String(ticketId).startsWith("LOCAL-")) {
         try {
           const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/claim`, {
             method: "POST",
@@ -624,23 +632,30 @@ function Tasks() {
         }
       }
 
-      setCreatedTicket((current) => ({
-        ...current,
+      const updatedTicket = {
+        ...ticketToClaim,
         ...(claimed || {}),
         claimed_by: claimed?.claimed_by ?? currentUserId,
         claimed_by_name: claimed?.claimed_by_name ?? "You",
         status: claimed?.status ?? "CLAIMED",
-      }));
+      };
+
+      setCreatedTicket(updatedTicket);
+      setCreatedTickets((current) =>
+        current.map((ticket) =>
+          String(ticket.id) === String(updatedTicket.id) ? updatedTicket : ticket
+        )
+      );
       notify("Ticket claimed. Complete is now available to you.");
     } finally {
       setTicketActionLoading(false);
     }
   };
 
-  const completeCreatedTicket = async () => {
-    if (!createdTicket) return;
+  const completeCreatedTicket = async (ticketToComplete = createdTicket) => {
+    if (!ticketToComplete) return;
 
-    const claimedBy = getClaimedTicketUserId(createdTicket);
+    const claimedBy = getClaimedTicketUserId(ticketToComplete);
     if (claimedBy != null && currentUserId != null && String(claimedBy) !== String(currentUserId)) {
       setQaError("Only the person who claimed this ticket can complete it.");
       return;
@@ -653,9 +668,9 @@ function Tasks() {
     try {
       let completed = false;
 
-      if (!createdTicket.localOnly && token && !String(createdTicket.id).startsWith("LOCAL-")) {
+      if (!ticketToComplete.localOnly && token && !String(ticketToComplete.id).startsWith("LOCAL-")) {
         try {
-          const response = await fetch(`${API_BASE_URL}/tickets/${createdTicket.id}/complete`, {
+          const response = await fetch(`${API_BASE_URL}/tickets/${ticketToComplete.id}/complete`, {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
@@ -670,8 +685,14 @@ function Tasks() {
         completed = true;
       }
 
-      if (completed || createdTicket.localOnly) {
-        setCreatedTicket((current) => ({ ...current, status: "COMPLETED" }));
+      if (completed || ticketToComplete.localOnly) {
+        const completedTicket = { ...ticketToComplete, status: "COMPLETED" };
+        setCreatedTicket(completedTicket);
+        setCreatedTickets((current) =>
+          current.map((ticket) =>
+            String(ticket.id) === String(completedTicket.id) ? completedTicket : ticket
+          )
+        );
         await reopenQaAfterTicketCompletion();
       } else {
         throw new Error("Ticket could not be completed by the backend.");
@@ -1046,6 +1067,7 @@ function Tasks() {
         ========================================================= */}
         {qaTask && (
           <section
+            ref={qaSectionRef}
             className="panel"
             style={{
               marginTop: "20px",
@@ -1214,7 +1236,7 @@ function Tasks() {
             QA TICKET
             FAIL -> centered form modal -> created ticket block below.
         ========================================================= */}
-        {createdTicket && (
+        {createdTickets.length > 0 && (
           <section
             className="panel"
             style={{
@@ -1233,122 +1255,121 @@ function Tasks() {
             >
               <div>
                 <p className="welcome-label" style={{ marginBottom: "4px" }}>
-                  QA TICKET
+                  QA TICKETS
                 </p>
-                <h3 style={{ margin: 0 }}>Created Ticket</h3>
+                <h3 style={{ margin: 0 }}>Created Tickets ({createdTickets.length})</h3>
                 <p style={{ marginTop: "6px" }}>
-                  Fix the issue and complete the ticket to send this task back to QA testing.
+                  All QA fix tickets remain visible here, including completed tickets.
                 </p>
               </div>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => setCreatedTicket(null)}
-                disabled={ticketActionLoading}
-                aria-label="Close ticket"
-              >
-                ×
-              </button>
             </div>
 
-            <div style={{ padding: "20px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "24px",
-                  padding: "18px 20px",
-                  border: "1px solid rgba(148,163,184,.16)",
-                  borderRadius: "12px",
-                  background: "rgba(15,23,42,.34)",
-                }}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <h4 style={{ margin: 0, fontSize: "16px" }}>{createdTicket.title}</h4>
-                  <p style={{ color: "#94a3b8", margin: "8px 0 14px", lineHeight: 1.5 }}>
-                    {createdTicket.description}
-                  </p>
+            <div style={{ padding: "20px", display: "grid", gap: "14px" }}>
+              {createdTickets.map((ticket) => {
+                const claimedUserId = getClaimedTicketUserId(ticket);
+                const isClaimant = claimedUserId != null &&
+                  currentUserId != null &&
+                  String(claimedUserId) === String(currentUserId);
+                const ticketStatus = normalizeStatus(ticket.status);
 
+                return (
                   <div
+                    key={ticket.id}
                     style={{
                       display: "flex",
-                      gap: "18px",
-                      flexWrap: "wrap",
-                      color: "#94a3b8",
-                      fontSize: "13px",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "24px",
+                      padding: "18px 20px",
+                      border: "1px solid rgba(148,163,184,.16)",
+                      borderRadius: "12px",
+                      background: "rgba(15,23,42,.34)",
                     }}
                   >
-                    <span>
-                      Priority: <strong style={{ color: "#e2e8f0" }}>{createdTicket.priority}</strong>
-                    </span>
-                    <span>
-                      Deadline: <strong style={{ color: "#e2e8f0" }}>{formatTicketDate(createdTicket.due_date)}</strong>
-                    </span>
-                    <span>
-                      Status: <strong style={{ color: "#e2e8f0" }}>{normalizeStatus(createdTicket.status)}</strong>
-                    </span>
-                  </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                        <h4 style={{ margin: 0, fontSize: "16px" }}>{ticket.title}</h4>
+                        <span className="task-status">{ticketStatus || "OPEN"}</span>
+                      </div>
+                      <p style={{ color: "#94a3b8", margin: "8px 0 14px", lineHeight: 1.5 }}>
+                        {ticket.description}
+                      </p>
 
-                  {getClaimedTicketUserId(createdTicket) && (
-                    <p style={{ margin: "12px 0 0", color: "#94a3b8", fontSize: "13px" }}>
-                      Claimed by: <strong style={{ color: "#f8fafc" }}>
-                        {getClaimedTicketName(createdTicket) || "You"}
-                      </strong>
-                    </p>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "flex-end",
-                    gap: "10px",
-                    minWidth: "170px",
-                  }}
-                >
-                  {normalizeStatus(createdTicket.status) === "COMPLETED" ? (
-                    <span className="task-status">Ticket Completed</span>
-                  ) : getClaimedTicketUserId(createdTicket) ? (
-                    String(getClaimedTicketUserId(createdTicket)) === String(currentUserId) ? (
-                      <button
-                        type="button"
-                        className="primary-button"
-                        onClick={completeCreatedTicket}
-                        disabled={ticketActionLoading}
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "18px",
+                          flexWrap: "wrap",
+                          color: "#94a3b8",
+                          fontSize: "13px",
+                        }}
                       >
-                        {ticketActionLoading ? "Completing..." : "Complete"}
-                      </button>
-                    ) : (
-                      <span className="task-status">Claimed</span>
-                    )
-                  ) : getTicketAssigneeId(createdTicket) &&
-                    String(getTicketAssigneeId(createdTicket)) !== String(currentUserId) ? (
-                    <span
+                        <span>Priority: <strong style={{ color: "#e2e8f0" }}>{ticket.priority}</strong></span>
+                        <span>Deadline: <strong style={{ color: "#e2e8f0" }}>{formatTicketDate(ticket.due_date)}</strong></span>
+                        {claimedUserId && (
+                          <span>Claimed by: <strong style={{ color: "#f8fafc" }}>{getClaimedTicketName(ticket) || "You"}</strong></span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
                       style={{
-                        color: "#94a3b8",
-                        fontSize: "12px",
-                        textAlign: "right",
-                        maxWidth: "190px",
-                        lineHeight: 1.45,
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        gap: "10px",
+                        minWidth: "170px",
                       }}
                     >
-                      Assigned to another team member
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="primary-button"
-                      onClick={claimCreatedTicket}
-                      disabled={ticketActionLoading}
-                    >
-                      {ticketActionLoading ? "Claiming..." : "Claim Ticket"}
-                    </button>
-                  )}
-                </div>
-              </div>
+                      {ticketStatus === "COMPLETED" ? (
+                        <span className="task-status">Completed</span>
+                      ) : claimedUserId ? (
+                        isClaimant ? (
+                          <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() => {
+                              setCreatedTicket(ticket);
+                              completeCreatedTicket(ticket);
+                            }}
+                            disabled={ticketActionLoading}
+                          >
+                            {ticketActionLoading && String(createdTicket?.id) === String(ticket.id) ? "Completing..." : "Complete"}
+                          </button>
+                        ) : (
+                          <span className="task-status">Claimed</span>
+                        )
+                      ) : getTicketAssigneeId(ticket) &&
+                        String(getTicketAssigneeId(ticket)) !== String(currentUserId) ? (
+                        <span
+                          style={{
+                            color: "#94a3b8",
+                            fontSize: "12px",
+                            textAlign: "right",
+                            maxWidth: "190px",
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          Assigned to another team member
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="primary-button"
+                          onClick={() => {
+                            setCreatedTicket(ticket);
+                            claimCreatedTicket(ticket);
+                          }}
+                          disabled={ticketActionLoading}
+                        >
+                          {ticketActionLoading && String(createdTicket?.id) === String(ticket.id) ? "Claiming..." : "Claim Ticket"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}
