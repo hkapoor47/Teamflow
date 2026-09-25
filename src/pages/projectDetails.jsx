@@ -51,7 +51,6 @@ function ProjectDetails() {
   const [taskAssignee, setTaskAssignee] = useState("");
 
   const [taskDeadline, setTaskDeadline] = useState("");
-  const [taskDependency, setTaskDependency] = useState("");
 
   // Same userId that the backend gets from the JWT.
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -59,26 +58,33 @@ function ProjectDetails() {
   const [claimingTaskId, setClaimingTaskId] = useState(null);
 
   // =====================================================
-  // TASK-LEVEL QA WORKSPACE
-  // QA is performed immediately after an individual task is completed.
+  // INLINE QA WORKSPACE
+  // QA is handled directly on this project page.
   // =====================================================
   const [qaTests, setQaTests] = useState([]);
   const [qaLoading, setQaLoading] = useState(false);
-  const [qaCreatingTaskId, setQaCreatingTaskId] = useState(null);
-  const [qaOpenTaskId, setQaOpenTaskId] = useState(null);
+  const [qaCreating, setQaCreating] = useState(false);
   const [qaName, setQaName] = useState("");
   const [qaDescription, setQaDescription] = useState("");
   const [qaMessage, setQaMessage] = useState("");
   const [qaError, setQaError] = useState("");
+  const [qaExpanded, setQaExpanded] = useState(false);
+  const [selectedQaTaskId, setSelectedQaTaskId] = useState(null);
   const [qaUpdatingId, setQaUpdatingId] = useState(null);
+  const [qaDeletingId, setQaDeletingId] = useState(null);
+  const [qaRetestingId, setQaRetestingId] = useState(null);
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [claimingTicketId, setClaimingTicketId] = useState(null);
+  const [completingTicketId, setCompletingTicketId] = useState(null);
 
+  const [showQaTicketModal, setShowQaTicketModal] = useState(false);
   const [selectedQaTest, setSelectedQaTest] = useState(null);
-  const [qaTickets, setQaTickets] = useState([]);
   const [ticketTitle, setTicketTitle] = useState("");
   const [ticketDescription, setTicketDescription] = useState("");
   const [ticketPriority, setTicketPriority] = useState("Medium");
   const [ticketDeadline, setTicketDeadline] = useState("");
   const [ticketCreating, setTicketCreating] = useState(false);
+  const [qaTickets, setQaTickets] = useState([]);
 
 
 
@@ -590,30 +596,16 @@ function ProjectDetails() {
 
 
 
+  // A task is fully complete only after development is completed AND
+  // all of its QA tests have passed. The backend stores this as qa_status.
   const completedTasks = projectTasks.filter((task) => {
-
-    const status = String(
-
-      task.status ||
-
-        task.task_status ||
-
-        ""
-
-    ).toLowerCase();
-
-
+    const status = String(task.status || task.task_status || "").toUpperCase();
+    const qaStatus = String(task.qa_status || "").toUpperCase();
 
     return (
-
-      status === "completed" ||
-
-      status === "closed" ||
-
-      status === "done"
-
+      ["COMPLETED", "COMPLETE", "DONE", "CLOSED"].includes(status) &&
+      qaStatus === "PASSED"
     );
-
   }).length;
 
 
@@ -649,7 +641,6 @@ function ProjectDetails() {
     setTaskAssignee("");
 
     setTaskDeadline("");
-    setTaskDependency("");
 
   };
 
@@ -732,7 +723,6 @@ function ProjectDetails() {
           : null,
 
         due_date: taskDeadline || null,
-        depends_on_task_id: taskDependency ? Number(taskDependency) : null,
 
       };
 
@@ -904,7 +894,688 @@ function ProjectDetails() {
   };
 
   /* =====================================================
-     COMPLETE TASK -> MOVE TO QA
+     TASK-LEVEL QA WORKSPACE
+     QA belongs to a completed development task.
+  ===================================================== */
+
+  const normalizeQaStatus = (status) =>
+    String(status || "PENDING").trim().toUpperCase();
+
+  const qaTestId = (test) =>
+    test?.id ?? test?.qa_test_id ?? test?.qaTestId ?? null;
+
+  const getTestTaskId = (test) =>
+    test?.task_id ?? test?.taskId ?? null;
+
+  const getTicketId = (ticket) =>
+    ticket?.id ?? ticket?.ticket_id ?? ticket?.ticketId ?? null;
+
+  const getTicketQaTestId = (ticket) =>
+    ticket?.qa_test_id ??
+    ticket?.qaTestId ??
+    ticket?.test_case_id ??
+    ticket?.testCaseId ??
+    null;
+
+  const getTicketClaimedBy = (ticket) =>
+    ticket?.claimed_by ??
+    ticket?.claimedBy ??
+    ticket?.assigned_to ??
+    ticket?.assignedTo ??
+    null;
+
+  const getTicketClaimedName = (ticket) =>
+    ticket?.claimed_by_name ||
+    ticket?.claimedByName ||
+    ticket?.assigned_to_name ||
+    ticket?.assignedToName ||
+    ticket?.claimant_name ||
+    ticket?.claimantName ||
+    null;
+
+  const selectedQaTask = projectTasks.find(
+    (task) => String(task.id) === String(selectedQaTaskId)
+  );
+
+  const loadQaTickets = async () => {
+    if (!backendProjectId) return;
+
+    try {
+      setTicketLoading(true);
+
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Authentication required. Please login again.");
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${backendProjectId}/tickets`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(`Ticket API returned an invalid response (${response.status}).`);
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || data.error || "Failed to load QA tickets"
+        );
+      }
+
+      const tickets =
+        data.tickets ||
+        data.qaTickets ||
+        data.data ||
+        (Array.isArray(data) ? data : []);
+
+      setQaTickets(Array.isArray(tickets) ? tickets : []);
+    } catch (error) {
+      console.error("Failed to load QA tickets:", error);
+      // Do not overwrite a working QA screen when the optional ticket GET
+      // endpoint is unavailable.
+      setQaTickets([]);
+    } finally {
+      setTicketLoading(false);
+    }
+  };
+
+  const loadQaTests = async () => {
+    if (!backendProjectId) return;
+
+    try {
+      setQaLoading(true);
+      setQaError("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${backendProjectId}/qa-tests`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(`QA API returned an invalid response (${response.status}).`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load QA tests");
+      }
+
+      const tests =
+        data.testCases ||
+        data.qaTests ||
+        data.data ||
+        (Array.isArray(data) ? data : []);
+
+      setQaTests(Array.isArray(tests) ? tests : []);
+    } catch (error) {
+      console.error("Failed to load QA tests:", error);
+      setQaError(error.message || "Failed to load QA tests.");
+    } finally {
+      setQaLoading(false);
+    }
+  };
+
+  const refreshQaWorkspace = async () => {
+    await Promise.all([loadQaTests(), loadQaTickets()]);
+    await fetchProjectTasks(backendProjectId);
+  };
+
+  useEffect(() => {
+    if (backendProjectId && qaExpanded) {
+      loadQaTests();
+      loadQaTickets();
+    }
+  }, [backendProjectId, qaExpanded]);
+
+  const startQaTesting = (taskId) => {
+    setSelectedQaTaskId(taskId);
+    setQaExpanded(true);
+    setQaMessage("");
+    setQaError("");
+
+    window.setTimeout(() => {
+      document
+        .getElementById("task-qa-workspace")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+
+  const createQaTestInline = async (event) => {
+    event.preventDefault();
+
+    if (!selectedQaTaskId) {
+      setQaError("Select a completed task before creating a QA task.");
+      return;
+    }
+
+    if (!qaName.trim() || !qaDescription.trim()) {
+      setQaError("QA test name and verification description are required.");
+      return;
+    }
+
+    try {
+      setQaCreating(true);
+      setQaError("");
+      setQaMessage("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${backendProjectId}/qa-tests`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            task_id: Number(selectedQaTaskId),
+            name: qaName.trim(),
+            description: qaDescription.trim(),
+          }),
+        }
+      );
+
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          `Create QA API returned an invalid response (${response.status}).`
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to create QA task");
+      }
+
+      const created = data.testCase || data.qaTest || data.data || data;
+
+      setQaTests((current) => {
+        if (!created || typeof created !== "object") return current;
+
+        const createdId = qaTestId(created);
+        if (
+          createdId &&
+          current.some((item) => String(qaTestId(item)) === String(createdId))
+        ) {
+          return current;
+        }
+
+        return [...current, created];
+      });
+
+      setQaName("");
+      setQaDescription("");
+      setQaMessage("QA task created successfully.");
+      await loadQaTests();
+    } catch (error) {
+      console.error("Failed to create QA task:", error);
+      setQaError(error.message || "Failed to create QA task.");
+    } finally {
+      setQaCreating(false);
+    }
+  };
+
+  const updateQaStatus = async (test, status) => {
+    const id = qaTestId(test);
+
+    if (!id) {
+      setQaError("This QA test does not have a valid ID.");
+      return;
+    }
+
+    try {
+      setQaUpdatingId(id);
+      setQaError("");
+      setQaMessage("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      // Backend route: PATCH /api/qa-tests/:testId
+      const response = await fetch(`${API_BASE_URL}/qa-tests/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          `QA update API returned an invalid response (${response.status}).`
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update QA test");
+      }
+
+      const updated = data.testCase || data.qaTest || data.data || data;
+
+      setQaTests((current) =>
+        current.map((item) =>
+          String(qaTestId(item)) === String(id)
+            ? { ...item, ...(updated || {}), status }
+            : item
+        )
+      );
+
+      if (status === "PASSED") {
+        setQaMessage("QA test passed.");
+      } else if (status === "FAILED") {
+        setQaMessage("QA test failed. Create a ticket for this issue.");
+      }
+
+      await loadQaTests();
+      await fetchProjectTasks(backendProjectId);
+
+      if (status === "FAILED") {
+        // Open the ticket modal immediately for this failed test.
+        setSelectedQaTest({ ...test, ...(updated || {}), status: "FAILED" });
+        setTicketTitle(test.name || test.title || "");
+        setTicketDescription(
+          `Issue found while testing ${test.name || test.title || "this QA task"}.`
+        );
+        setTicketPriority("Medium");
+        setTicketDeadline("");
+        setShowQaTicketModal(true);
+      }
+    } catch (error) {
+      console.error("Failed to update QA test:", error);
+      setQaError(error.message || "Failed to update QA test.");
+    } finally {
+      setQaUpdatingId(null);
+    }
+  };
+
+  const deleteQaTest = async (testId) => {
+    try {
+      setQaDeletingId(testId);
+      setQaError("");
+      setQaMessage("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const response = await fetch(`${API_BASE_URL}/qa-tests/${testId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {}
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to delete QA task");
+      }
+
+      setQaTests((current) =>
+        current.filter((item) => String(qaTestId(item)) !== String(testId))
+      );
+
+      setQaMessage("QA task deleted.");
+      await fetchProjectTasks(backendProjectId);
+    } catch (error) {
+      console.error("Failed to delete QA task:", error);
+      setQaError(error.message || "Failed to delete QA task.");
+    } finally {
+      setQaDeletingId(null);
+    }
+  };
+
+  const createQaTicketInline = async (event) => {
+    event.preventDefault();
+
+    const testId = qaTestId(selectedQaTest);
+
+    if (!testId) {
+      setQaError("Select a QA test before creating a ticket.");
+      return;
+    }
+
+    if (!ticketTitle.trim() || !ticketDescription.trim() || !ticketDeadline) {
+      setQaError("Ticket title, description and fix deadline are required.");
+      return;
+    }
+
+    try {
+      setTicketCreating(true);
+      setQaError("");
+      setQaMessage("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/${backendProjectId}/tickets`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            qa_test_id: Number(testId),
+            title: ticketTitle.trim(),
+            description: ticketDescription.trim(),
+            priority: ticketPriority,
+            due_date: ticketDeadline,
+          }),
+        }
+      );
+
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          `Ticket API returned an invalid response (${response.status}).`
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            `Failed to create ticket (${response.status})`
+        );
+      }
+
+      setShowQaTicketModal(false);
+      setSelectedQaTest(null);
+      setTicketTitle("");
+      setTicketDescription("");
+      setTicketPriority("Medium");
+      setTicketDeadline("");
+      setQaMessage("QA ticket created successfully.");
+
+      await loadQaTickets();
+      await loadQaTests();
+    } catch (error) {
+      console.error("Failed to create QA ticket:", error);
+      setQaError(error.message || "Failed to create QA ticket.");
+    } finally {
+      setTicketCreating(false);
+    }
+  };
+
+  const handleClaimQaTicket = async (ticket) => {
+    const ticketId = getTicketId(ticket);
+
+    if (!ticketId) {
+      setQaError("This ticket does not have a valid ticket ID.");
+      return;
+    }
+
+    try {
+      setClaimingTicketId(ticketId);
+      setQaError("");
+      setQaMessage("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      // The backend must enforce that the caller belongs to this project.
+      const response = await fetch(
+        `${API_BASE_URL}/tickets/${ticketId}/claim`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          `Claim ticket API returned an invalid response (${response.status}).`
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            `Failed to claim ticket (${response.status})`
+        );
+      }
+
+      const claimed = data.ticket || data.data || data;
+
+      setQaTickets((current) =>
+        current.map((item) =>
+          String(getTicketId(item)) === String(ticketId)
+            ? {
+                ...item,
+                ...(claimed || {}),
+                claimed_by: claimed?.claimed_by ?? currentUserId,
+                claimed_by_name:
+                  claimed?.claimed_by_name ||
+                  claimed?.claimedByName ||
+                  claimed?.assigned_to_name ||
+                  claimed?.assignedToName ||
+                  "You",
+                status: claimed?.status || "CLAIMED",
+              }
+            : item
+        )
+      );
+
+      setQaMessage("Ticket claimed successfully.");
+      await loadQaTickets();
+    } catch (error) {
+      console.error("Failed to claim QA ticket:", error);
+      setQaError(error.message || "Failed to claim QA ticket.");
+    } finally {
+      setClaimingTicketId(null);
+    }
+  };
+
+  const handleCompleteQaTicket = async (ticket) => {
+    const ticketId = getTicketId(ticket);
+
+    if (!ticketId) {
+      setQaError("This ticket does not have a valid ticket ID.");
+      return;
+    }
+
+    if (
+      String(getTicketClaimedBy(ticket) || "") !==
+      String(currentUserId || "")
+    ) {
+      setQaError("Only the member who claimed this ticket can complete it.");
+      return;
+    }
+
+    try {
+      setCompletingTicketId(ticketId);
+      setQaError("");
+      setQaMessage("");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication required. Please login again.");
+      }
+
+      // Ticket completion sends the fixed item back to QA.
+      const response = await fetch(
+        `${API_BASE_URL}/tickets/${ticketId}/complete`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          `Complete ticket API returned an invalid response (${response.status}).`
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            `Failed to complete ticket (${response.status})`
+        );
+      }
+
+      const testId = getTicketQaTestId(ticket);
+
+      // Put the failed QA test back into PENDING so it can be re-tested.
+      if (testId) {
+        const qaResponse = await fetch(
+          `${API_BASE_URL}/qa-tests/${testId}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ status: "PENDING" }),
+          }
+        );
+
+        if (!qaResponse.ok) {
+          const qaText = await qaResponse.text();
+          let qaData = {};
+          try {
+            qaData = qaText ? JSON.parse(qaText) : {};
+          } catch {}
+          throw new Error(
+            qaData.message || "Ticket completed but QA could not be reopened."
+          );
+        }
+      }
+
+      setQaMessage("Fix completed. The QA test is pending re-test.");
+      await refreshQaWorkspace();
+    } catch (error) {
+      console.error("Failed to complete QA ticket:", error);
+      setQaError(error.message || "Failed to complete QA ticket.");
+    } finally {
+      setCompletingTicketId(null);
+    }
+  };
+
+  const activeQaTests = qaTests.filter((test) => {
+    const status = normalizeQaStatus(test.status);
+    const ticket = qaTickets.find(
+      (item) =>
+        getTicketQaTestId(item) != null &&
+        String(getTicketQaTestId(item)) === String(qaTestId(test))
+    );
+
+    const ticketStatus = normalizeQaStatus(ticket?.status);
+
+    // Once a failed test has an open/claimed/in-progress ticket, it moves
+    // to QA Tickets and is not duplicated in the active test list.
+    const ticketIsActive = ticket && ![
+      "COMPLETED",
+      "COMPLETE",
+      "DONE",
+      "CLOSED",
+      "RESOLVED",
+    ].includes(ticketStatus);
+
+    return !ticketIsActive && status !== "PASSED";
+  });
+
+  const passedQaTests = qaTests.filter(
+    (test) => normalizeQaStatus(test.status) === "PASSED"
+  );
+
+  const ticketsByTest = (testId) =>
+    qaTickets.filter(
+      (ticket) =>
+        getTicketQaTestId(ticket) != null &&
+        String(getTicketQaTestId(ticket)) === String(testId)
+    );
+
+  const qaTestsForTask = (taskId) =>
+    qaTests.filter(
+      (test) => String(getTestTaskId(test)) === String(taskId)
+    );
+
+  const taskQaPassed = (taskId) => {
+    const tests = qaTestsForTask(taskId);
+
+    return (
+      tests.length > 0 &&
+      tests.every(
+        (test) => normalizeQaStatus(test.status) === "PASSED"
+      )
+    );
+  };
+
+  const fullyCompletedTask = (task) => {
+    const status = String(task.status || task.task_status || "").toUpperCase();
+    const qaStatus = String(task.qa_status || "").toUpperCase();
+
+    return (
+      ["COMPLETED", "COMPLETE", "DONE", "CLOSED"].includes(status) &&
+      qaStatus === "PASSED"
+    );
+  };
+  /* =====================================================
+
+     COMPLETE TASK
   ===================================================== */
 
   const handleCompleteTask = async (taskId) => {
@@ -936,8 +1607,6 @@ function ProjectDetails() {
       }
 
       await fetchProjectTasks(backendProjectId);
-      await loadQaTests();
-      setQaOpenTaskId(taskId);
     } catch (error) {
       console.error("Failed to complete task:", error);
       alert(error.message || "Failed to complete task.");
@@ -946,295 +1615,9 @@ function ProjectDetails() {
     }
   };
 
-  /* =====================================================
-     TASK-LEVEL QA HELPERS
-  ===================================================== */
 
-  const normalizeQaStatus = (status) =>
-    String(status || "PENDING").trim().toUpperCase();
 
-  const qaTestId = (test) =>
-    test?.id ?? test?.qa_test_id ?? test?.qaTestId;
 
-  const getQaTaskId = (test) =>
-    test?.task_id ?? test?.taskId ?? null;
-
-  const testsForTask = (taskId) =>
-    qaTests.filter(
-      (test) =>
-        getQaTaskId(test) != null &&
-        String(getQaTaskId(test)) === String(taskId)
-    );
-
-  const taskQaStatus = (taskId, task) => {
-    const explicit = normalizeQaStatus(task?.qa_status);
-    if (explicit && explicit !== "NOT_STARTED") return explicit;
-
-    const tests = testsForTask(taskId);
-    if (!tests.length) return "NOT_STARTED";
-    if (tests.some((test) => normalizeQaStatus(test.status) === "FAILED")) {
-      return "FAILED";
-    }
-    if (tests.every((test) => normalizeQaStatus(test.status) === "PASSED")) {
-      return "PASSED";
-    }
-    return "PENDING";
-  };
-
-  const loadQaTests = async () => {
-    if (!backendProjectId) return;
-
-    try {
-      setQaLoading(true);
-      setQaError("");
-
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("Authentication required. Please login again.");
-
-      const response = await fetch(
-        `${API_BASE_URL}/projects/${backendProjectId}/qa-tests`,
-        {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load QA tests");
-      }
-
-      const tests = data.testCases || data.qaTests || data || [];
-      setQaTests(Array.isArray(tests) ? tests : []);
-    } catch (error) {
-      console.error("Failed to load QA tests:", error);
-      setQaError(error.message || "Failed to load QA tests.");
-    } finally {
-      setQaLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (backendProjectId) {
-      loadQaTests();
-    }
-  }, [backendProjectId]);
-
-  const openQaForTask = (taskId) => {
-    setQaOpenTaskId(taskId);
-    setQaMessage("");
-    setQaError("");
-    setQaName("");
-    setQaDescription("");
-
-    // Keep QA collapsed by default. Starting QA only opens the
-    // project-level QA workspace below the task table.
-    window.setTimeout(() => {
-      document.getElementById("project-qa-workspace")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 50);
-  };
-
-  const createQaTestForTask = async (event, taskId) => {
-    event.preventDefault();
-
-    if (!qaName.trim() || !qaDescription.trim()) {
-      setQaError("Test name and description are required.");
-      return;
-    }
-
-    try {
-      setQaCreatingTaskId(taskId);
-      setQaError("");
-      setQaMessage("");
-
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("Authentication required. Please login again.");
-
-      const response = await fetch(
-        `${API_BASE_URL}/projects/${backendProjectId}/qa-tests`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            task_id: Number(taskId),
-            name: qaName.trim(),
-            description: qaDescription.trim(),
-          }),
-        }
-      );
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to create QA test");
-      }
-
-      const created = data.testCase || data.qaTest || data;
-      if (created?.id) {
-        setQaTests((current) => [...current, created]);
-      }
-
-      setQaName("");
-      setQaDescription("");
-      setQaMessage("QA test case created.");
-      await loadQaTests();
-    } catch (error) {
-      console.error("Failed to create QA test:", error);
-      setQaError(error.message || "Failed to create QA test.");
-    } finally {
-      setQaCreatingTaskId(null);
-    }
-  };
-
-  const updateQaStatus = async (test, status) => {
-    const id = qaTestId(test);
-    if (!id) {
-      setQaError("This QA test does not have a valid ID.");
-      return;
-    }
-
-    try {
-      setQaUpdatingId(id);
-      setQaError("");
-      setQaMessage("");
-
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("Authentication required. Please login again.");
-
-      const response = await fetch(
-        `${API_BASE_URL}/qa-tests/${id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status }),
-        }
-      );
-
-      const text = await response.text();
-      let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error(`QA API returned an invalid response (${response.status}).`);
-      }
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to update QA test");
-      }
-
-      const updated = data.testCase || data.qaTest || data;
-      setQaTests((current) =>
-        current.map((item) =>
-          String(qaTestId(item)) === String(id)
-            ? { ...item, ...(updated || {}), status }
-            : item
-        )
-      );
-
-      await Promise.all([
-        loadQaTests(),
-        fetchProjectTasks(backendProjectId),
-      ]);
-
-      if (status === "PASSED") {
-        setQaMessage("QA test passed.");
-      } else {
-        setQaMessage("QA test failed. Create a fix ticket before re-testing.");
-        setSelectedQaTest({ ...test, ...(updated || {}), status });
-        setTicketTitle(test.name || test.title || "QA issue");
-        setTicketDescription(
-          `Issue found while testing ${test.name || test.title || "this test case"}.`
-        );
-        setTicketPriority("Medium");
-        setTicketDeadline("");
-        setQaOpenTaskId(getQaTaskId(test) ?? qaOpenTaskId);
-      }
-    } catch (error) {
-      console.error("Failed to update QA test:", error);
-      setQaError(error.message || "Failed to update QA test.");
-    } finally {
-      setQaUpdatingId(null);
-    }
-  };
-
-  const createQaTicketInline = async (event) => {
-    event.preventDefault();
-
-    if (!ticketTitle.trim() || !ticketDescription.trim() || !ticketDeadline) {
-      setQaError("Ticket title, description and fix deadline are required.");
-      return;
-    }
-
-    const selectedTestId = qaTestId(selectedQaTest);
-    if (!selectedTestId) {
-      setQaError("The failed QA test could not be identified.");
-      return;
-    }
-
-    try {
-      setTicketCreating(true);
-      setQaError("");
-
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("Authentication required. Please login again.");
-
-      const response = await fetch(
-        `${API_BASE_URL}/projects/${backendProjectId}/tickets`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            qa_test_id: selectedTestId,
-            title: ticketTitle.trim(),
-            description: ticketDescription.trim(),
-            priority: ticketPriority,
-            due_date: ticketDeadline,
-          }),
-        }
-      );
-
-      const text = await response.text();
-      let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error(`Ticket API returned an invalid response (${response.status}).`);
-      }
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || "Failed to create ticket");
-      }
-
-      const createdTicket = data.ticket || data;
-      if (createdTicket && (createdTicket.id || createdTicket.ticket_id)) {
-        setQaTickets((current) => [createdTicket, ...current]);
-      }
-
-      setSelectedQaTest(null);
-      setTicketTitle("");
-      setTicketDescription("");
-      setTicketPriority("Medium");
-      setTicketDeadline("");
-      setQaMessage("QA issue ticket created. The task remains blocked until the fix is re-tested and passed.");
-      await loadQaTests();
-    } catch (error) {
-      console.error("Failed to create QA ticket:", error);
-      setQaError(error.message || "Failed to create QA ticket.");
-    } finally {
-      setTicketCreating(false);
-    }
-  };
 
   return (
 
@@ -1776,7 +2159,7 @@ function ProjectDetails() {
 
                       return (
 
-                        <>
+
 
                         <tr key={task.id}>
 
@@ -2058,117 +2441,154 @@ function ProjectDetails() {
 
                           {/* ACTION */}
                           <td>
-                            {String(taskStatus).trim().toUpperCase() === "COMPLETED" ? (
-                              (() => {
-                                const qaStatus = taskQaStatus(task.id, task);
-                                const qaPassed = qaStatus === "PASSED";
-                                const qaFailed = qaStatus === "FAILED";
+                            {(() => {
+                              const normalizedTaskStatus = String(
+                                taskStatus || ""
+                              ).trim().toUpperCase();
 
+                              const developmentCompleted = [
+                                "COMPLETED",
+                                "COMPLETE",
+                                "DONE",
+                                "CLOSED",
+                              ].includes(normalizedTaskStatus);
+
+                              const fullyDone = fullyCompletedTask(task);
+
+                              if (fullyDone) {
                                 return (
-                                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                                    <span
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        padding: "7px 10px",
-                                        borderRadius: "8px",
-                                        background: qaPassed
-                                          ? "rgba(34, 197, 94, 0.14)"
-                                          : qaFailed
-                                          ? "rgba(239, 68, 68, 0.14)"
-                                          : "rgba(234, 179, 8, 0.14)",
-                                        color: qaPassed
-                                          ? "#4ade80"
-                                          : qaFailed
-                                          ? "#fca5a5"
-                                          : "#facc15",
-                                        fontWeight: 700,
-                                        fontSize: "11px",
-                                      }}
-                                    >
-                                      {qaPassed ? "QA Passed" : qaFailed ? "QA Failed" : "QA Pending"}
-                                    </span>
-
-                                    {!qaPassed && (
-                                      <button
-                                        type="button"
-                                        onClick={() => openQaForTask(task.id)}
-                                        style={{
-                                          border: "1px solid rgba(94,219,211,.35)",
-                                          borderRadius: "8px",
-                                          padding: "7px 11px",
-                                          background: "transparent",
-                                          color: "#7de7df",
-                                          fontWeight: 700,
-                                          fontSize: "11px",
-                                          cursor: "pointer",
-                                        }}
-                                      >
-                                        {qaFailed ? "Review QA" : "Start QA"}
-                                      </button>
-                                    )}
-
-                                    {qaPassed && (
-                                      <span style={{ color: "#64748b", fontSize: "11px" }}>
-                                        Completed
-                                      </span>
-                                    )}
-                                  </div>
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      padding: "7px 12px",
+                                      borderRadius: "8px",
+                                      background: "rgba(34, 197, 94, 0.14)",
+                                      color: "#22c55e",
+                                      fontWeight: 700,
+                                      fontSize: "12px",
+                                    }}
+                                  >
+                                    Completed
+                                  </span>
                                 );
-                              })()
-                            ) : String(task.claimed_by ?? task.claimedBy ?? "") === String(currentUserId ?? "") && currentUserId != null ? (
-                              <button
-                                type="button"
-                                onClick={() => handleCompleteTask(task.id)}
-                                disabled={completingTaskId === task.id}
-                                style={{
-                                  border: "none",
-                                  borderRadius: "8px",
-                                  padding: "8px 14px",
-                                  background: "#14b8a6",
-                                  color: "white",
-                                  fontWeight: 700,
-                                  fontSize: "12px",
-                                  cursor: completingTaskId === task.id ? "not-allowed" : "pointer",
-                                  opacity: completingTaskId === task.id ? 0.7 : 1,
-                                }}
-                              >
-                                {completingTaskId === task.id ? "Completing..." : "Complete"}
-                              </button>
-                            ) : task.claimed_by || task.claimedBy ? (
-                              <span style={{ color: "#94a3b8", fontSize: "12px" }}>
-                                Claimed
-                              </span>
-                            ) : !assigneeId ? (
-                              <button
-                                type="button"
-                                onClick={() => handleClaimTask(task.id)}
-                                disabled={claimingTaskId === task.id}
-                                style={{
-                                  border: "none",
-                                  borderRadius: "8px",
-                                  padding: "8px 14px",
-                                  background: "#14b8a6",
-                                  color: "white",
-                                  fontWeight: 700,
-                                  fontSize: "12px",
-                                  cursor: claimingTaskId === task.id ? "not-allowed" : "pointer",
-                                  opacity: claimingTaskId === task.id ? 0.7 : 1,
-                                }}
-                              >
-                                {claimingTaskId === task.id ? "Claiming..." : "Claim Task"}
-                              </button>
-                            ) : (
-                              <span style={{ color: "#94a3b8", fontSize: "12px" }}>
-                                Assigned
-                              </span>
-                            )}
+                              }
+
+                              if (developmentCompleted) {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => startQaTesting(task.id)}
+                                    style={{
+                                      border: "1px solid rgba(20,184,166,.35)",
+                                      borderRadius: "8px",
+                                      padding: "8px 13px",
+                                      background: "rgba(20,184,166,.12)",
+                                      color: "#5eead4",
+                                      fontWeight: 700,
+                                      fontSize: "12px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    QA Pending
+                                  </button>
+                                );
+                              }
+
+                              if (
+                                String(task.claimed_by ?? task.claimedBy ?? "") ===
+                                  String(currentUserId ?? "") &&
+                                currentUserId != null
+                              ) {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCompleteTask(task.id)}
+                                    disabled={completingTaskId === task.id}
+                                    style={{
+                                      border: "none",
+                                      borderRadius: "8px",
+                                      padding: "8px 14px",
+                                      background: "#14b8a6",
+                                      color: "white",
+                                      fontWeight: 700,
+                                      fontSize: "12px",
+                                      cursor:
+                                        completingTaskId === task.id
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      opacity:
+                                        completingTaskId === task.id ? 0.7 : 1,
+                                    }}
+                                  >
+                                    {completingTaskId === task.id
+                                      ? "Completing..."
+                                      : "Complete"}
+                                  </button>
+                                );
+                              }
+
+                              if (task.claimed_by || task.claimedBy) {
+                                return (
+                                  <span
+                                    style={{
+                                      color: "#94a3b8",
+                                      fontSize: "12px",
+                                    }}
+                                  >
+                                    Claimed
+                                  </span>
+                                );
+                              }
+
+                              if (!assigneeId) {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleClaimTask(task.id)}
+                                    disabled={claimingTaskId === task.id}
+                                    style={{
+                                      border: "none",
+                                      borderRadius: "8px",
+                                      padding: "8px 14px",
+                                      background: "#14b8a6",
+                                      color: "white",
+                                      fontWeight: 700,
+                                      fontSize: "12px",
+                                      cursor:
+                                        claimingTaskId === task.id
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      opacity:
+                                        claimingTaskId === task.id ? 0.7 : 1,
+                                    }}
+                                  >
+                                    {claimingTaskId === task.id
+                                      ? "Claiming..."
+                                      : "Claim Task"}
+                                  </button>
+                                );
+                              }
+
+                              return (
+                                <span
+                                  style={{
+                                    color: "#94a3b8",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  Assigned
+                                </span>
+                              );
+                            })()}
                           </td>
+
+
 
                         </tr>
 
-                        </>
+
 
                       );
 
@@ -2201,513 +2621,636 @@ function ProjectDetails() {
 
 
         {/* =====================================================
-            PROJECT QA WORKSPACE
-            QA is handled here for every completed task.
+            TASK-LEVEL QA TESTING
+            QA is available immediately after a task's development
+            is completed. There is no project-level QA gate.
         ===================================================== */}
-        <section
-          id="project-qa-workspace"
-          style={{
-            marginTop: "22px",
-            border: "1px solid rgba(94, 219, 211, 0.18)",
-            borderRadius: "16px",
-            background: "rgba(15, 28, 43, 0.78)",
-            overflow: "hidden",
-          }}
-        >
+        {qaExpanded && (
+          <section
+            id="task-qa-workspace"
+            className="panel"
+            style={{ marginTop: "24px" }}
+          >
+            <div
+              className="panel-header"
+              style={{ alignItems: "center", gap: "20px" }}
+            >
+              <div>
+                <p className="welcome-label" style={{ marginBottom: "6px" }}>
+                  QUALITY ASSURANCE
+                </p>
+                <h3 style={{ marginBottom: "6px" }}>QA Testing</h3>
+                <p>
+                  Test completed tasks side-by-side with development.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="view-button"
+                onClick={() => setQaExpanded(false)}
+              >
+                Hide QA
+              </button>
+            </div>
+
+            {qaError && (
+              <div
+                style={{
+                  marginTop: "16px",
+                  padding: "12px 14px",
+                  borderRadius: "8px",
+                  background: "rgba(239,68,68,.10)",
+                  color: "#fca5a5",
+                }}
+              >
+                {qaError}
+              </div>
+            )}
+
+            {qaMessage && (
+              <div
+                style={{
+                  marginTop: "16px",
+                  padding: "12px 14px",
+                  borderRadius: "8px",
+                  background: "rgba(20,184,166,.10)",
+                  color: "#5eead4",
+                }}
+              >
+                {qaMessage}
+              </div>
+            )}
+
+            {/* SELECTED TASK */}
+            {selectedQaTask && (
+              <div
+                style={{
+                  marginTop: "20px",
+                  padding: "16px",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(20,184,166,.28)",
+                  background: "rgba(20,184,166,.06)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "16px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <p
+                      style={{
+                        margin: 0,
+                        color: "#5eead4",
+                        fontSize: "11px",
+                        fontWeight: 800,
+                        letterSpacing: ".08em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      QA FOR TASK
+                    </p>
+                    <h3 style={{ margin: "5px 0 4px" }}>
+                      {selectedQaTask.title || selectedQaTask.name}
+                    </h3>
+                    <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
+                      Create as many QA test cases as required for this task.
+                    </p>
+                  </div>
+
+                  <span
+                    className={`task-status ${
+                      normalizeQaStatus(selectedQaTask.qa_status || "PENDING").toLowerCase()
+                    }`}
+                  >
+                    {normalizeQaStatus(selectedQaTask.qa_status || "PENDING")}
+                  </span>
+                </div>
+
+                <form
+                  onSubmit={createQaTestInline}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1.5fr auto",
+                    gap: "12px",
+                    alignItems: "end",
+                    marginTop: "18px",
+                  }}
+                >
+                  <div className="form-group">
+                    <label>QA test name</label>
+                    <input
+                      value={qaName}
+                      onChange={(event) => setQaName(event.target.value)}
+                      placeholder="e.g. Password reset works"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>What should be verified?</label>
+                    <input
+                      value={qaDescription}
+                      onChange={(event) =>
+                        setQaDescription(event.target.value)
+                      }
+                      placeholder="Verify the task works as expected"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="create-project-submit"
+                    disabled={qaCreating}
+                    style={{ minHeight: "42px" }}
+                  >
+                    {qaCreating ? "Creating..." : "+ Create QA Task"}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* ALL QA TESTS */}
+            <div style={{ marginTop: "24px" }}>
+              <div className="panel-header" style={{ marginBottom: "12px" }}>
+                <div>
+                  <h3>QA Test Cases</h3>
+                  <p>
+                    All QA tests created for completed tasks in this project.
+                  </p>
+                </div>
+              </div>
+
+              {qaLoading ? (
+                <div style={{ padding: "24px 0", color: "#94a3b8" }}>
+                  Loading QA test cases...
+                </div>
+              ) : qaTests.length === 0 ? (
+                <div
+                  style={{
+                    padding: "24px",
+                    border: "1px dashed rgba(148,163,184,.25)",
+                    borderRadius: "10px",
+                    color: "#94a3b8",
+                  }}
+                >
+                  No QA test cases have been created yet.
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Task</th>
+                        <th>QA Test</th>
+                        <th>What to verify</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {qaTests.map((test) => {
+                        const id = qaTestId(test);
+                        const status = normalizeQaStatus(test.status);
+                        const task =
+                          projectTasks.find(
+                            (item) =>
+                              String(item.id) === String(getTestTaskId(test))
+                          ) || null;
+
+                        const relatedTicket = qaTickets.find(
+                          (ticket) =>
+                            getTicketQaTestId(ticket) != null &&
+                            String(getTicketQaTestId(ticket)) === String(id) &&
+                            ![
+                              "COMPLETED",
+                              "COMPLETE",
+                              "DONE",
+                              "CLOSED",
+                              "RESOLVED",
+                            ].includes(normalizeQaStatus(ticket.status))
+                        );
+
+                        // Failed test with an active ticket is now represented
+                        // in QA Tickets below, so it is not duplicated here.
+                        if (relatedTicket) {
+                          return null;
+                        }
+
+                        const updating = String(qaUpdatingId) === String(id);
+                        const deleting = String(qaDeletingId) === String(id);
+
+                        return (
+                          <tr key={id || `${test.name}-${test.description}`}>
+                            <td>
+                              <strong>
+                                {task?.title ||
+                                  task?.name ||
+                                  test.task_title ||
+                                  "Task"}
+                              </strong>
+                            </td>
+
+                            <td>
+                              <strong>
+                                {test.name ||
+                                  test.title ||
+                                  "Untitled QA test"}
+                              </strong>
+                            </td>
+
+                            <td style={{ maxWidth: "360px" }}>
+                              {test.description || "—"}
+                            </td>
+
+                            <td>
+                              <span
+                                className={`task-status ${status.toLowerCase()}`}
+                              >
+                                {status}
+                              </span>
+                            </td>
+
+                            <td>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "7px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateQaStatus(test, "PASSED")
+                                  }
+                                  disabled={updating || deleting}
+                                  style={{
+                                    border: "none",
+                                    borderRadius: "7px",
+                                    padding: "7px 10px",
+                                    background:
+                                      status === "PASSED"
+                                        ? "#166534"
+                                        : "#16a34a",
+                                    color: "white",
+                                    fontWeight: 700,
+                                    fontSize: "11px",
+                                    cursor:
+                                      updating || deleting
+                                        ? "not-allowed"
+                                        : "pointer",
+                                    opacity: updating ? 0.6 : 1,
+                                  }}
+                                >
+                                  PASS
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateQaStatus(test, "FAILED")
+                                  }
+                                  disabled={updating || deleting}
+                                  style={{
+                                    border: "none",
+                                    borderRadius: "7px",
+                                    padding: "7px 10px",
+                                    background: "#dc2626",
+                                    color: "white",
+                                    fontWeight: 700,
+                                    fontSize: "11px",
+                                    cursor:
+                                      updating || deleting
+                                        ? "not-allowed"
+                                        : "pointer",
+                                    opacity: updating ? 0.6 : 1,
+                                  }}
+                                >
+                                  FAIL
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => deleteQaTest(id)}
+                                  disabled={updating || deleting}
+                                  style={{
+                                    border: "1px solid rgba(239,68,68,.35)",
+                                    borderRadius: "7px",
+                                    padding: "7px 10px",
+                                    background: "transparent",
+                                    color: "#fca5a5",
+                                    fontWeight: 700,
+                                    fontSize: "11px",
+                                    cursor:
+                                      updating || deleting
+                                        ? "not-allowed"
+                                        : "pointer",
+                                  }}
+                                >
+                                  {deleting ? "Deleting..." : "Delete"}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* QA TICKETS */}
+            <div style={{ marginTop: "30px" }}>
+              <div className="panel-header" style={{ marginBottom: "12px" }}>
+                <div>
+                  <h3>QA Testing Tickets</h3>
+                  <p>
+                    Failed QA tests move here. Project members can claim a ticket,
+                    fix it and send it back for QA re-testing.
+                  </p>
+                </div>
+              </div>
+
+              {ticketLoading ? (
+                <div style={{ padding: "24px 0", color: "#94a3b8" }}>
+                  Loading QA tickets...
+                </div>
+              ) : qaTickets.length === 0 ? (
+                <div
+                  style={{
+                    padding: "24px",
+                    border: "1px dashed rgba(148,163,184,.25)",
+                    borderRadius: "10px",
+                    color: "#94a3b8",
+                  }}
+                >
+                  No QA tickets yet.
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Ticket</th>
+                        <th>Task / QA Test</th>
+                        <th>Priority</th>
+                        <th>Fix deadline</th>
+                        <th>Status</th>
+                        <th>Claimed by</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {qaTickets.map((ticket, index) => {
+                        const ticketId = getTicketId(ticket);
+                        const linkedTest = qaTests.find(
+                          (test) =>
+                            getTicketQaTestId(ticket) != null &&
+                            String(getTicketQaTestId(ticket)) ===
+                              String(qaTestId(test))
+                        );
+
+                        const linkedTask = linkedTest
+                          ? projectTasks.find(
+                              (task) =>
+                                String(task.id) ===
+                                String(getTestTaskId(linkedTest))
+                            )
+                          : null;
+
+                        const ticketStatus = normalizeQaStatus(ticket.status);
+                        const claimedBy = getTicketClaimedBy(ticket);
+                        const claimedName = getTicketClaimedName(ticket);
+                        const claimedByMe =
+                          claimedBy != null &&
+                          String(claimedBy) === String(currentUserId);
+
+                        const resolved = [
+                          "COMPLETED",
+                          "COMPLETE",
+                          "DONE",
+                          "CLOSED",
+                          "RESOLVED",
+                        ].includes(ticketStatus);
+
+                        return (
+                          <tr key={ticketId || index}>
+                            <td>
+                              <strong>
+                                {ticket.title || `Ticket #${ticketId}`}
+                              </strong>
+                              <div
+                                style={{
+                                  color: "#64748b",
+                                  fontSize: "11px",
+                                  marginTop: "3px",
+                                }}
+                              >
+                                #{ticketId}
+                              </div>
+                            </td>
+
+                            <td>
+                              <div>
+                                <strong>
+                                  {linkedTask?.title ||
+                                    linkedTask?.name ||
+                                    ticket.task_title ||
+                                    "Task"}
+                                </strong>
+                              </div>
+                              <span
+                                style={{
+                                  color: "#94a3b8",
+                                  fontSize: "12px",
+                                }}
+                              >
+                                {linkedTest?.name ||
+                                  ticket.qa_test_name ||
+                                  "QA test"}
+                              </span>
+                            </td>
+
+                            <td>{ticket.priority || "Medium"}</td>
+
+                            <td>
+                              {ticket.due_date ||
+                                ticket.deadline ||
+                                "Not set"}
+                            </td>
+
+                            <td>
+                              <span
+                                className={`task-status ${ticketStatus.toLowerCase()}`}
+                              >
+                                {ticketStatus || "OPEN"}
+                              </span>
+                            </td>
+
+                            <td>
+                              {claimedName ? (
+                                <div className="table-member">
+                                  <div className="member-avatar">
+                                    {String(claimedName)
+                                    .charAt(0)
+                                    .toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <strong>{claimedName}</strong>
+                                    <span>Claimed</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="unassigned">
+                                  Unclaimed
+                                </span>
+                              )}
+                            </td>
+
+                            <td>
+                              {resolved ? (
+                                <span
+                                  style={{
+                                    color: "#22c55e",
+                                    fontWeight: 700,
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  Resolved — QA again
+                                </span>
+                              ) : !claimedBy ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleClaimQaTicket(ticket)}
+                                  disabled={claimingTicketId === ticketId}
+                                  style={{
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "8px 12px",
+                                    background: "#14b8a6",
+                                    color: "white",
+                                    fontWeight: 700,
+                                    fontSize: "12px",
+                                    cursor:
+                                      claimingTicketId === ticketId
+                                        ? "not-allowed"
+                                        : "pointer",
+                                  }}
+                                >
+                                  {claimingTicketId === ticketId
+                                    ? "Claiming..."
+                                    : "Claim Ticket"}
+                                </button>
+                              ) : claimedByMe ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCompleteQaTicket(ticket)
+                                  }
+                                  disabled={
+                                    completingTicketId === ticketId
+                                  }
+                                  style={{
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "8px 12px",
+                                    background: "#14b8a6",
+                                    color: "white",
+                                    fontWeight: 700,
+                                    fontSize: "12px",
+                                    cursor:
+                                      completingTicketId === ticketId
+                                        ? "not-allowed"
+                                        : "pointer",
+                                  }}
+                                >
+                                  {completingTicketId === ticketId
+                                    ? "Completing..."
+                                    : "Complete"}
+                                </button>
+                              ) : (
+                                <span
+                                  style={{
+                                    color: "#94a3b8",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  Claimed by {claimedName || "another member"}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* QA TICKET MODAL */}
+        {showQaTicketModal && (
           <div
-            style={{
-              padding: "20px 22px",
-              borderBottom: "1px solid rgba(148,163,184,.10)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "15px",
-              flexWrap: "wrap",
+            className="project-modal-overlay"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                setShowQaTicketModal(false);
+              }
             }}
           >
-            <div>
-              <div
-                style={{
-                  fontSize: "11px",
-                  letterSpacing: "0.08em",
-                  color: "#5edbd3",
-                  fontWeight: 800,
-                }}
-              >
-                QUALITY ASSURANCE
-              </div>
-              <h3 style={{ margin: "5px 0 4px" }}>QA Testing</h3>
-              <p style={{ margin: 0, color: "#94a3b8", fontSize: "13px" }}>
-                Test completed tasks side by side. Failed tests can create tickets
-                and remain blocked until they are fixed and re-tested.
-              </p>
-            </div>
-
             <div
-              style={{
-                padding: "8px 11px",
-                borderRadius: "9px",
-                background: "rgba(148,163,184,.08)",
-                color: "#cbd5e1",
-                fontSize: "12px",
-                fontWeight: 700,
-              }}
+              className="create-project-modal"
+              onMouseDown={(event) => event.stopPropagation()}
             >
-              {qaTests.filter((test) => normalizeQaStatus(test.status) === "PASSED").length}
-              {" / "}
-              {qaTests.length} tests passed
-            </div>
-          </div>
-
-          {qaOpenTaskId != null && (
-            <div
-              style={{
-                margin: "18px 22px 0",
-                padding: "16px",
-                borderRadius: "12px",
-                border: "1px solid rgba(94,219,211,.18)",
-                background: "rgba(20, 184, 166, .06)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: "12px",
-                  marginBottom: "12px",
-                }}
-              >
+              <div className="modal-header">
                 <div>
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      letterSpacing: ".08em",
-                      color: "#5edbd3",
-                      fontWeight: 800,
-                    }}
-                  >
-                    START QA
-                  </span>
-                  <h4 style={{ margin: "4px 0 0" }}>
-                    {projectTasks.find(
-                      (task) => String(task.id) === String(qaOpenTaskId)
-                    )?.title ||
-                      projectTasks.find(
-                        (task) => String(task.id) === String(qaOpenTaskId)
-                      )?.name ||
-                      `Task #${qaOpenTaskId}`}
-                  </h4>
+                  <h2>Create QA ticket</h2>
+                  <p>
+                    This ticket will be linked to the failed QA test and appear
+                    in QA Testing Tickets.
+                  </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setQaOpenTaskId(null);
-                    setQaName("");
-                    setQaDescription("");
-                  }}
-                  style={{
-                    border: "1px solid rgba(148,163,184,.22)",
-                    borderRadius: "8px",
-                    padding: "7px 11px",
-                    background: "transparent",
-                    color: "#94a3b8",
-                    fontWeight: 700,
-                    fontSize: "11px",
-                    cursor: "pointer",
-                  }}
+                  className="modal-close"
+                  onClick={() => setShowQaTicketModal(false)}
                 >
-                  Collapse
+                  ×
                 </button>
               </div>
 
-              <form
-                onSubmit={(event) =>
-                  createQaTestForTask(event, qaOpenTaskId)
-                }
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1.5fr auto",
-                  gap: "10px",
-                  alignItems: "end",
-                }}
-              >
-                <div className="form-group">
-                  <label>QA test name</label>
-                  <input
-                    value={qaName}
-                    onChange={(event) => setQaName(event.target.value)}
-                    placeholder="e.g. Password reset works"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>What should be verified?</label>
-                  <input
-                    value={qaDescription}
-                    onChange={(event) => setQaDescription(event.target.value)}
-                    placeholder="Verify the task works as expected"
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="create-project-submit"
-                  disabled={qaCreatingTaskId === qaOpenTaskId}
-                  style={{ minHeight: "42px" }}
-                >
-                  {qaCreatingTaskId === qaOpenTaskId
-                    ? "Creating..."
-                    : "+ Create QA"}
-                </button>
-              </form>
-            </div>
-          )}
-
-          <div style={{ padding: "18px 22px 22px" }}>
-            {qaLoading ? (
-              <div style={{ color: "#94a3b8", fontSize: "13px" }}>
-                Loading QA tests...
-              </div>
-            ) : projectTasks.filter(
-                (task) =>
-                  String(task.status || task.task_status || "")
-                    .trim()
-                    .toUpperCase() === "COMPLETED"
-              ).length === 0 ? (
-              <div
-                style={{
-                  padding: "18px",
-                  borderRadius: "10px",
-                  background: "rgba(148,163,184,.05)",
-                  color: "#94a3b8",
-                  fontSize: "13px",
-                }}
-              >
-                Complete a task to start its QA testing here.
-              </div>
-            ) : (
-              <div style={{ display: "grid", gap: "12px" }}>
-                {projectTasks
-                  .filter(
-                    (task) =>
-                      String(task.status || task.task_status || "")
-                        .trim()
-                        .toUpperCase() === "COMPLETED"
-                  )
-                  .map((task) => {
-                    const taskQa = testsForTask(task.id);
-                    const status = taskQaStatus(task.id, task);
-                    const isOpen =
-                      String(qaOpenTaskId) === String(task.id);
-
-                    return (
-                      <div
-                        key={`qa-task-${task.id}`}
-                        style={{
-                          border: "1px solid rgba(148,163,184,.10)",
-                          borderRadius: "12px",
-                          background: "rgba(148,163,184,.035)",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: "14px 15px",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            gap: "12px",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <div>
-                            <strong>
-                              {task.title || task.name || "Task"}
-                            </strong>
-                            <div
-                              style={{
-                                marginTop: "4px",
-                                color: "#94a3b8",
-                                fontSize: "12px",
-                              }}
-                            >
-                              {taskQa.length} QA test
-                              {taskQa.length === 1 ? "" : "s"}
-                            </div>
-                          </div>
-
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            <span
-                              style={{
-                                padding: "6px 9px",
-                                borderRadius: "7px",
-                                background:
-                                  status === "PASSED"
-                                    ? "rgba(34,197,94,.12)"
-                                    : status === "FAILED"
-                                    ? "rgba(239,68,68,.12)"
-                                    : "rgba(234,179,8,.12)",
-                                color:
-                                  status === "PASSED"
-                                    ? "#4ade80"
-                                    : status === "FAILED"
-                                    ? "#fca5a5"
-                                    : "#facc15",
-                                fontSize: "11px",
-                                fontWeight: 800,
-                              }}
-                            >
-                              {status === "NOT_STARTED"
-                                ? "QA Pending"
-                                : status === "PENDING"
-                                ? "QA Pending"
-                                : status === "FAILED"
-                                ? "QA Failed"
-                                : "QA Passed"}
-                            </span>
-
-                            {status !== "PASSED" && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  isOpen
-                                    ? setQaOpenTaskId(null)
-                                    : openQaForTask(task.id)
-                                }
-                                style={{
-                                  border: "1px solid rgba(94,219,211,.35)",
-                                  borderRadius: "8px",
-                                  padding: "7px 11px",
-                                  background: "transparent",
-                                  color: "#7de7df",
-                                  fontWeight: 700,
-                                  fontSize: "11px",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                {isOpen
-                                  ? "Close"
-                                  : status === "FAILED"
-                                  ? "Review QA"
-                                  : "Start QA"}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {taskQa.length === 0 && (
-                          <div
-                            style={{
-                              padding: "0 15px 14px",
-                              color: "#64748b",
-                              fontSize: "12px",
-                            }}
-                          >
-                            No QA tests created yet.
-                          </div>
-                        )}
-
-                        {taskQa.length > 0 && (
-                          <div
-                            style={{
-                              padding: "0 15px 15px",
-                              display: "grid",
-                              gap: "8px",
-                            }}
-                          >
-                            {taskQa.map((test) => {
-                              const testStatus = normalizeQaStatus(test.status);
-                              const updating =
-                                String(qaUpdatingId) ===
-                                String(qaTestId(test));
-
-                              return (
-                                <div
-                                  key={qaTestId(test)}
-                                  style={{
-                                    padding: "12px 13px",
-                                    borderRadius: "9px",
-                                    background: "rgba(148,163,184,.045)",
-                                    border: "1px solid rgba(148,163,184,.09)",
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    gap: "12px",
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <div style={{ minWidth: 0, flex: 1 }}>
-                                    <strong>
-                                      {test.name || test.title || "QA test"}
-                                    </strong>
-                                    <div
-                                      style={{
-                                        marginTop: "4px",
-                                        color: "#94a3b8",
-                                        fontSize: "12px",
-                                      }}
-                                    >
-                                      {test.description ||
-                                        "No description provided."}
-                                    </div>
-                                  </div>
-
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "7px",
-                                      flexWrap: "wrap",
-                                    }}
-                                  >
-                                    <span
-                                      style={{
-                                        padding: "6px 9px",
-                                        borderRadius: "7px",
-                                        background:
-                                          testStatus === "PASSED"
-                                            ? "rgba(34,197,94,.12)"
-                                            : testStatus === "FAILED"
-                                            ? "rgba(239,68,68,.12)"
-                                            : "rgba(148,163,184,.10)",
-                                        color:
-                                          testStatus === "PASSED"
-                                            ? "#4ade80"
-                                            : testStatus === "FAILED"
-                                            ? "#fca5a5"
-                                            : "#cbd5e1",
-                                        fontSize: "11px",
-                                        fontWeight: 800,
-                                      }}
-                                    >
-                                      {testStatus}
-                                    </span>
-
-                                    {testStatus !== "PASSED" && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          updateQaStatus(test, "PASSED")
-                                        }
-                                        disabled={updating}
-                                        style={{
-                                          border: "none",
-                                          borderRadius: "7px",
-                                          padding: "7px 10px",
-                                          background: "#16a34a",
-                                          color: "white",
-                                          fontWeight: 700,
-                                          fontSize: "11px",
-                                          cursor: updating
-                                            ? "not-allowed"
-                                            : "pointer",
-                                        }}
-                                      >
-                                        PASS
-                                      </button>
-                                    )}
-
-                                    {testStatus !== "FAILED" && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          updateQaStatus(test, "FAILED")
-                                        }
-                                        disabled={updating}
-                                        style={{
-                                          border: "none",
-                                          borderRadius: "7px",
-                                          padding: "7px 10px",
-                                          background: "#dc2626",
-                                          color: "white",
-                                          fontWeight: 700,
-                                          fontSize: "11px",
-                                          cursor: updating
-                                            ? "not-allowed"
-                                            : "pointer",
-                                        }}
-                                      >
-                                        FAIL
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-
-            {selectedQaTest && (
-              <div
-                style={{
-                  marginTop: "16px",
-                  padding: "17px",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(239,68,68,.22)",
-                  background: "rgba(239,68,68,.055)",
-                }}
-              >
-                <div style={{ marginBottom: "12px" }}>
-                  <div
-                    style={{
-                      fontSize: "10px",
-                      letterSpacing: ".08em",
-                      color: "#fca5a5",
-                      fontWeight: 800,
-                    }}
-                  >
-                    FAILED QA TEST
-                  </div>
-                  <h4 style={{ margin: "4px 0 3px" }}>
-                    {selectedQaTest.name ||
-                      selectedQaTest.title ||
-                      "QA test"}
-                  </h4>
-                  <p
-                    style={{
-                      margin: 0,
-                      color: "#94a3b8",
-                      fontSize: "12px",
-                    }}
-                  >
-                    Create a fix ticket. The QA test should be re-tested after
-                    the issue is fixed.
-                  </p>
-                </div>
-
-                <form
-                  onSubmit={createQaTicketInline}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "10px",
-                  }}
-                >
+              <form onSubmit={createQaTicketInline}>
+                <div className="project-form-grid">
                   <div className="form-group">
-                    <label>Ticket Title</label>
+                    <label>Ticket title</label>
                     <input
+                      required
                       value={ticketTitle}
                       onChange={(event) =>
                         setTicketTitle(event.target.value)
                       }
-                      placeholder="e.g. Password reset not working"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Description</label>
+                    <input
                       required
+                      value={ticketDescription}
+                      onChange={(event) =>
+                        setTicketDescription(event.target.value)
+                      }
                     />
                   </div>
 
@@ -2722,186 +3265,42 @@ function ProjectDetails() {
                       <option value="Low">Low</option>
                       <option value="Medium">Medium</option>
                       <option value="High">High</option>
-                      <option value="Critical">Critical</option>
                     </select>
                   </div>
 
-                  <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-                    <label>Description</label>
-                    <textarea
-                      value={ticketDescription}
-                      onChange={(event) =>
-                        setTicketDescription(event.target.value)
-                      }
-                      placeholder="Describe the issue found during QA..."
-                      rows={4}
-                      required
-                    />
-                  </div>
-
                   <div className="form-group">
-                    <label>Fix Deadline</label>
+                    <label>Fix deadline</label>
                     <input
                       type="date"
+                      required
                       value={ticketDeadline}
                       onChange={(event) =>
                         setTicketDeadline(event.target.value)
                       }
-                      required
                     />
                   </div>
+                </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "end",
-                      justifyContent: "flex-end",
-                      gap: "8px",
-                    }}
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="cancel-project-button"
+                    onClick={() => setShowQaTicketModal(false)}
+                    disabled={ticketCreating}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setSelectedQaTest(null)}
-                      style={{
-                        border: "1px solid rgba(148,163,184,.22)",
-                        borderRadius: "8px",
-                        padding: "9px 13px",
-                        background: "transparent",
-                        color: "#94a3b8",
-                        fontWeight: 700,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Cancel
-                    </button>
+                    Cancel
+                  </button>
 
-                    <button
-                      type="submit"
-                      disabled={ticketCreating}
-                      className="create-project-submit"
-                    >
-                      {ticketCreating ? "Creating..." : "Create QA Ticket"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {qaTickets.length > 0 && (
-              <div style={{ marginTop: "18px" }}>
-                <div
-                  style={{
-                    fontSize: "11px",
-                    letterSpacing: ".08em",
-                    color: "#94a3b8",
-                    fontWeight: 800,
-                    marginBottom: "9px",
-                  }}
-                >
-                  RECENT QA TICKETS
+                  <button
+                    type="submit"
+                    className="create-project-submit"
+                    disabled={ticketCreating}
+                  >
+                    {ticketCreating ? "Creating..." : "Create Ticket"}
+                  </button>
                 </div>
-
-                <div style={{ display: "grid", gap: "8px" }}>
-                  {qaTickets.map((ticket) => (
-                    <div
-                      key={ticket.id || ticket.ticket_id}
-                      style={{
-                        padding: "12px 13px",
-                        borderRadius: "9px",
-                        border: "1px solid rgba(148,163,184,.09)",
-                        background: "rgba(148,163,184,.035)",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: "12px",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div>
-                        <strong>
-                          {ticket.title || "QA issue"}
-                        </strong>
-                        <div
-                          style={{
-                            marginTop: "3px",
-                            color: "#94a3b8",
-                            fontSize: "12px",
-                          }}
-                        >
-                          {ticket.description || "No description"}
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "7px",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <span
-                          style={{
-                            padding: "6px 8px",
-                            borderRadius: "7px",
-                            background: "rgba(148,163,184,.08)",
-                            color: "#cbd5e1",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          {ticket.priority || "Medium"}
-                        </span>
-                        <span
-                          style={{
-                            padding: "6px 8px",
-                            borderRadius: "7px",
-                            background: "rgba(234,179,8,.10)",
-                            color: "#facc15",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          {ticket.status || "Open"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* =====================================================
-            QA NOTIFICATIONS
-        ===================================================== */}
-        {qaMessage && (
-          <div
-            style={{
-              marginTop: "20px",
-              padding: "12px 14px",
-              borderRadius: "10px",
-              background: "rgba(20, 184, 166, 0.10)",
-              color: "#5eead4",
-              fontSize: "13px",
-            }}
-          >
-            {qaMessage}
-          </div>
-        )}
-
-        {qaError && (
-          <div
-            style={{
-              marginTop: "12px",
-              padding: "12px 14px",
-              borderRadius: "10px",
-              background: "rgba(239, 68, 68, 0.10)",
-              color: "#fca5a5",
-              fontSize: "13px",
-            }}
-          >
-            {qaError}
+              </form>
+            </div>
           </div>
         )}
 
@@ -3136,26 +3535,6 @@ function ProjectDetails() {
                   </div>
 
 
-
-                  {/* DEPENDENCY */}
-
-                  <div className="form-group">
-                    <label>Depends on task</label>
-                    <select
-                      value={taskDependency}
-                      onChange={(event) => setTaskDependency(event.target.value)}
-                    >
-                      <option value="">No dependency</option>
-                      {projectTasks.map((existingTask) => (
-                        <option key={existingTask.id} value={existingTask.id}>
-                          {existingTask.title || existingTask.name || `Task #${existingTask.id}`}
-                        </option>
-                      ))}
-                    </select>
-                    <small style={{ color: "#7f95ad", display: "block", marginTop: "5px" }}>
-                      If selected, this task unlocks only after the dependency passes QA.
-                    </small>
-                  </div>
 
                   {/* DEADLINE */}
 
