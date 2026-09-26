@@ -17,6 +17,7 @@ import Notifications from "./pages/Notifications.jsx";
 import Tickets from "./pages/Tickets.jsx";
 import QAReviews from "./pages/QAReviews.jsx";
 import TeamMember from "./pages/TeamMember.jsx";
+import Profile from "./pages/Profile.jsx";
 
 // NEW
 import CompletedProjects from "./pages/CompletedProjects.jsx";
@@ -112,6 +113,9 @@ function App() {
           path="*"
           element={<Navigate to="/dashboard" />}
         />
+        
+        <Route path="/profile" element={<Profile />} />
+
 
       </Routes>
     </BrowserRouter>
