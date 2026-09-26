@@ -1,37 +1,62 @@
-const STORAGE_KEY = "teamflow_user_profiles";
+const STORAGE_KEY = "teamflow_user_profile";
 
-export function getStoredProfiles() {
+const DEFAULT_PROFILE = {
+  department: "",
+  skills: [],
+  history: [],
+};
+
+export function loadUserProfile() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
 
     if (!stored) {
-      return {};
+      return DEFAULT_PROFILE;
     }
 
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+
+    return {
+      department: parsed?.department || "",
+      skills: Array.isArray(parsed?.skills)
+        ? parsed.skills
+        : [],
+      history: Array.isArray(parsed?.history)
+        ? parsed.history
+        : [],
+    };
   } catch (error) {
-    console.error("Failed to read user profiles:", error);
-    return {};
+    console.error(
+      "Failed to load TeamFlow user profile:",
+      error
+    );
+
+    return DEFAULT_PROFILE;
   }
 }
 
-export function getStoredProfile(userId) {
-  const profiles = getStoredProfiles();
-
-  return profiles[userId] || null;
-}
-
-export function saveStoredProfile(userId, profile) {
+export function saveUserProfile(profile) {
   try {
-    const profiles = getStoredProfiles();
-
-    profiles[userId] = profile;
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
-
-    return profile;
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        department: profile.department || "",
+        skills: Array.isArray(profile.skills)
+          ? profile.skills
+          : [],
+        history: Array.isArray(profile.history)
+          ? profile.history
+          : [],
+      })
+    );
   } catch (error) {
-    console.error("Failed to save user profile:", error);
-    return profile;
+    console.error(
+      "Failed to save TeamFlow user profile:",
+      error
+    );
   }
+}
+
+export function clearUserProfile() {
+  localStorage.removeItem(STORAGE_KEY);
 }

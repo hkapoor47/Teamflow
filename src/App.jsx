@@ -18,8 +18,6 @@ import Tickets from "./pages/Tickets.jsx";
 import QAReviews from "./pages/QAReviews.jsx";
 import TeamMember from "./pages/TeamMember.jsx";
 import Profile from "./pages/Profile.jsx";
-
-// NEW
 import CompletedProjects from "./pages/CompletedProjects.jsx";
 
 function App() {
@@ -48,6 +46,12 @@ function App() {
         <Route
           path="/dashboard"
           element={<Dashboard />}
+        />
+
+        {/* Profile */}
+        <Route
+          path="/profile"
+          element={<Profile />}
         />
 
         {/* Projects */}
@@ -102,7 +106,7 @@ function App() {
           element={<CompletedProjects />}
         />
 
-        {/* QA Testing for a specific project */}
+        {/* QA Testing */}
         <Route
           path="/qa-reviews/:projectId"
           element={<QAReviews />}
@@ -113,9 +117,6 @@ function App() {
           path="*"
           element={<Navigate to="/dashboard" />}
         />
-        
-        <Route path="/profile" element={<Profile />} />
-
 
       </Routes>
     </BrowserRouter>

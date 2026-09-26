@@ -1,12 +1,11 @@
 import { Bell } from "lucide-react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const Navbar = () => {
   const navigate = useNavigate();
 
   return (
     <header className="navbar">
-
       <div>
         <h1>Teamflow</h1>
         <p>Project delivery workspace</p>
@@ -23,8 +22,13 @@ const Navbar = () => {
           <span>3</span>
         </button>
 
-        <div className="profile">
-
+        {/* Profile */}
+        <button
+          type="button"
+          className="profile"
+          onClick={() => navigate("/profile")}
+          aria-label="Open profile"
+        >
           <div className="avatar">
             H
           </div>
@@ -33,11 +37,9 @@ const Navbar = () => {
             <strong>Harshita</strong>
             <small>Manager</small>
           </div>
-
-        </div>
+        </button>
 
       </div>
-
     </header>
   );
 };
