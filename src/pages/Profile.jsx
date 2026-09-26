@@ -1,6 +1,8 @@
 import { useState } from "react";
+
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import useUserProfile from "../context/useUserProfile.js";
+
 
 const DEPARTMENTS = [
   "Web Development",
@@ -14,6 +16,7 @@ const DEPARTMENTS = [
   "Marketing",
   "Other",
 ];
+
 
 const SUGGESTED_SKILLS = [
   "React",
@@ -33,15 +36,18 @@ const SUGGESTED_SKILLS = [
   "Figma",
 ];
 
+
 function getUserName() {
-  const storedUser = localStorage.getItem("user");
+  const storedUser =
+    localStorage.getItem("user");
 
   if (!storedUser) {
     return "Team Member";
   }
 
   try {
-    const user = JSON.parse(storedUser);
+    const user =
+      JSON.parse(storedUser);
 
     return (
       user?.name ||
@@ -54,6 +60,7 @@ function getUserName() {
   }
 }
 
+
 function getInitials(name) {
   if (!name) return "U";
 
@@ -65,350 +72,690 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+
 export default function Profile() {
   const {
     department,
     skills,
     history,
+
+    loadingSkills,
+    skillError,
+
     setDepartment,
     addSkill,
     removeSkill,
   } = useUserProfile();
 
-  const [newSkill, setNewSkill] = useState("");
+
+  const [newSkill, setNewSkill] =
+    useState("");
+
+  const [skillActionLoading, setSkillActionLoading] =
+    useState(false);
+
 
   const userName = getUserName();
-  const initials = getInitials(userName);
 
-  const handleAddSkill = () => {
-    if (!newSkill.trim()) return;
+  const initials =
+    getInitials(userName);
 
-    addSkill(newSkill.trim());
-    setNewSkill("");
+
+  /* =====================================================
+     ADD SKILL
+  ===================================================== */
+
+  const handleAddSkill = async () => {
+    const cleanSkill =
+      newSkill.trim();
+
+    if (!cleanSkill) {
+      return;
+    }
+
+    try {
+      setSkillActionLoading(true);
+
+      await addSkill(cleanSkill);
+
+      setNewSkill("");
+    } catch (error) {
+      console.error(
+        "Profile add skill error:",
+        error
+      );
+    } finally {
+      setSkillActionLoading(false);
+    }
   };
 
-  const handleSkillKeyDown = (event) => {
+
+  /* =====================================================
+     REMOVE SKILL
+  ===================================================== */
+
+  const handleRemoveSkill = async (
+    skill
+  ) => {
+    try {
+      setSkillActionLoading(true);
+
+      await removeSkill(skill);
+    } catch (error) {
+      console.error(
+        "Profile remove skill error:",
+        error
+      );
+    } finally {
+      setSkillActionLoading(false);
+    }
+  };
+
+
+  /* =====================================================
+     ENTER KEY
+  ===================================================== */
+
+  const handleSkillKeyDown = (
+    event
+  ) => {
     if (event.key === "Enter") {
       event.preventDefault();
+
       handleAddSkill();
     }
   };
 
+
   return (
     <DashboardLayout>
+
       <div className="profile-page">
 
-        {/* Header */}
-        <div className="profile-header">
-          <div>
-            <p className="profile-eyebrow">MY PROFILE</p>
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-            <h1>Professional Profile</h1>
+        <div className="profile-header">
+
+          <div>
+
+            <p className="profile-eyebrow">
+              MY PROFILE
+            </p>
+
+            <h1>
+              Professional Profile
+            </h1>
 
             <p>
-              Manage your department and skills so TeamFlow
-              can recommend relevant work to you.
+              Manage your department and
+              skills so TeamFlow can
+              recommend relevant work
+              to you.
             </p>
+
           </div>
+
         </div>
 
-        {/* Profile Card */}
+
+        {/* =================================================
+            PROFILE CARD
+        ================================================= */}
+
         <section className="profile-main-card">
+
           <div className="profile-avatar">
             {initials}
           </div>
 
           <div className="profile-user-info">
-            <h2>{userName}</h2>
+
+            <h2>
+              {userName}
+            </h2>
 
             <p>
-              {department || "Department not selected"}
+              {department ||
+                "Department not selected"}
             </p>
+
           </div>
 
           <div className="profile-status">
+
             <span className="profile-status-dot" />
+
             Active Team Member
+
           </div>
+
         </section>
 
-        {/* Statistics */}
+
+        {/* =================================================
+            STATISTICS
+        ================================================= */}
+
         <section className="profile-stats-grid">
 
           <div className="profile-stat-card">
-            <span>Skills</span>
-            <strong>{skills.length}</strong>
-          </div>
 
-          <div className="profile-stat-card">
-            <span>History Records</span>
-            <strong>{history.length}</strong>
-          </div>
+            <span>
+              Skills
+            </span>
 
-          <div className="profile-stat-card">
-            <span>Department</span>
             <strong>
-              {department ? "Set" : "Not Set"}
+              {skills.length}
             </strong>
+
+          </div>
+
+
+          <div className="profile-stat-card">
+
+            <span>
+              History Records
+            </span>
+
+            <strong>
+              {history.length}
+            </strong>
+
+          </div>
+
+
+          <div className="profile-stat-card">
+
+            <span>
+              Department
+            </span>
+
+            <strong>
+              {department
+                ? "Set"
+                : "Not Set"}
+            </strong>
+
           </div>
 
         </section>
 
-        {/* Main Content */}
+
+        {/* =================================================
+            CONTENT GRID
+        ================================================= */}
+
         <div className="profile-content-grid">
+
+          {/* =================================================
+              LEFT COLUMN
+          ================================================= */}
 
           <div>
 
-            {/* Department */}
+            {/* DEPARTMENT */}
+
             <section className="profile-section">
+
               <div className="profile-section-header">
-                <h2>Department</h2>
+
+                <h2>
+                  Department
+                </h2>
 
                 <p>
-                  Your primary working domain. This will be used
-                  to filter relevant projects and tasks.
+                  Your primary working
+                  domain. This will be
+                  used to filter relevant
+                  projects and tasks.
                 </p>
+
               </div>
+
 
               <select
                 value={department}
                 onChange={(event) =>
-                  setDepartment(event.target.value)
+                  setDepartment(
+                    event.target.value
+                  )
                 }
                 className="profile-select"
               >
+
                 <option value="">
                   Select your department
                 </option>
 
-                {DEPARTMENTS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
+                {DEPARTMENTS.map(
+                  (item) => (
+                    <option
+                      key={item}
+                      value={item}
+                    >
+                      {item}
+                    </option>
+                  )
+                )}
+
               </select>
+
             </section>
 
-            {/* Skills */}
+
+            {/* SKILLS */}
+
             <section className="profile-section">
+
               <div className="profile-section-header">
-                <h2>Skills</h2>
+
+                <h2>
+                  Skills
+                </h2>
 
                 <p>
-                  Add the technologies and skills you can work with.
+                  Add the technologies
+                  and skills you can
+                  work with.
                 </p>
+
               </div>
 
+
               <div className="profile-input-row">
+
                 <input
                   type="text"
                   placeholder="e.g. React, Python, AWS..."
                   value={newSkill}
                   onChange={(event) =>
-                    setNewSkill(event.target.value)
+                    setNewSkill(
+                      event.target.value
+                    )
                   }
-                  onKeyDown={handleSkillKeyDown}
+                  onKeyDown={
+                    handleSkillKeyDown
+                  }
+                  disabled={
+                    skillActionLoading
+                  }
                 />
 
                 <button
                   type="button"
-                  onClick={handleAddSkill}
+                  onClick={
+                    handleAddSkill
+                  }
                   className="profile-add-button"
+                  disabled={
+                    skillActionLoading
+                  }
                 >
-                  Add Skill
+                  {skillActionLoading
+                    ? "Saving..."
+                    : "Add Skill"}
                 </button>
+
               </div>
 
-              {skills.length > 0 && (
-                <div className="profile-tags">
-                  {skills.map((skill) => (
-                    <div
-                      className="profile-tag"
-                      key={skill}
-                    >
-                      <span>{skill}</span>
 
-                      <button
-                        type="button"
-                        onClick={() => removeSkill(skill)}
-                        aria-label={`Remove ${skill}`}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              {/* API ERROR */}
+
+              {skillError && (
+                <p
+                  style={{
+                    margin:
+                      "8px 0 0",
+                    color:
+                      "#ff7f8a",
+                    fontSize:
+                      "11px",
+                  }}
+                >
+                  {skillError}
+                </p>
               )}
 
-              <div className="profile-suggestions">
-                <span>Suggested:</span>
 
-                {SUGGESTED_SKILLS
-                  .filter(
-                    (skill) =>
-                      !skills.some(
-                        (existingSkill) =>
-                          existingSkill.toLowerCase() ===
-                          skill.toLowerCase()
+              {/* LOADING */}
+
+              {loadingSkills ? (
+                <p
+                  style={{
+                    margin:
+                      "12px 0 0",
+                    color:
+                      "#8195ae",
+                    fontSize:
+                      "11px",
+                  }}
+                >
+                  Loading your skills...
+                </p>
+              ) : (
+                <>
+                  {/* SELECTED SKILLS */}
+
+                  {skills.length > 0 && (
+                    <div className="profile-tags">
+
+                      {skills.map(
+                        (skill) => (
+                          <div
+                            className="profile-tag"
+                            key={skill}
+                          >
+
+                            <span>
+                              {skill}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleRemoveSkill(
+                                  skill
+                                )
+                              }
+                              disabled={
+                                skillActionLoading
+                              }
+                              aria-label={`Remove ${skill}`}
+                            >
+                              ×
+                            </button>
+
+                          </div>
+                        )
+                      )}
+
+                    </div>
+                  )}
+
+
+                  {/* SUGGESTIONS */}
+
+                  <div className="profile-suggestions">
+
+                    <span>
+                      Suggested:
+                    </span>
+
+                    {SUGGESTED_SKILLS
+                      .filter(
+                        (skill) =>
+                          !skills.some(
+                            (existingSkill) =>
+                              existingSkill
+                                .toLowerCase() ===
+                              skill.toLowerCase()
+                          )
                       )
-                  )
-                  .slice(0, 8)
-                  .map((skill) => (
-                    <button
-                      type="button"
-                      key={skill}
-                      onClick={() => addSkill(skill)}
-                    >
-                      + {skill}
-                    </button>
-                  ))}
-              </div>
+                      .slice(0, 8)
+                      .map(
+                        (skill) => (
+                          <button
+                            type="button"
+                            key={skill}
+                            onClick={() =>
+                              addSkill(
+                                skill
+                              )
+                            }
+                            disabled={
+                              skillActionLoading
+                            }
+                          >
+                            + {skill}
+                          </button>
+                        )
+                      )}
+
+                  </div>
+
+                </>
+              )}
+
             </section>
 
           </div>
 
+
+          {/* =================================================
+              RIGHT COLUMN
+          ================================================= */}
+
           <div>
 
-            {/* Work History */}
+            {/* WORK HISTORY */}
+
             <section className="profile-section">
+
               <div className="profile-section-header">
-                <h2>Work History</h2>
+
+                <h2>
+                  Work History
+                </h2>
 
                 <p>
-                  Your previous project and task activity will be
-                  maintained here for future recommendations.
+                  Your previous project
+                  and task activity will
+                  be maintained here for
+                  future recommendations.
                 </p>
+
               </div>
 
+
               {history.length === 0 ? (
+
                 <div className="profile-empty-history">
+
                   <div className="profile-empty-icon">
                     ◷
                   </div>
 
-                  <h3>No work history yet</h3>
+                  <h3>
+                    No work history yet
+                  </h3>
 
                   <p>
-                    As you claim, complete and work on tasks,
-                    TeamFlow will build your professional history here.
+                    As you claim,
+                    complete and work
+                    on tasks, TeamFlow
+                    will build your
+                    professional history
+                    here.
                   </p>
+
                 </div>
+
               ) : (
+
                 <div className="profile-history-list">
-                  {history.map((item, index) => (
-                    <div
-                      className="profile-history-item"
-                      key={item.id || index}
-                    >
-                      <div className="profile-history-marker" />
 
-                      <div>
-                        <h3>
-                          {item.title ||
-                            item.taskTitle ||
-                            "Task activity"}
-                        </h3>
+                  {history.map(
+                    (item, index) => (
 
-                        <p>
-                          {item.projectName ||
-                            "TeamFlow Project"}
-                        </p>
+                      <div
+                        className="profile-history-item"
+                        key={
+                          item.id ||
+                          index
+                        }
+                      >
 
-                        <small>
-                          {item.status || "Completed"}
-                        </small>
+                        <div className="profile-history-marker" />
+
+                        <div>
+
+                          <h3>
+                            {item.title ||
+                              item.taskTitle ||
+                              "Task activity"}
+                          </h3>
+
+                          <p>
+                            {item.projectName ||
+                              "TeamFlow Project"}
+                          </p>
+
+                          <small>
+                            {item.status ||
+                              "Completed"}
+                          </small>
+
+                        </div>
+
                       </div>
-                    </div>
-                  ))}
+
+                    )
+                  )}
+
                 </div>
+
               )}
+
             </section>
 
-            {/* Recommendation Profile */}
+
+            {/* RECOMMENDATION PROFILE */}
+
             <section className="profile-section">
+
               <div className="profile-section-header">
-                <h2>Recommendation Profile</h2>
+
+                <h2>
+                  Recommendation Profile
+                </h2>
 
                 <p>
-                  These attributes will help TeamFlow understand
-                  what type of work fits your profile.
+                  These attributes will
+                  help TeamFlow understand
+                  what type of work fits
+                  your profile.
                 </p>
+
               </div>
+
 
               <div className="profile-tags">
 
                 {department && (
                   <div className="profile-tag">
-                    <span>{department}</span>
+                    <span>
+                      {department}
+                    </span>
                   </div>
                 )}
 
-                {skills.slice(0, 6).map((skill) => (
-                  <div
-                    className="profile-tag"
-                    key={`profile-${skill}`}
-                  >
-                    <span>{skill}</span>
-                  </div>
-                ))}
+
+                {skills
+                  .slice(0, 6)
+                  .map((skill) => (
+                    <div
+                      className="profile-tag"
+                      key={`profile-${skill}`}
+                    >
+                      <span>
+                        {skill}
+                      </span>
+                    </div>
+                  ))}
+
 
                 {!department &&
                   skills.length === 0 && (
                     <p
                       style={{
-                        color: "#71859f",
-                        fontSize: "12px",
+                        color:
+                          "#71859f",
+                        fontSize:
+                          "12px",
                         margin: 0,
                       }}
                     >
-                      Complete your profile to improve future
-                      task recommendations.
+                      Complete your
+                      profile to improve
+                      future task
+                      recommendations.
                     </p>
                   )}
 
               </div>
+
             </section>
 
           </div>
+
         </div>
 
-        {/* Recommendation Preview */}
+
+        {/* =================================================
+            RECOMMENDATION BANNER
+        ================================================= */}
+
         <section className="profile-recommendation-card">
 
           <div>
+
             <span className="profile-recommendation-label">
               COMING NEXT
             </span>
 
             <h2>
-              Personalized Task Recommendations
+              Personalized Task
+              Recommendations
             </h2>
 
             <p>
-              TeamFlow will use your department, skills and
-              work history to find tasks that are relevant to you.
+              TeamFlow will use your
+              department, skills and
+              work history to find tasks
+              that are relevant to you.
             </p>
+
           </div>
 
+
           <div className="profile-recommendation-flow">
-            <span>Department</span>
 
-            <b>+</b>
+            <span>
+              Department
+            </span>
 
-            <span>Skills</span>
+            <b>
+              +
+            </b>
 
-            <b>+</b>
+            <span>
+              Skills
+            </span>
 
-            <span>History</span>
+            <b>
+              +
+            </b>
 
-            <b>→</b>
+            <span>
+              History
+            </span>
 
-            <strong>Recommendations</strong>
+            <b>
+              →
+            </b>
+
+            <strong>
+              Recommendations
+            </strong>
+
           </div>
 
         </section>
 
       </div>
+
     </DashboardLayout>
   );
 }
