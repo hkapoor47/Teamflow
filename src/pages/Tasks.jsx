@@ -504,63 +504,47 @@ function Tasks() {
     const token = getToken();
     const projectId = getTaskProjectId(qaTask);
 
+    if (!token) {
+      setQaError("Authentication required. Please login again.");
+      return;
+    }
+
+    // The current backend ticket API is project-scoped.
+    // Do not create a fake LOCAL ticket for standalone tasks.
+    if (projectId == null) {
+      setQaError("Ticket creation for standalone tasks is not available in the current backend API.");
+      return;
+    }
+
     try {
       setTicketCreating(true);
       setQaError("");
 
-      let ticket = null;
-
-      // Project tickets use the real backend endpoint.
-      if (projectId != null && token) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/projects/${projectId}/tickets`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              qa_test_id: qaTest?.id ? Number(qaTest.id) : null,
-              title: ticketTitle.trim(),
-              description: ticketDescription.trim(),
-              priority: ticketPriority,
-              due_date: ticketDeadline,
-            }),
-          });
-
-          const text = await response.text();
-          let data = {};
-          try { data = text ? JSON.parse(text) : {}; } catch {}
-
-          if (response.ok) {
-            ticket = data.ticket || data.data || data;
-          } else {
-            console.warn("Ticket backend failed; using local ticket display.");
-          }
-        } catch (error) {
-          console.warn("Ticket backend unavailable; using local ticket display:", error);
-        }
-      }
-
-      // Individual tasks have no project-scoped ticket endpoint yet, and this
-      // fallback also guarantees that FAIL -> Create Ticket works during backend downtime.
-      if (!ticket?.id) {
-        ticket = {
-          id: `LOCAL-${Date.now()}`,
+      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/tickets`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          qa_test_id: qaTest?.id ? Number(qaTest.id) : null,
           title: ticketTitle.trim(),
           description: ticketDescription.trim(),
           priority: ticketPriority,
           due_date: ticketDeadline,
-          status: "OPEN",
-          qa_test_id: qaTest?.id ?? null,
-          task_id: qaTask.id,
-          project_id: projectId,
-          task_assignee_id: qaTask.assigneeId ?? qaTask.assigned_to ?? null,
-          claimed_by: null,
-          claimed_by_name: null,
-          localOnly: true,
-        };
+        }),
+      });
+
+      const text = await response.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch {}
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Failed to create ticket (${response.status})`);
       }
+
+      const ticket = data.ticket || data.data || data;
+      if (!ticket?.id) throw new Error("Ticket API did not return a ticket ID.");
 
       setCreatedTicket(ticket);
       setCreatedTickets((current) => [...current, ticket]);
@@ -597,63 +581,43 @@ function Tasks() {
   };
 
   const claimCreatedTicket = async (ticketToClaim = createdTicket) => {
-    if (!ticketToClaim) return;
+    if (!ticketToClaim?.id) return;
 
-    const ticketAssigneeId = getTicketAssigneeId(ticketToClaim);
-    if (ticketAssigneeId != null && String(ticketAssigneeId) !== String(currentUserId)) {
-      setQaError("Only the person assigned to this task can claim its QA ticket.");
+    const token = getToken();
+    if (!token) {
+      setQaError("Authentication required. Please login again.");
       return;
     }
 
-    const token = getToken();
-    const ticketId = ticketToClaim.id;
-
     setTicketActionLoading(true);
     setQaError("");
-
     try {
-      let claimed = null;
+      const response = await fetch(`${API_BASE_URL}/tickets/${ticketToClaim.id}/claim`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const text = await response.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch {}
+      if (!response.ok) throw new Error(data.message || "Failed to claim ticket.");
 
-      if (!ticketToClaim.localOnly && token && !String(ticketId).startsWith("LOCAL-")) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/claim`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          const text = await response.text();
-          let data = {};
-          try { data = text ? JSON.parse(text) : {}; } catch {}
-          if (response.ok) claimed = data.ticket || data.data || data;
-        } catch (error) {
-          console.warn("Ticket claim backend unavailable; claiming locally.", error);
-        }
-      }
-
-      const updatedTicket = {
-        ...ticketToClaim,
-        ...(claimed || {}),
-        claimed_by: claimed?.claimed_by ?? currentUserId,
-        claimed_by_name: claimed?.claimed_by_name ?? "You",
-        status: claimed?.status ?? "CLAIMED",
-      };
-
-      setCreatedTicket(updatedTicket);
-      setCreatedTickets((current) =>
-        current.map((ticket) =>
-          String(ticket.id) === String(updatedTicket.id) ? updatedTicket : ticket
-        )
-      );
+      const claimed = data.ticket || data.data || data;
+      setCreatedTicket(claimed);
+      setCreatedTickets((current) => current.map((ticket) => String(ticket.id) === String(ticketToClaim.id) ? claimed : ticket));
       notify("Ticket claimed. Complete is now available to you.");
+    } catch (error) {
+      console.error("Claim ticket error:", error);
+      setQaError(error.message || "Failed to claim ticket.");
     } finally {
       setTicketActionLoading(false);
     }
   };
 
   const completeCreatedTicket = async (ticketToComplete = createdTicket) => {
-    if (!ticketToComplete) return;
+    if (!ticketToComplete?.id) return;
 
     const claimedBy = getClaimedTicketUserId(ticketToComplete);
     if (claimedBy != null && currentUserId != null && String(claimedBy) !== String(currentUserId)) {
@@ -662,42 +626,32 @@ function Tasks() {
     }
 
     const token = getToken();
+    if (!token) {
+      setQaError("Authentication required. Please login again.");
+      return;
+    }
+
     setTicketActionLoading(true);
     setQaError("");
-
     try {
-      let completed = false;
+      const response = await fetch(`${API_BASE_URL}/tickets/${ticketToComplete.id}/complete`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const text = await response.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch {}
+      if (!response.ok) throw new Error(data.message || "Failed to complete ticket.");
 
-      if (!ticketToComplete.localOnly && token && !String(ticketToComplete.id).startsWith("LOCAL-")) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/tickets/${ticketToComplete.id}/complete`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          completed = response.ok;
-        } catch (error) {
-          console.warn("Ticket complete backend unavailable; completing locally.", error);
-        }
-      } else {
-        completed = true;
-      }
-
-      if (completed || ticketToComplete.localOnly) {
-        const completedTicket = { ...ticketToComplete, status: "COMPLETED" };
-        setCreatedTicket(completedTicket);
-        setCreatedTickets((current) =>
-          current.map((ticket) =>
-            String(ticket.id) === String(completedTicket.id) ? completedTicket : ticket
-          )
-        );
-        await reopenQaAfterTicketCompletion();
-      } else {
-        throw new Error("Ticket could not be completed by the backend.");
-      }
+      setCreatedTicket(null);
+      setCreatedTickets((current) => current.filter((ticket) => String(ticket.id) !== String(ticketToComplete.id)));
+      await refreshTasks();
+      notify("Fix completed. QA Testing is open again for re-test.");
     } catch (error) {
+      console.error("Complete ticket error:", error);
       setQaError(error.message || "Failed to complete ticket.");
     } finally {
       setTicketActionLoading(false);

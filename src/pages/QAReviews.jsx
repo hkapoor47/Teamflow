@@ -1,4 +1,4 @@
-  import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useProjects } from "../context/ProjectContext.jsx";
 import { useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
@@ -34,8 +34,6 @@ function QAReviews() {
 
   const {
     projects: backendProjects,
-    loadingProjects,
-    createProject,
     createTask,
     refreshTasks,
     fetchQATests,
@@ -46,39 +44,15 @@ function QAReviews() {
 
   const project = projects[projectId];
 
-  const normalizeProjectKey = (value) =>
-    String(value || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
-
-  const projectRouteKey = normalizeProjectKey(projectId);
-  const projectNameKey = normalizeProjectKey(project?.name);
-
-  // Match the current route to the real backend project using either
-  // name or any slug/name field the backend may return.
-  const backendProject = backendProjects.find((item) => {
-    const backendNameKey = normalizeProjectKey(item?.name);
-    const backendSlugKey = normalizeProjectKey(
-      item?.slug ??
-        item?.project_slug ??
-        item?.projectSlug ??
-        item?.project_name ??
-        item?.projectName
-    );
-
-    return (
-      backendNameKey === projectNameKey ||
-      backendNameKey === projectRouteKey ||
-      backendSlugKey === projectNameKey ||
-      backendSlugKey === projectRouteKey
-    );
-  });
+  const backendProject = backendProjects.find(
+    (item) =>
+      String(item.name || "").trim().toLowerCase() ===
+      String(project?.name || "").trim().toLowerCase()
+  );
 
   const [testCases, setTestCases] = useState([]);
   const [loadingTests, setLoadingTests] = useState(true);
   const [qaError, setQaError] = useState("");
-  const [creatingBackendProject, setCreatingBackendProject] = useState(false);
 
   const [showCreateForm, setShowCreateForm] = useState(true);
   const [qaName, setQaName] = useState("");
@@ -87,9 +61,6 @@ function QAReviews() {
   const [createTestError, setCreateTestError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Tickets are loaded per project from the backend.
-  // Do not initialize this from the global localStorage list because that
-  // list contains tickets from every project.
   const [tickets, setTickets] = useState([]);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
@@ -107,7 +78,8 @@ function QAReviews() {
 
   useEffect(() => {
     const loadQATests = async () => {
-      if (loadingProjects) {
+      if (!backendProject?.id) {
+        setLoadingTests(false);
         return;
       }
 
@@ -115,50 +87,8 @@ function QAReviews() {
         setLoadingTests(true);
         setQaError("");
 
-        let resolvedBackendProject = backendProject;
-
-        // The completed-project cards are currently defined in the QA page,
-        // while the QA API needs a real backend project id. If this project
-        // does not exist in the backend yet, create it once using the same
-        // name/description, then use the returned backend id.
-        if (!resolvedBackendProject?.id) {
-          if (!project?.name) {
-            setQaError("Project information is missing.");
-            setLoadingTests(false);
-            return;
-          }
-
-          setCreatingBackendProject(true);
-
-          const createdProject = await createProject({
-            name: project.name,
-            description: project.description || "",
-          });
-
-          if (!createdProject?.id) {
-            throw new Error(
-              "Backend project was not created because no project ID was returned."
-            );
-          }
-
-          resolvedBackendProject = createdProject;
-        }
-
-        const data = await fetchQATests(resolvedBackendProject.id);
-        const allTests = Array.isArray(data) ? data : [];
-
-        // Keep QA tests strictly isolated to the current backend project.
-        const tests = allTests.filter((test) => {
-          const testProjectId =
-            test?.project_id ??
-            test?.projectId ??
-            test?.projectID;
-
-          return (
-            testProjectId != null &&
-            String(testProjectId) === String(resolvedBackendProject.id)
-          );
-        });
+        const data = await fetchQATests(backendProject.id);
+        const tests = Array.isArray(data) ? data : [];
 
         setTestCases(tests);
 
@@ -172,84 +102,25 @@ function QAReviews() {
         setTestCases([]);
         setShowCreateForm(true);
       } finally {
-        setCreatingBackendProject(false);
         setLoadingTests(false);
       }
     };
 
     loadQATests();
-  }, [
-    backendProject?.id,
-    loadingProjects,
-    projectId,
-    project?.name,
-    project?.description,
-    createProject,
-    fetchQATests,
-  ]);
+  }, [backendProject?.id]);
 
   /* =====================================================
      LOAD TICKETS
      GET /api/projects/:projectId/tickets
-
-     IMPORTANT:
-     The API must be treated as project-scoped. We additionally filter
-     the returned list by the current project id and, when project_id is
-     missing from the response, by QA test ids belonging to this project.
-     This prevents tickets from another project appearing here.
   ===================================================== */
 
   useEffect(() => {
     const loadTickets = async () => {
-      if (!backendProject?.id) {
-        setTickets([]);
-        return;
-      }
+      if (!backendProject?.id) return;
 
       try {
         const token = localStorage.getItem("token");
-
-        if (!token) {
-          setTickets([]);
-          return;
-        }
-
-        // Get the QA test ids that belong to THIS project.
-        let currentProjectQATestIds = new Set();
-
-        try {
-          const qaData = await fetchQATests(backendProject.id);
-          const projectTests = Array.isArray(qaData)
-            ? qaData.filter((test) => {
-                const testProjectId =
-                  test?.project_id ??
-                  test?.projectId ??
-                  test?.projectID;
-
-                return (
-                  testProjectId != null &&
-                  String(testProjectId) === String(backendProject.id)
-                );
-              })
-            : [];
-
-          currentProjectQATestIds = new Set(
-            projectTests
-              .map((test) =>
-                test?.id ??
-                test?.test_id ??
-                test?.qa_test_id ??
-                test?.qaTestId
-              )
-              .filter((id) => id != null)
-              .map((id) => String(id))
-          );
-        } catch (qaLoadError) {
-          console.warn(
-            "Could not load QA test ids while loading tickets:",
-            qaLoadError
-          );
-        }
+        if (!token) return;
 
         const response = await fetch(
           `${API_BASE_URL}/projects/${backendProject.id}/tickets`,
@@ -282,18 +153,14 @@ function QAReviews() {
           data.data ||
           data;
 
-        if (!Array.isArray(apiTickets)) {
-          throw new Error("Ticket API did not return a ticket list.");
-        }
-
-        const normalizedTickets = apiTickets
-          .map((ticket) => ({
+        if (Array.isArray(apiTickets)) {
+          const normalizedTickets = apiTickets.map((ticket) => ({
             ...ticket,
             ticketId: ticket.ticketId ?? ticket.id ?? null,
             projectId:
               ticket.projectId ??
               ticket.project_id ??
-              null,
+              backendProject.id,
             title: ticket.title ?? "",
             description: ticket.description ?? "",
             priority: ticket.priority ?? "Medium",
@@ -308,63 +175,17 @@ function QAReviews() {
               ticket.test_case_id ??
               ticket.testCaseId ??
               null,
-          }))
-          .filter((ticket) => {
-            const ticketProjectId =
-              ticket.projectId ?? ticket.project_id;
+          }));
 
-            // Strongest check: explicit project id.
-            if (ticketProjectId != null) {
-              return (
-                String(ticketProjectId) ===
-                String(backendProject.id)
-              );
-            }
-
-            // Fallback when the ticket API omits project_id:
-            // only allow tickets linked to a QA test that belongs
-            // to the current project.
-            const ticketQATestId =
-              ticket.qa_test_id ??
-              ticket.qaTestId ??
-              ticket.test_case_id ??
-              ticket.testCaseId;
-
-            return (
-              ticketQATestId != null &&
-              currentProjectQATestIds.has(
-                String(ticketQATestId)
-              )
-            );
-          });
-
-        setTickets(normalizedTickets);
-
-        // Keep only this project's tickets in the cache.
-        // This avoids reusing another project's tickets later.
-        localStorage.setItem(
-          `teamflow_tickets_${backendProject.id}`,
-          JSON.stringify(normalizedTickets)
-        );
-      } catch (error) {
-        console.warn(
-          "Ticket GET failed; using this project's cached tickets:",
-          error
-        );
-
-        try {
-          const saved = JSON.parse(
-            localStorage.getItem(
-              `teamflow_tickets_${backendProject.id}`
-            ) || "[]"
-          );
-
-          setTickets(
-            Array.isArray(saved) ? saved : []
-          );
-        } catch {
-          setTickets([]);
+          setTickets(normalizedTickets);
+          return;
         }
+
+        throw new Error("Ticket API did not return a ticket list.");
+      } catch (error) {
+        console.error("Ticket GET failed:", error);
+        setTickets([]);
+        setQaError(error.message || "Failed to load tickets.");
       }
     };
 
@@ -398,13 +219,6 @@ function QAReviews() {
       return;
     }
 
-    if (loadingProjects) {
-      setCreateTestError(
-        "Project data is still loading. Please wait a moment and try again."
-      );
-      return;
-    }
-
     if (!backendProject?.id) {
       setCreateTestError(
         "This project could not be matched with the backend project."
@@ -434,34 +248,13 @@ function QAReviews() {
         const latestTests = await fetchQATests(backendProject.id);
 
         if (Array.isArray(latestTests)) {
-          tests = latestTests.filter((test) => {
-            const testProjectId =
-              test?.project_id ??
-              test?.projectId ??
-              test?.projectID;
-
-            return (
-              testProjectId != null &&
-              String(testProjectId) === String(backendProject.id)
-            );
-          });
+          tests = latestTests;
 
           // In case the GET response is stale and does not contain the
-          // newly-created record yet, keep the POST response visible only
-          // if it belongs to this same project.
-          const createdProjectId =
-            createdTest?.project_id ??
-            createdTest?.projectId ??
-            createdTest?.projectID;
-
+          // newly-created record yet, keep the POST response visible.
           if (
             createdTest?.id &&
-            createdProjectId != null &&
-            String(createdProjectId) === String(backendProject.id) &&
-            !tests.some(
-              (test) =>
-                String(test.id) === String(createdTest.id)
-            )
+            !tests.some((test) => String(test.id) === String(createdTest.id))
           ) {
             tests = [...tests, createdTest];
           }
@@ -735,10 +528,6 @@ function QAReviews() {
         );
 
         try {
-          localStorage.setItem(
-            "teamflow_tickets",
-            JSON.stringify(updated)
-          );
         } catch {}
 
         return updated;
@@ -828,27 +617,6 @@ function QAReviews() {
               }
             : item
         );
-
-        try {
-          const allSaved = JSON.parse(
-            localStorage.getItem("teamflow_tickets") || "[]"
-          );
-          const merged = Array.isArray(allSaved)
-            ? allSaved.map((item) =>
-                String(item.ticketId ?? item.id) === String(ticketId)
-                  ? updated.find(
-                      (u) =>
-                        String(u.ticketId ?? u.id) === String(ticketId)
-                    ) || item
-                  : item
-              )
-            : updated;
-
-          localStorage.setItem(
-            "teamflow_tickets",
-            JSON.stringify(merged)
-          );
-        } catch {}
 
         return updated;
       });
@@ -1043,11 +811,6 @@ function QAReviews() {
           newTicket,
         ];
 
-        localStorage.setItem(
-          `teamflow_tickets_${backendProject.id}`,
-          JSON.stringify(updatedTickets)
-        );
-
         return updatedTickets;
       });
 
@@ -1056,18 +819,6 @@ function QAReviews() {
           (test) => String(getQATestId(test)) !== String(getQATestId(selectedTest))
         )
       );
-
-      // The failed QA test is now represented by the ticket.
-      // Remove it from Test Cases so it is shown only under QA Tickets.
-      if (selectedTest?.id != null) {
-        setTestCases((currentTests) =>
-          currentTests.filter(
-            (test) =>
-              String(getQATestId(test)) !==
-              String(selectedTest.id)
-          )
-        );
-      }
 
       setShowTicketModal(false);
       setSelectedTest(null);
@@ -1274,11 +1025,7 @@ function QAReviews() {
                 <button
                   type="submit"
                   className="qa-submit-button"
-                  disabled={
-  creatingTest ||
-  loadingProjects ||
-  creatingBackendProject
-}
+                  disabled={creatingTest}
                 >
                   {creatingTest
                     ? "Creating..."
@@ -1324,32 +1071,7 @@ function QAReviews() {
             </div>
 
             <div className="qa-test-list">
-              {testCases
-                .filter((test) => {
-                  const testProjectId =
-                    test?.project_id ??
-                    test?.projectId ??
-                    test?.projectID;
-
-                  // Final guard against another project's QA tests.
-                  if (
-                    testProjectId == null ||
-                    String(testProjectId) !== String(backendProject?.id)
-                  ) {
-                    return false;
-                  }
-
-                  const status = normalizedStatus(test.status);
-
-                  // Once a failed QA test has a ticket, it moves to
-                  // the QA Tickets section and must disappear here.
-                  if (status === "failed") {
-                    return !getTicketForTest(test);
-                  }
-
-                  return true;
-                })
-                .map((test, index) => {
+              {testCases.map((test, index) => {
                 const status = normalizedStatus(test.status);
                 const label = getStatusLabel(test.status);
 
@@ -1433,7 +1155,7 @@ function QAReviews() {
                     </div>
                   </article>
                 );
-                })}
+              })}
             </div>
           </section>
         )}

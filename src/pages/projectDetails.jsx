@@ -984,7 +984,12 @@ function ProjectDetails() {
         data.data ||
         (Array.isArray(data) ? data : []);
 
-      setQaTickets(Array.isArray(tickets) ? tickets : []);
+      const activeTickets = (Array.isArray(tickets) ? tickets : []).filter((ticket) => {
+        const status = normalizeQaStatus(ticket?.status);
+        return !["COMPLETED", "COMPLETE", "DONE", "CLOSED", "RESOLVED"].includes(status);
+      });
+
+      setQaTickets(activeTickets);
     } catch (error) {
       console.error("Failed to load QA tickets:", error);
       // Do not overwrite a working QA screen when the optional ticket GET
@@ -1152,17 +1157,6 @@ function ProjectDetails() {
       console.error("QA fail setup failed:", error);
       setQaError(error.message || "Unable to open the QA ticket form.");
     }
-  };
-
-  const handleTaskQaDelete = async (task) => {
-    const test = qaTests.find(
-      (item) => String(getTestTaskId(item)) === String(task.id)
-    );
-    if (!test || !qaTestId(test)) {
-      setQaMessage("No QA test has been created for this task yet.");
-      return;
-    }
-    await deleteQaTest(qaTestId(test));
   };
 
   const createQaTestInline = async (event) => {
@@ -1558,11 +1552,14 @@ function ProjectDetails() {
       return;
     }
 
-    if (
-      String(getTicketClaimedBy(ticket) || "") !==
-      String(currentUserId || "")
-    ) {
+    if (String(getTicketClaimedBy(ticket) || "") !== String(currentUserId || "")) {
       setQaError("Only the member who claimed this ticket can complete it.");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setQaError("Authentication required. Please login again.");
       return;
     }
 
@@ -1571,90 +1568,27 @@ function ProjectDetails() {
       setQaError("");
       setQaMessage("");
 
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("Authentication required. Please login again.");
-      }
-
-      // Ticket completion sends the fixed item back to QA.
-      const response = await fetch(
-        `${API_BASE_URL}/tickets/${ticketId}/complete`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/tickets/${ticketId}/complete`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       const text = await response.text();
       let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch {}
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Failed to complete ticket (${response.status})`);
       }
 
-      // The ticket-complete backend may not be deployed yet. Do not block
-      // the QA workflow just because that optional endpoint returns 404.
-      const ticketApiAvailable = response.ok;
-      if (!ticketApiAvailable) {
-        console.warn(
-          `Ticket complete API returned ${response.status}; completing locally and reopening QA.`
-        );
-      }
-
-      const testId = getTicketQaTestId(ticket);
-
-      // Put the failed QA test back into PENDING so it can be re-tested.
-      if (testId) {
-        const qaResponse = await fetch(
-          `${API_BASE_URL}/qa-tests/${testId}`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ status: "PENDING" }),
-          }
-        );
-
-        if (!qaResponse.ok) {
-          const qaText = await qaResponse.text();
-          let qaData = {};
-          try {
-            qaData = qaText ? JSON.parse(qaText) : {};
-          } catch {}
-          throw new Error(
-            qaData.message || "Ticket completed but QA could not be reopened."
-          );
-        }
-      }
-
-      // Keep the ticket visible as completed even when the ticket-complete
-      // endpoint is not available yet. This also prevents the old OPEN/
-      // CLAIMED ticket from blocking the QA re-test in the current UI.
-      setQaTickets((current) =>
-        current.map((item) =>
-          String(getTicketId(item)) === String(ticketId)
-            ? { ...item, status: "COMPLETED", completed_locally: !ticketApiAvailable }
-            : item
-        )
-      );
-
-      setQaMessage(
-        ticketApiAvailable
-          ? "Fix completed. The QA test is pending re-test."
-          : "Fix completed. The QA test is pending re-test. Ticket completion API is not deployed yet, so this ticket status is currently local."
-      );
-      if (ticketApiAvailable) {
-        await refreshQaWorkspace();
-      } else {
-        await loadQaTests();
-        await fetchProjectTasks(backendProjectId);
-      }
+      // Backend completion already resets the linked QA test/task status.
+      // Remove the completed ticket from the active workspace.
+      setQaTickets((current) => current.filter((item) => String(getTicketId(item)) !== String(ticketId)));
+      setQaMessage("Fix completed. The task has been moved back to QA for re-testing.");
+      await refreshQaWorkspace();
     } catch (error) {
       console.error("Failed to complete QA ticket:", error);
       setQaError(error.message || "Failed to complete QA ticket.");
@@ -2871,7 +2805,6 @@ function ProjectDetails() {
                                 <div style={{ display: "flex", gap: "7px", flexWrap: "wrap" }}>
                                   <button type="button" onClick={() => handleTaskQaPass(task)} style={{ border: "none", borderRadius: "7px", padding: "7px 11px", background: "#16a34a", color: "white", fontWeight: 700, fontSize: "11px" }}>PASS</button>
                                   <button type="button" onClick={() => handleTaskQaFail(task)} style={{ border: "none", borderRadius: "7px", padding: "7px 11px", background: "#dc2626", color: "white", fontWeight: 700, fontSize: "11px" }}>FAIL</button>
-                                  <button type="button" onClick={() => handleTaskQaDelete(task)} style={{ border: "1px solid rgba(239,68,68,.35)", borderRadius: "7px", padding: "7px 11px", background: "transparent", color: "#fca5a5", fontWeight: 700, fontSize: "11px" }}>DELETE</button>
                                 </div>
                               </td>
                             </tr>
