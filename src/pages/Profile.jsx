@@ -62,11 +62,15 @@ function getUserName() {
 
 
 function getInitials(name) {
-  if (!name) return "U";
+  if (!name) {
+    return "U";
+  }
 
   return name
     .split(" ")
-    .map((word) => word[0])
+    .map(
+      (word) => word[0]
+    )
     .join("")
     .slice(0, 2)
     .toUpperCase();
@@ -95,7 +99,8 @@ export default function Profile() {
     useState(false);
 
 
-  const userName = getUserName();
+  const userName =
+    getUserName();
 
   const initials =
     getInitials(userName);
@@ -131,16 +136,16 @@ export default function Profile() {
 
 
   /* =====================================================
-     REMOVE SKILL
+     DELETE SKILL
   ===================================================== */
 
   const handleRemoveSkill = async (
-    skill
+    skillId
   ) => {
     try {
       setSkillActionLoading(true);
 
-      await removeSkill(skill);
+      await removeSkill(skillId);
     } catch (error) {
       console.error(
         "Profile remove skill error:",
@@ -172,6 +177,7 @@ export default function Profile() {
 
       <div className="profile-page">
 
+
         {/* =================================================
             HEADER
         ================================================= */}
@@ -189,10 +195,10 @@ export default function Profile() {
             </h1>
 
             <p>
-              Manage your department and
-              skills so TeamFlow can
-              recommend relevant work
-              to you.
+              Manage your department
+              and skills so TeamFlow
+              can recommend relevant
+              work to you.
             </p>
 
           </div>
@@ -201,7 +207,7 @@ export default function Profile() {
 
 
         {/* =================================================
-            PROFILE CARD
+            USER CARD
         ================================================= */}
 
         <section className="profile-main-card">
@@ -209,6 +215,7 @@ export default function Profile() {
           <div className="profile-avatar">
             {initials}
           </div>
+
 
           <div className="profile-user-info">
 
@@ -223,6 +230,7 @@ export default function Profile() {
 
           </div>
 
+
           <div className="profile-status">
 
             <span className="profile-status-dot" />
@@ -235,10 +243,11 @@ export default function Profile() {
 
 
         {/* =================================================
-            STATISTICS
+            STATS
         ================================================= */}
 
         <section className="profile-stats-grid">
+
 
           <div className="profile-stat-card">
 
@@ -280,22 +289,27 @@ export default function Profile() {
 
           </div>
 
+
         </section>
 
 
         {/* =================================================
-            CONTENT GRID
+            MAIN CONTENT
         ================================================= */}
 
         <div className="profile-content-grid">
 
+
           {/* =================================================
-              LEFT COLUMN
+              LEFT
           ================================================= */}
 
           <div>
 
-            {/* DEPARTMENT */}
+
+            {/* =============================================
+                DEPARTMENT
+            ============================================= */}
 
             <section className="profile-section">
 
@@ -345,7 +359,9 @@ export default function Profile() {
             </section>
 
 
-            {/* SKILLS */}
+            {/* =============================================
+                SKILLS
+            ============================================= */}
 
             <section className="profile-section">
 
@@ -383,12 +399,13 @@ export default function Profile() {
                   }
                 />
 
+
                 <button
                   type="button"
+                  className="profile-add-button"
                   onClick={
                     handleAddSkill
                   }
-                  className="profile-add-button"
                   disabled={
                     skillActionLoading
                   }
@@ -401,7 +418,7 @@ export default function Profile() {
               </div>
 
 
-              {/* API ERROR */}
+              {/* ERROR */}
 
               {skillError && (
                 <p
@@ -422,6 +439,7 @@ export default function Profile() {
               {/* LOADING */}
 
               {loadingSkills ? (
+
                 <p
                   style={{
                     margin:
@@ -434,48 +452,63 @@ export default function Profile() {
                 >
                   Loading your skills...
                 </p>
+
               ) : (
+
                 <>
-                  {/* SELECTED SKILLS */}
+
+
+                  {/* =======================================
+                      CURRENT SKILLS
+                  ======================================= */}
 
                   {skills.length > 0 && (
+
                     <div className="profile-tags">
 
                       {skills.map(
                         (skill) => (
+
                           <div
                             className="profile-tag"
-                            key={skill}
+                            key={skill.id}
                           >
 
                             <span>
-                              {skill}
+                              {
+                                skill.skill_name
+                              }
                             </span>
+
 
                             <button
                               type="button"
                               onClick={() =>
                                 handleRemoveSkill(
-                                  skill
+                                  skill.id
                                 )
                               }
                               disabled={
                                 skillActionLoading
                               }
-                              aria-label={`Remove ${skill}`}
+                              aria-label={`Remove ${skill.skill_name}`}
                             >
                               ×
                             </button>
 
                           </div>
+
                         )
                       )}
 
                     </div>
+
                   )}
 
 
-                  {/* SUGGESTIONS */}
+                  {/* =======================================
+                      SUGGESTED SKILLS
+                  ======================================= */}
 
                   <div className="profile-suggestions">
 
@@ -483,19 +516,24 @@ export default function Profile() {
                       Suggested:
                     </span>
 
+
                     {SUGGESTED_SKILLS
                       .filter(
-                        (skill) =>
+                        (suggestedSkill) =>
                           !skills.some(
-                            (existingSkill) =>
-                              existingSkill
+                            (skill) =>
+                              String(
+                                skill?.skill_name ||
+                                  ""
+                              )
                                 .toLowerCase() ===
-                              skill.toLowerCase()
+                              suggestedSkill.toLowerCase()
                           )
                       )
                       .slice(0, 8)
                       .map(
                         (skill) => (
+
                           <button
                             type="button"
                             key={skill}
@@ -510,12 +548,14 @@ export default function Profile() {
                           >
                             + {skill}
                           </button>
+
                         )
                       )}
 
                   </div>
 
                 </>
+
               )}
 
             </section>
@@ -524,12 +564,15 @@ export default function Profile() {
 
 
           {/* =================================================
-              RIGHT COLUMN
+              RIGHT
           ================================================= */}
 
           <div>
 
-            {/* WORK HISTORY */}
+
+            {/* =============================================
+                WORK HISTORY
+            ============================================= */}
 
             <section className="profile-section">
 
@@ -589,6 +632,7 @@ export default function Profile() {
 
                         <div className="profile-history-marker" />
 
+
                         <div>
 
                           <h3>
@@ -621,7 +665,9 @@ export default function Profile() {
             </section>
 
 
-            {/* RECOMMENDATION PROFILE */}
+            {/* =============================================
+                RECOMMENDATION PROFILE
+            ============================================= */}
 
             <section className="profile-section">
 
@@ -643,31 +689,47 @@ export default function Profile() {
 
               <div className="profile-tags">
 
+
                 {department && (
+
                   <div className="profile-tag">
+
                     <span>
                       {department}
                     </span>
+
                   </div>
+
                 )}
 
 
                 {skills
                   .slice(0, 6)
-                  .map((skill) => (
-                    <div
-                      className="profile-tag"
-                      key={`profile-${skill}`}
-                    >
-                      <span>
-                        {skill}
-                      </span>
-                    </div>
-                  ))}
+                  .map(
+                    (skill) => (
+
+                      <div
+                        className="profile-tag"
+                        key={
+                          `profile-${skill.id}`
+                        }
+                      >
+
+                        <span>
+                          {
+                            skill.skill_name
+                          }
+                        </span>
+
+                      </div>
+
+                    )
+                  )}
 
 
                 {!department &&
                   skills.length === 0 && (
+
                     <p
                       style={{
                         color:
@@ -682,6 +744,7 @@ export default function Profile() {
                       future task
                       recommendations.
                     </p>
+
                   )}
 
               </div>
@@ -699,6 +762,7 @@ export default function Profile() {
 
         <section className="profile-recommendation-card">
 
+
           <div>
 
             <span className="profile-recommendation-label">
@@ -713,8 +777,9 @@ export default function Profile() {
             <p>
               TeamFlow will use your
               department, skills and
-              work history to find tasks
-              that are relevant to you.
+              work history to find
+              tasks that are relevant
+              to you.
             </p>
 
           </div>
@@ -752,7 +817,9 @@ export default function Profile() {
 
           </div>
 
+
         </section>
+
 
       </div>
 

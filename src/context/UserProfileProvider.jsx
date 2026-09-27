@@ -13,111 +13,14 @@ import {
 } from "./userProfileStorage.js";
 
 
-/* =========================================================
-   API
-========================================================= */
-
 const API_BASE_URL =
   "http://65.0.11.153:5001/api";
 
-
-/* =========================================================
-   HELPERS
-========================================================= */
 
 function getToken() {
   return localStorage.getItem("token");
 }
 
-
-/*
- * Backend response can differ slightly depending on the
- * API implementation.
- *
- * These helpers allow:
- *
- * {
- *   skills: [...]
- * }
- *
- * or
- *
- * {
- *   data: [...]
- * }
- *
- * or directly:
- *
- * [...]
- */
-
-function extractSkills(data) {
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  if (Array.isArray(data?.skills)) {
-    return data.skills;
-  }
-
-  if (Array.isArray(data?.data)) {
-    return data.data;
-  }
-
-  return [];
-}
-
-
-function getSkillId(skill) {
-  return (
-    skill?.id ??
-    skill?.skillId ??
-    skill?._id ??
-    null
-  );
-}
-
-
-function getSkillName(skill) {
-  if (typeof skill === "string") {
-    return skill;
-  }
-
-  return (
-    skill?.skill ??
-    skill?.name ??
-    skill?.skill_name ??
-    ""
-  );
-}
-
-
-/*
- * Convert backend skill objects into the simple strings
- * currently expected by Profile.jsx.
- *
- * Example:
- *
- * [
- *   { id: 1, skill: "React" },
- *   { id: 2, skill: "Python" }
- * ]
- *
- * becomes:
- *
- * ["React", "Python"]
- */
-
-function normalizeSkillNames(skills) {
-  return skills
-    .map(getSkillName)
-    .filter(Boolean);
-}
-
-
-/* =========================================================
-   PROVIDER
-========================================================= */
 
 export default function UserProfileProvider({
   children,
@@ -127,12 +30,17 @@ export default function UserProfileProvider({
   const [department, setDepartmentState] =
     useState(initialProfile.department || "");
 
-  const [skills, setSkills] =
-    useState(initialProfile.skills || []);
+  const [skills, setSkills] = useState(
+    Array.isArray(initialProfile.skills)
+      ? initialProfile.skills
+      : []
+  );
 
-  const [history, setHistory] =
-    useState(initialProfile.history || []);
-
+  const [history, setHistory] = useState(
+    Array.isArray(initialProfile.history)
+      ? initialProfile.history
+      : []
+  );
 
   const [loadingSkills, setLoadingSkills] =
     useState(false);
@@ -141,139 +49,115 @@ export default function UserProfileProvider({
     useState("");
 
 
-  /* =======================================================
-     SAVE LOCAL PROFILE
-  ======================================================= */
+  /* =====================================================
+     SAVE PROFILE LOCALLY
+  ===================================================== */
 
-  const saveProfile = useCallback(
-    (
-      nextDepartment = department,
-      nextSkills = skills,
-      nextHistory = history
-    ) => {
-      saveUserProfile({
-        department: nextDepartment,
-        skills: nextSkills,
-        history: nextHistory,
-      });
+  useEffect(() => {
+    saveUserProfile({
+      department,
+      skills,
+      history,
+    });
+  }, [
+    department,
+    skills,
+    history,
+  ]);
+
+
+  /* =====================================================
+     GET SKILLS
+     GET /api/users/skills
+  ===================================================== */
+
+  const fetchSkills = useCallback(
+    async () => {
+      const token = getToken();
+
+      if (!token) {
+        return;
+      }
+
+      setLoadingSkills(true);
+      setSkillError("");
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/users/skills`,
+          {
+            method: "GET",
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              "Failed to fetch skills"
+          );
+        }
+
+        const backendSkills =
+          Array.isArray(data?.skills)
+            ? data.skills
+            : [];
+
+        setSkills(backendSkills);
+      } catch (error) {
+        console.error(
+          "Fetch skills error:",
+          error
+        );
+
+        setSkillError(
+          error.message ||
+            "Failed to load skills"
+        );
+      } finally {
+        setLoadingSkills(false);
+      }
     },
-    [department, skills, history]
+    []
   );
 
 
-  /* =======================================================
-     GET SKILLS
-     
-     GET /api/users/skills
-  ======================================================= */
-
-  const fetchSkills = useCallback(async () => {
-    const token = getToken();
-
-    if (!token) {
-      console.warn(
-        "UserProfileProvider: no authentication token."
-      );
-
-      return;
-    }
-
-    setLoadingSkills(true);
-    setSkillError("");
-
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/users/skills`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      console.log(
-        "USER PROFILE - SKILLS RESPONSE:",
-        data
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message ||
-            "Failed to fetch skills"
-        );
-      }
-
-      const backendSkills =
-        extractSkills(data);
-
-      const skillNames =
-        normalizeSkillNames(backendSkills);
-
-      setSkills(skillNames);
-
-      /*
-       * Keep local cache synchronized with backend.
-       */
-      setHistory((currentHistory) => {
-        saveUserProfile({
-          department,
-          skills: skillNames,
-          history: currentHistory,
-        });
-
-        return currentHistory;
-      });
-    } catch (error) {
-      console.error(
-        "UserProfileProvider - fetch skills error:",
-        error
-      );
-
-      setSkillError(
-        error.message ||
-          "Failed to load skills"
-      );
-    } finally {
-      setLoadingSkills(false);
-    }
-  }, [department]);
-
-
-  /* =======================================================
-     INITIAL LOAD
-  ======================================================= */
+  /* =====================================================
+     LOAD SKILLS WHEN PROVIDER STARTS
+  ===================================================== */
 
   useEffect(() => {
     fetchSkills();
   }, [fetchSkills]);
 
 
-  /* =======================================================
-     DEPARTMENT
-  ======================================================= */
+  /* =====================================================
+     SET DEPARTMENT
+  ===================================================== */
 
   const setDepartment = useCallback(
     (value) => {
       setDepartmentState(value);
-
-      saveUserProfile({
-        department: value,
-        skills,
-        history,
-      });
     },
-    [skills, history]
+    []
   );
 
 
-  /* =======================================================
+  /* =====================================================
      ADD SKILL
-     
      POST /api/users/skills
-  ======================================================= */
+
+     Body:
+     {
+       name: "React"
+     }
+  ===================================================== */
 
   const addSkill = useCallback(
     async (skillName) => {
@@ -281,19 +165,207 @@ export default function UserProfileProvider({
         String(skillName || "").trim();
 
       if (!cleanSkill) {
-        return;
+        return null;
       }
 
-      /*
-       * Prevent duplicates on frontend.
-       */
-      const alreadyExists = skills.some(
-        (skill) =>
-          skill.toLowerCase() ===
-          cleanSkill.toLowerCase()
-      );
+      const token = getToken();
+
+      if (!token) {
+        throw new Error(
+          "Authentication required. Please login again."
+        );
+      }
+
+      const alreadyExists =
+        skills.some(
+          (skill) =>
+            String(skill?.skill_name || "")
+              .toLowerCase() ===
+            cleanSkill.toLowerCase()
+        );
 
       if (alreadyExists) {
+        return null;
+      }
+
+      setSkillError("");
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/users/skills`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body: JSON.stringify({
+              name: cleanSkill,
+            }),
+          }
+        );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              "Failed to add skill"
+          );
+        }
+
+        const newSkill =
+          data?.skill;
+
+        if (!newSkill) {
+          throw new Error(
+            "Skill was added but the server did not return the skill."
+          );
+        }
+
+        setSkills(
+          (currentSkills) => [
+            ...currentSkills,
+            newSkill,
+          ]
+        );
+
+        return newSkill;
+      } catch (error) {
+        console.error(
+          "Add skill error:",
+          error
+        );
+
+        setSkillError(
+          error.message ||
+            "Failed to add skill"
+        );
+
+        throw error;
+      }
+    },
+    [skills]
+  );
+
+
+  /* =====================================================
+     UPDATE SKILL
+     PATCH /api/users/skills/:skillId
+
+     Body:
+     {
+       name: "React",
+       proficiency: "Advanced"
+     }
+  ===================================================== */
+
+  const updateSkill = useCallback(
+    async (
+      skillId,
+      skillName,
+      proficiency = null
+    ) => {
+      const cleanSkill =
+        String(skillName || "").trim();
+
+      if (!skillId || !cleanSkill) {
+        return null;
+      }
+
+      const token = getToken();
+
+      if (!token) {
+        throw new Error(
+          "Authentication required. Please login again."
+        );
+      }
+
+      setSkillError("");
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/users/skills/${skillId}`,
+          {
+            method: "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body: JSON.stringify({
+              name: cleanSkill,
+              proficiency,
+            }),
+          }
+        );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              "Failed to update skill"
+          );
+        }
+
+        const updatedSkill =
+          data?.skill;
+
+        if (!updatedSkill) {
+          throw new Error(
+            "Skill was updated but the server did not return the skill."
+          );
+        }
+
+        setSkills(
+          (currentSkills) =>
+            currentSkills.map(
+              (skill) =>
+                skill.id === skillId
+                  ? updatedSkill
+                  : skill
+            )
+        );
+
+        return updatedSkill;
+      } catch (error) {
+        console.error(
+          "Update skill error:",
+          error
+        );
+
+        setSkillError(
+          error.message ||
+            "Failed to update skill"
+        );
+
+        throw error;
+      }
+    },
+    []
+  );
+
+
+  /* =====================================================
+     DELETE SKILL
+     DELETE /api/users/skills/:skillId
+  ===================================================== */
+
+  const removeSkill = useCallback(
+    async (skillId) => {
+      if (!skillId) {
         return;
       }
 
@@ -309,204 +381,39 @@ export default function UserProfileProvider({
 
       try {
         const response = await fetch(
-          `${API_BASE_URL}/users/skills`,
+          `${API_BASE_URL}/users/skills/${skillId}`,
           {
-            method: "POST",
+            method: "DELETE",
 
             headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-
-            body: JSON.stringify({
-              name: cleanSkill,
-            }),
-          }
-        );
-
-        const data = await response.json();
-
-        console.log(
-          "USER PROFILE - ADD SKILL RESPONSE:",
-          data
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            data?.message ||
-              "Failed to add skill"
-          );
-        }
-
-        /*
-         * If backend returns the newly created skill,
-         * use it. Otherwise refresh the complete list.
-         */
-        const returnedSkills =
-          extractSkills(data);
-
-        if (returnedSkills.length > 0) {
-          const skillNames =
-            normalizeSkillNames(
-              returnedSkills
-            );
-
-          setSkills(skillNames);
-
-          saveUserProfile({
-            department,
-            skills: skillNames,
-            history,
-          });
-        } else {
-          /*
-           * Safest fallback: reload from backend.
-           */
-          await fetchSkills();
-        }
-
-        return data;
-      } catch (error) {
-        console.error(
-          "UserProfileProvider - add skill error:",
-          error
-        );
-
-        setSkillError(
-          error.message ||
-            "Failed to add skill"
-        );
-
-        throw error;
-      }
-    },
-    [
-      skills,
-      department,
-      history,
-      fetchSkills,
-    ]
-  );
-
-
-  /* =======================================================
-     DELETE SKILL
-     
-     DELETE /api/users/skills/:skillId
-  ======================================================= */
-
-  const removeSkill = useCallback(
-    async (skillName) => {
-      const token = getToken();
-
-      if (!token) {
-        throw new Error(
-          "Authentication required. Please login again."
-        );
-      }
-
-      /*
-       * First fetch the backend skills so we can
-       * find the database ID corresponding to the
-       * displayed skill name.
-       */
-      try {
-        setSkillError("");
-
-        const response = await fetch(
-          `${API_BASE_URL}/users/skills`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization:
+                `Bearer ${token}`,
             },
           }
         );
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         if (!response.ok) {
           throw new Error(
             data?.message ||
-              "Failed to fetch skills"
-          );
-        }
-
-        const backendSkills =
-          extractSkills(data);
-
-        const matchingSkill =
-          backendSkills.find(
-            (skill) =>
-              getSkillName(skill)
-                .toLowerCase() ===
-              String(skillName)
-                .toLowerCase()
-          );
-
-        const skillId =
-          getSkillId(matchingSkill);
-
-        if (!skillId) {
-          throw new Error(
-            `Could not find skill ID for "${skillName}".`
-          );
-        }
-
-        /*
-         * DELETE /users/skills/:skillId
-         */
-        const deleteResponse =
-          await fetch(
-            `${API_BASE_URL}/users/skills/${skillId}`,
-            {
-              method: "DELETE",
-
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-        const deleteData =
-          await deleteResponse.json();
-
-        console.log(
-          "USER PROFILE - DELETE SKILL RESPONSE:",
-          deleteData
-        );
-
-        if (!deleteResponse.ok) {
-          throw new Error(
-            deleteData?.message ||
               "Failed to delete skill"
           );
         }
 
-        /*
-         * Remove it from UI immediately.
-         */
-        setSkills((currentSkills) => {
-          const updatedSkills =
+        setSkills(
+          (currentSkills) =>
             currentSkills.filter(
               (skill) =>
-                skill.toLowerCase() !==
-                String(skillName).toLowerCase()
-            );
+                skill.id !== skillId
+            )
+        );
 
-          saveUserProfile({
-            department,
-            skills: updatedSkills,
-            history,
-          });
-
-          return updatedSkills;
-        });
-
-        return deleteData;
+        return data;
       } catch (error) {
         console.error(
-          "UserProfileProvider - remove skill error:",
+          "Delete skill error:",
           error
         );
 
@@ -518,123 +425,30 @@ export default function UserProfileProvider({
         throw error;
       }
     },
-    [department, history]
+    []
   );
 
 
-  /* =======================================================
-     UPDATE SKILL
-     
-     PATCH /api/users/skills/:skillId
-     
-     Not currently used by Profile.jsx, but exposed
-     for future editing functionality.
-  ======================================================= */
-
-  const updateSkill = useCallback(
-    async (
-      skillId,
-      newSkillName
-    ) => {
-      const cleanSkill =
-        String(newSkillName || "").trim();
-
-      if (!skillId || !cleanSkill) {
-        return;
-      }
-
-      const token = getToken();
-
-      if (!token) {
-        throw new Error(
-          "Authentication required. Please login again."
-        );
-      }
-
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/users/skills/${skillId}`,
-          {
-            method: "PATCH",
-
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-
-            body: JSON.stringify({
-              name: cleanSkill,
-            }),
-          }
-        );
-
-        const data = await response.json();
-
-        console.log(
-          "USER PROFILE - UPDATE SKILL RESPONSE:",
-          data
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            data?.message ||
-              "Failed to update skill"
-          );
-        }
-
-        await fetchSkills();
-
-        return data;
-      } catch (error) {
-        console.error(
-          "UserProfileProvider - update skill error:",
-          error
-        );
-
-        setSkillError(
-          error.message ||
-            "Failed to update skill"
-        );
-
-        throw error;
-      }
-    },
-    [fetchSkills]
-  );
-
-
-  /* =======================================================
-     HISTORY
-     
-     Still local for now.
-     We can connect this to backend later when the
-     task-history API is available.
-  ======================================================= */
+  /* =====================================================
+     ADD HISTORY
+  ===================================================== */
 
   const addHistory = useCallback(
     (historyItem) => {
-      setHistory((currentHistory) => {
-        const updatedHistory = [
+      setHistory(
+        (currentHistory) => [
           ...currentHistory,
           historyItem,
-        ];
-
-        saveUserProfile({
-          department,
-          skills,
-          history: updatedHistory,
-        });
-
-        return updatedHistory;
-      });
+        ]
+      );
     },
-    [department, skills]
+    []
   );
 
 
-  /* =======================================================
+  /* =====================================================
      CONTEXT VALUE
-  ======================================================= */
+  ===================================================== */
 
   const value = useMemo(
     () => ({
@@ -648,8 +462,8 @@ export default function UserProfileProvider({
       setDepartment,
 
       addSkill,
-      removeSkill,
       updateSkill,
+      removeSkill,
 
       fetchSkills,
 
@@ -659,13 +473,18 @@ export default function UserProfileProvider({
       department,
       skills,
       history,
+
       loadingSkills,
       skillError,
+
       setDepartment,
+
       addSkill,
-      removeSkill,
       updateSkill,
+      removeSkill,
+
       fetchSkills,
+
       addHistory,
     ]
   );

@@ -1,8 +1,11 @@
 import { useContext } from "react";
+
 import UserProfileContext from "./userProfileContext.js";
 
+
 export default function useUserProfile() {
-  const context = useContext(UserProfileContext);
+  const context =
+    useContext(UserProfileContext);
 
   if (!context) {
     throw new Error(

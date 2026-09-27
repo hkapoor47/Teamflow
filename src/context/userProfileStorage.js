@@ -1,4 +1,6 @@
-const STORAGE_KEY = "teamflow_user_profile";
+const STORAGE_KEY =
+  "teamflow_user_profile";
+
 
 const DEFAULT_PROFILE = {
   department: "",
@@ -6,24 +8,38 @@ const DEFAULT_PROFILE = {
   history: [],
 };
 
+
+/* =====================================================
+   LOAD PROFILE
+===================================================== */
+
 export function loadUserProfile() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored =
+      localStorage.getItem(
+        STORAGE_KEY
+      );
 
     if (!stored) {
       return DEFAULT_PROFILE;
     }
 
-    const parsed = JSON.parse(stored);
+    const parsed =
+      JSON.parse(stored);
 
     return {
-      department: parsed?.department || "",
-      skills: Array.isArray(parsed?.skills)
-        ? parsed.skills
-        : [],
-      history: Array.isArray(parsed?.history)
-        ? parsed.history
-        : [],
+      department:
+        parsed?.department || "",
+
+      skills:
+        Array.isArray(parsed?.skills)
+          ? parsed.skills
+          : [],
+
+      history:
+        Array.isArray(parsed?.history)
+          ? parsed.history
+          : [],
     };
   } catch (error) {
     console.error(
@@ -35,18 +51,28 @@ export function loadUserProfile() {
   }
 }
 
+
+/* =====================================================
+   SAVE PROFILE
+===================================================== */
+
 export function saveUserProfile(profile) {
   try {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        department: profile.department || "",
-        skills: Array.isArray(profile.skills)
-          ? profile.skills
-          : [],
-        history: Array.isArray(profile.history)
-          ? profile.history
-          : [],
+        department:
+          profile?.department || "",
+
+        skills:
+          Array.isArray(profile?.skills)
+            ? profile.skills
+            : [],
+
+        history:
+          Array.isArray(profile?.history)
+            ? profile.history
+            : [],
       })
     );
   } catch (error) {
@@ -57,6 +83,13 @@ export function saveUserProfile(profile) {
   }
 }
 
+
+/* =====================================================
+   CLEAR PROFILE
+===================================================== */
+
 export function clearUserProfile() {
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(
+    STORAGE_KEY
+  );
 }
