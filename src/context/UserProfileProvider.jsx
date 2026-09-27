@@ -319,7 +319,7 @@ export default function UserProfileProvider({
             },
 
             body: JSON.stringify({
-              skill: cleanSkill,
+              name: cleanSkill,
             }),
           }
         );
@@ -563,7 +563,7 @@ export default function UserProfileProvider({
             },
 
             body: JSON.stringify({
-              skill: cleanSkill,
+              name: cleanSkill,
             }),
           }
         );
