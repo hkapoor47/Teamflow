@@ -3,6 +3,8 @@ import {
   User,
   Mail,
   Lock,
+  Building2,
+  Code2,
   ArrowRight,
 } from "lucide-react";
 
@@ -12,14 +14,49 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const name = e.target.name.value;
-    const email = e.target["register-email"].value;
+    const name = e.target.name.value.trim();
+    const email = e.target["register-email"].value.trim();
     const password = e.target["register-password"].value;
-    const confirmPassword = e.target["confirm-password"].value;
+    const confirmPassword =
+      e.target["confirm-password"].value;
 
-    // Check passwords before sending request
+    const department =
+      e.target.department.value.trim();
+
+    const skillsInput =
+      e.target.skills.value.trim();
+
+    // -----------------------------
+    // PASSWORD CHECK
+    // -----------------------------
+
     if (password !== confirmPassword) {
       alert("Passwords do not match.");
+      return;
+    }
+
+    // -----------------------------
+    // DEPARTMENT CHECK
+    // -----------------------------
+
+    if (!department) {
+      alert("Please enter your department.");
+      return;
+    }
+
+    // -----------------------------
+    // SKILLS
+    // Example:
+    // React, JavaScript, Node.js
+    // -----------------------------
+
+    const skills = skillsInput
+      .split(",")
+      .map((skill) => skill.trim())
+      .filter((skill) => skill !== "");
+
+    if (skills.length === 0) {
+      alert("Please enter at least one skill.");
       return;
     }
 
@@ -28,13 +65,17 @@ const Register = () => {
         "http://65.0.11.153:5001/api/auth/register",
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json",
           },
+
           body: JSON.stringify({
             name,
             email,
             password,
+            department,
+            skills,
           }),
         }
       );
@@ -44,45 +85,80 @@ const Register = () => {
       console.log("Register response:", data);
 
       if (!response.ok) {
-        alert(data.message || "Registration failed.");
+        alert(
+          data.message ||
+          "Registration failed."
+        );
         return;
       }
 
-      // Save token if backend returns one
+      // -----------------------------
+      // SAVE TOKEN
+      // -----------------------------
+
       if (data.token) {
-        localStorage.setItem("token", data.token);
+        localStorage.setItem(
+          "token",
+          data.token
+        );
       }
 
-      // Save user information if backend returns it
+      // -----------------------------
+      // SAVE USER
+      // -----------------------------
+
       if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
+        localStorage.setItem(
+          "user",
+          JSON.stringify(data.user)
+        );
       }
 
-      alert(data.message || "Account created successfully!");
+      alert(
+        data.message ||
+        "Account created successfully!"
+      );
 
-      // Registration successful → Dashboard
+      // -----------------------------
+      // GO TO DASHBOARD
+      // -----------------------------
+
       navigate("/dashboard");
 
     } catch (error) {
-      console.error("Register API error:", error);
-      alert("Unable to connect to the backend server.");
+      console.error(
+        "Register API error:",
+        error
+      );
+
+      alert(
+        "Unable to connect to the backend server."
+      );
     }
   };
 
   return (
     <div className="auth-page">
 
-      {/* Left Branding Section */}
+      {/* =========================
+          LEFT BRANDING SECTION
+      ========================== */}
+
       <div className="auth-brand">
+
         <div className="auth-brand-content">
 
           <div className="auth-logo">
-            <div className="auth-logo-icon">T</div>
+
+            <div className="auth-logo-icon">
+              T
+            </div>
 
             <div>
               <h2>TeamFlow</h2>
               <span>AI</span>
             </div>
+
           </div>
 
           <div className="auth-brand-text">
@@ -97,8 +173,9 @@ const Register = () => {
             </h1>
 
             <p>
-              Create projects, assign work, track progress,
-              and keep everyone accountable from one workspace.
+              Create projects, assign work,
+              track progress, and keep everyone
+              accountable from one workspace.
             </p>
 
           </div>
@@ -123,34 +200,59 @@ const Register = () => {
           </div>
 
         </div>
+
       </div>
 
-      {/* Register Section */}
+
+      {/* =========================
+          REGISTER SECTION
+      ========================== */}
+
       <div className="auth-form-section">
 
         <div className="auth-form-container">
 
+          {/* Mobile Logo */}
+
           <div className="auth-mobile-logo">
-            <div className="auth-logo-icon">T</div>
+
+            <div className="auth-logo-icon">
+              T
+            </div>
+
             <h2>TeamFlow</h2>
+
             <span>AI</span>
+
           </div>
+
+
+          {/* Heading */}
 
           <div className="auth-heading">
 
             <p>GET STARTED</p>
 
-            <h1>Create your account</h1>
+            <h1>
+              Create your account
+            </h1>
 
             <span>
-              Start managing your team more effectively.
+              Start managing your team
+              more effectively.
             </span>
 
           </div>
 
+
+          {/* =========================
+              FORM
+          ========================== */}
+
           <form onSubmit={handleSubmit}>
 
-            {/* Name */}
+            {/* NAME */}
+
             <div className="auth-input-group">
 
               <label htmlFor="name">
@@ -173,7 +275,9 @@ const Register = () => {
 
             </div>
 
-            {/* Email */}
+
+            {/* EMAIL */}
+
             <div className="auth-input-group">
 
               <label htmlFor="register-email">
@@ -196,7 +300,9 @@ const Register = () => {
 
             </div>
 
-            {/* Password */}
+
+            {/* PASSWORD */}
+
             <div className="auth-input-group">
 
               <label htmlFor="register-password">
@@ -212,7 +318,7 @@ const Register = () => {
                   name="register-password"
                   type="password"
                   placeholder="Create a password"
-                  minLength={6}
+                  minLength={8}
                   required
                 />
 
@@ -220,7 +326,9 @@ const Register = () => {
 
             </div>
 
-            {/* Confirm Password */}
+
+            {/* CONFIRM PASSWORD */}
+
             <div className="auth-input-group">
 
               <label htmlFor="confirm-password">
@@ -236,7 +344,7 @@ const Register = () => {
                   name="confirm-password"
                   type="password"
                   placeholder="Confirm your password"
-                  minLength={6}
+                  minLength={8}
                   required
                 />
 
@@ -244,7 +352,73 @@ const Register = () => {
 
             </div>
 
-            {/* Terms */}
+
+            {/* =========================
+                DEPARTMENT
+            ========================== */}
+
+            <div className="auth-input-group">
+
+              <label htmlFor="department">
+                Department
+              </label>
+
+              <div className="auth-input-wrapper">
+
+                <Building2 size={18} />
+
+                <input
+                  id="department"
+                  name="department"
+                  type="text"
+                  placeholder="Web Development"
+                  required
+                />
+
+              </div>
+
+            </div>
+
+
+            {/* =========================
+                SKILLS
+            ========================== */}
+
+            <div className="auth-input-group">
+
+              <label htmlFor="skills">
+                Skills
+              </label>
+
+              <div className="auth-input-wrapper">
+
+                <Code2 size={18} />
+
+                <input
+                  id="skills"
+                  name="skills"
+                  type="text"
+                  placeholder="React, JavaScript, Node.js"
+                  required
+                />
+
+              </div>
+
+              <small
+                style={{
+                  marginTop: "6px",
+                  display: "block",
+                  opacity: 0.7,
+                }}
+              >
+                Enter skills separated by commas.
+              </small>
+
+            </div>
+
+
+            {/* TERMS */}
+
             <div className="terms-checkbox">
 
               <label>
@@ -255,34 +429,51 @@ const Register = () => {
                 />
 
                 <span>
-                  I agree to the Terms of Service and Privacy Policy.
+                  I agree to the Terms of Service
+                  and Privacy Policy.
                 </span>
 
               </label>
 
             </div>
 
-            {/* Submit */}
+
+            {/* SUBMIT */}
+
             <button
               type="submit"
               className="auth-submit-button"
             >
               Create Account
+
               <ArrowRight size={18} />
+
             </button>
 
           </form>
 
+
+          {/* DIVIDER */}
+
           <div className="auth-divider">
+
             <span>OR</span>
+
           </div>
 
+
+          {/* LOGIN */}
+
           <p className="auth-switch">
+
             Already have an account?{" "}
+
             <Link to="/login">
               Sign in
             </Link>
+
           </p>
+
 
           <p className="auth-demo-note">
             Secure registration • TeamFlow
