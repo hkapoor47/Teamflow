@@ -105,13 +105,17 @@ function Tasks() {
     }));
   }, [showCreateTask]);
 
-  // The Tasks page is for individual tasks only.
-  // Tasks belonging to a project are handled inside that project.
   const visibleTasks = useMemo(() => {
-    return tasks.filter(
-      (task) => getTaskProjectId(task) == null
-    );
-  }, [tasks]);
+    return tasks.filter((task) => {
+      if (projectFilter === "all") return true;
+
+      if (projectFilter === "none") {
+        return getTaskProjectId(task) == null;
+      }
+
+      return String(getTaskProjectId(task)) === String(projectFilter);
+    });
+  }, [tasks, projectFilter]);
 
   const getProject = (id) =>
     projects.find((project) => String(project.id) === String(id));
@@ -149,7 +153,7 @@ function Tasks() {
       setCreatingTask(true);
 
       await createTask({
-        projectId: null,
+        projectId: newTask.projectId || null,
         title: newTask.title.trim(),
         description: newTask.description.trim(),
         priority: newTask.priority,
@@ -168,7 +172,9 @@ function Tasks() {
 
       setShowCreateTask(false);
       notify(
-"Individual task created successfully."
+        newTask.projectId
+          ? "Project task created successfully."
+          : "Individual task created successfully."
       );
     } catch (error) {
       notify(error.message || "Failed to create task.");
@@ -789,23 +795,33 @@ function Tasks() {
         <section className="teamflow-heading">
           <p className="welcome-label">TASK WORKSPACE</p>
           <h2>All work, one clear queue.</h2>
-          <p className="welcome-description">
+          {/* <p className="welcome-description">
             Create project work or individual tasks, then claim, complete and QA them.
-          </p>
+          </p> */}
         </section>
 
-        <div
-          className="task-filters panel"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
+        <div className="task-filters panel">
+          <label>
+            Project
+            <select
+              value={projectFilter}
+              onChange={(event) => setProjectFilter(event.target.value)}
+            >
+              <option value="all">All tasks</option>
+              <option value="none">Individual — No Project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <button
             className="primary-button"
             onClick={() => setShowCreateTask(true)}
           >
-            + Create individual task
+            + Create task
           </button>
         </div>
 
@@ -862,21 +878,23 @@ function Tasks() {
                   </div>
 
                   <div className="form-group">
-                    <label>Task Type</label>
-                    <input
-                      type="text"
-                      value="Individual Task"
-                      disabled
-                    />
-                    <small
-                      style={{
-                        display: "block",
-                        marginTop: "6px",
-                        color: "#8195ae",
-                      }}
+                    <label>Project</label>
+                    <select
+                      value={newTask.projectId}
+                      onChange={(event) =>
+                        setNewTask({
+                          ...newTask,
+                          projectId: event.target.value,
+                        })
+                      }
                     >
-                      This task will not be linked to a project.
-                    </small>
+                      <option value="">No Project — Individual Task</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="form-group">
@@ -956,8 +974,8 @@ function Tasks() {
         <section className="panel task-board">
           <div className="panel-header">
             <div>
-              <h3>Individual Tasks</h3>
-              <p>{visibleTasks.length} individual tasks.</p>
+              <h3>Task board</h3>
+              <p>{visibleTasks.length} tasks match your filters.</p>
             </div>
           </div>
 
