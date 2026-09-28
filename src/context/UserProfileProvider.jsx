@@ -12,15 +12,12 @@ import {
   saveUserProfile,
 } from "./userProfileStorage.js";
 
-
 const API_BASE_URL =
   "http://65.0.11.153:5001/api";
-
 
 function getToken() {
   return localStorage.getItem("token");
 }
-
 
 export default function UserProfileProvider({
   children,
@@ -42,12 +39,25 @@ export default function UserProfileProvider({
       : []
   );
 
+  const [performance, setPerformance] =
+    useState(
+      initialProfile.performance || null
+    );
+
   const [loadingSkills, setLoadingSkills] =
+    useState(false);
+
+  const [loadingHistory, setLoadingHistory] =
+    useState(false);
+
+  const [loadingPerformance, setLoadingPerformance] =
     useState(false);
 
   const [skillError, setSkillError] =
     useState("");
 
+  const [historyError, setHistoryError] =
+    useState("");
 
   /* =====================================================
      SAVE PROFILE LOCALLY
@@ -58,13 +68,14 @@ export default function UserProfileProvider({
       department,
       skills,
       history,
+      performance,
     });
   }, [
     department,
     skills,
     history,
+    performance,
   ]);
-
 
   /* =====================================================
      GET SKILLS
@@ -127,15 +138,176 @@ export default function UserProfileProvider({
     []
   );
 
+  /* =====================================================
+     GET WORK HISTORY
+
+     GET /api/users/:userId/history
+
+     NOTE:
+     Backend history API must exist for this.
+  ===================================================== */
+
+  const fetchHistory = useCallback(
+    async () => {
+      const token = getToken();
+
+      if (!token) {
+        return;
+      }
+
+      setLoadingHistory(true);
+      setHistoryError("");
+
+      try {
+        const decodedToken =
+          JSON.parse(
+            atob(
+              token
+                .split(".")[1]
+                .replace(/-/g, "+")
+                .replace(/_/g, "/")
+            )
+          );
+
+        const userId =
+          decodedToken?.userId;
+
+        if (!userId) {
+          throw new Error(
+            "User ID not found in token"
+          );
+        }
+
+        const response = await fetch(
+          `${API_BASE_URL}/users/${userId}/history`,
+          {
+            method: "GET",
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              "Failed to fetch work history"
+          );
+        }
+
+        const backendHistory =
+          Array.isArray(data?.history)
+            ? data.history
+            : [];
+
+        setHistory(
+          backendHistory
+        );
+      } catch (error) {
+        console.error(
+          "Fetch history error:",
+          error
+        );
+
+        setHistoryError(
+          error.message ||
+            "Failed to load work history"
+        );
+      } finally {
+        setLoadingHistory(false);
+      }
+    },
+    []
+  );
 
   /* =====================================================
-     LOAD SKILLS WHEN PROVIDER STARTS
+     GET PERFORMANCE
+
+     GET /api/users/:userId/performance
+  ===================================================== */
+
+  const fetchPerformance =
+    useCallback(
+      async () => {
+        const token = getToken();
+
+        if (!token) {
+          return;
+        }
+
+        setLoadingPerformance(true);
+
+        try {
+          const decodedToken =
+            JSON.parse(
+              atob(
+                token
+                  .split(".")[1]
+                  .replace(/-/g, "+")
+                  .replace(/_/g, "/")
+              )
+            );
+
+          const userId =
+            decodedToken?.userId;
+
+          if (!userId) {
+            throw new Error(
+              "User ID not found in token"
+            );
+          }
+
+          const response = await fetch(
+            `${API_BASE_URL}/users/${userId}/performance`,
+            {
+              method: "GET",
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+          const data =
+            await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              data?.message ||
+                "Failed to fetch performance"
+            );
+          }
+
+          setPerformance(data);
+        } catch (error) {
+          console.error(
+            "Fetch performance error:",
+            error
+          );
+        } finally {
+          setLoadingPerformance(false);
+        }
+      },
+      []
+    );
+
+  /* =====================================================
+     LOAD PROFILE DATA WHEN PROVIDER STARTS
   ===================================================== */
 
   useEffect(() => {
     fetchSkills();
-  }, [fetchSkills]);
-
+    fetchHistory();
+    fetchPerformance();
+  }, [
+    fetchSkills,
+    fetchHistory,
+    fetchPerformance,
+  ]);
 
   /* =====================================================
      SET DEPARTMENT
@@ -148,15 +320,9 @@ export default function UserProfileProvider({
     []
   );
 
-
   /* =====================================================
      ADD SKILL
      POST /api/users/skills
-
-     Body:
-     {
-       name: "React"
-     }
   ===================================================== */
 
   const addSkill = useCallback(
@@ -179,8 +345,9 @@ export default function UserProfileProvider({
       const alreadyExists =
         skills.some(
           (skill) =>
-            String(skill?.skill_name || "")
-              .toLowerCase() ===
+            String(
+              skill?.skill_name || ""
+            ).toLowerCase() ===
             cleanSkill.toLowerCase()
         );
 
@@ -254,16 +421,9 @@ export default function UserProfileProvider({
     [skills]
   );
 
-
   /* =====================================================
      UPDATE SKILL
      PATCH /api/users/skills/:skillId
-
-     Body:
-     {
-       name: "React",
-       proficiency: "Advanced"
-     }
   ===================================================== */
 
   const updateSkill = useCallback(
@@ -357,7 +517,6 @@ export default function UserProfileProvider({
     []
   );
 
-
   /* =====================================================
      DELETE SKILL
      DELETE /api/users/skills/:skillId
@@ -384,7 +543,6 @@ export default function UserProfileProvider({
           `${API_BASE_URL}/users/skills/${skillId}`,
           {
             method: "DELETE",
-
             headers: {
               Authorization:
                 `Bearer ${token}`,
@@ -428,9 +586,11 @@ export default function UserProfileProvider({
     []
   );
 
-
   /* =====================================================
      ADD HISTORY
+
+     Kept for compatibility.
+     Actual history now comes from backend.
   ===================================================== */
 
   const addHistory = useCallback(
@@ -445,7 +605,6 @@ export default function UserProfileProvider({
     []
   );
 
-
   /* =====================================================
      CONTEXT VALUE
   ===================================================== */
@@ -453,42 +612,75 @@ export default function UserProfileProvider({
   const value = useMemo(
     () => ({
       department,
+
       skills,
+
       history,
 
+      performance,
+
       loadingSkills,
+
+      loadingHistory,
+
+      loadingPerformance,
+
       skillError,
+
+      historyError,
 
       setDepartment,
 
       addSkill,
+
       updateSkill,
+
       removeSkill,
 
       fetchSkills,
+
+      fetchHistory,
+
+      fetchPerformance,
 
       addHistory,
     }),
     [
       department,
+
       skills,
+
       history,
 
+      performance,
+
       loadingSkills,
+
+      loadingHistory,
+
+      loadingPerformance,
+
       skillError,
+
+      historyError,
 
       setDepartment,
 
       addSkill,
+
       updateSkill,
+
       removeSkill,
 
       fetchSkills,
 
+      fetchHistory,
+
+      fetchPerformance,
+
       addHistory,
     ]
   );
-
 
   return (
     <UserProfileContext.Provider
