@@ -17,65 +17,23 @@ function Dashboard() {
   const navigate = useNavigate();
 
 
+ useProjects();
 
-  // Project context is kept only for compatibility with the existing app.
+const [projects, setProjects] = useState([]);
+const [loadingProjects, setLoadingProjects] = useState(true);
+const [projectError, setProjectError] = useState("");
+const [backendTasks, setBackendTasks] = useState([]);
+const [loadingTasks, setLoadingTasks] = useState(true);
 
-  // Task data is now fetched directly from the backend.
-
-  useProjects();
-
-
-
-  const [projects, setProjects] = useState([]);
-
-  const [loadingProjects, setLoadingProjects] = useState(true);
-
-  const [projectError, setProjectError] = useState("");
-
-
-
-  // --------------------------------------------------
-
-  // BACKEND TASK DATA
-
-  // --------------------------------------------------
-
-
-
-  const [backendTasks, setBackendTasks] = useState([]);
-
-  const [loadingTasks, setLoadingTasks] = useState(true);
-
-
-
-  // --------------------------------------------------
-
-  // FETCH PROJECTS FROM BACKEND
-
-  // --------------------------------------------------
-
-
-
-  useEffect(() => {
-
-    const fetchProjects = async () => {
-
-      try {
-
-        setLoadingProjects(true);
-
+useEffect(() => {
+  
+const fetchProjects = async () => {
+try {
+    setLoadingProjects(true);
         setProjectError("");
-
-
-
         const token = localStorage.getItem("token");
-
-
-
         if (!token) {
-
           throw new Error(
-
             "Authentication required. Please login again."
 
           );
@@ -278,11 +236,11 @@ function Dashboard() {
 
           "TOTAL TASKS:",
 
-          allTasks.length
+   allTasks.length
 
-        );
+ );
 
-      } catch (error) {
+ } catch (error) {
 
         console.error(
 
@@ -428,18 +386,6 @@ function Dashboard() {
 
             </h2>
 
-
-
-            <p className="welcome-description">
-
-              A clear view of delivery, deadlines and the
-
-              people doing the work.
-
-            </p>
-
-
-
           </div>
 
         </section>
@@ -518,14 +464,12 @@ function Dashboard() {
                   : projects.length}
 
               </strong>
-
-
-
+{/* 
               <em>
 
                 View every project
 
-              </em>
+              </em> */}
 
 
 
@@ -586,9 +530,7 @@ function Dashboard() {
 
               </strong>
 
-
-
-              <em>
+{/*               <em>
 
                 {loadingTasks
 
@@ -596,7 +538,7 @@ function Dashboard() {
 
                   : `${activeTasks} in progress`}
 
-              </em>
+              </em> */}
 
 
 
@@ -636,12 +578,12 @@ function Dashboard() {
               </h3>
 
 
-
+{/* 
               <p>
 
                 Projects currently being worked on.
 
-              </p>
+              </p> */}
 
 
 

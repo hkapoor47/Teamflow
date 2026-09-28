@@ -187,16 +187,16 @@ function Projects() {
         <section className="projects-page-header teamflow-heading">
 
           <div>
-            <p className="welcome-label">
+            {/* <p className="welcome-label">
               PROJECT PORTFOLIO
-            </p>
+            </p> */}
 
             <h1>All projects</h1>
 
-            <p className="projects-subtitle">
+            {/* <p className="projects-subtitle">
               Create, review and track every company
               initiative in one place.
-            </p>
+            </p> */}
           </div>
 
           <button
@@ -290,9 +290,9 @@ function Projects() {
                         {project.name}
                       </h3>
 
-                      <p>
+                      {/* <p>
                         {description}
-                      </p>
+                      </p> */}
 
                     </div>
 
@@ -314,9 +314,9 @@ function Projects() {
 
                     <div className="progress-label">
 
-                      <span>
+                      {/* <span>
                         Project description
-                      </span>
+                      </span> */}
 
                     </div>
 

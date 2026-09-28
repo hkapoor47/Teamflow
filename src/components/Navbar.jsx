@@ -8,7 +8,7 @@ const Navbar = () => {
     <header className="navbar">
       <div>
         <h1>Teamflow</h1>
-        <p>Project delivery workspace</p>
+        {/* <p>Project delivery workspace</p> */}
       </div>
 
       <div className="navbar-right">

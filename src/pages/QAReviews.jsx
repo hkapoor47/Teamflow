@@ -846,7 +846,7 @@ function QAReviews() {
       <DashboardLayout>
         <div className="teamflow-page">
           <section className="teamflow-heading">
-            <p className="welcome-label">QUALITY ASSURANCE</p>
+            {/* <p className="welcome-label">QUALITY ASSURANCE</p> */}
 
             <h2>Project not found</h2>
 
@@ -875,7 +875,7 @@ function QAReviews() {
 
         <section className="qa-page-header">
           <div>
-            <p className="welcome-label">QUALITY ASSURANCE</p>
+            {/* <p className="welcome-label">QUALITY ASSURANCE</p> */}
 
             <h2>QA Testing</h2>
 
@@ -1229,9 +1229,9 @@ function QAReviews() {
 
                 <h3>QA Tickets</h3>
 
-                <p>
+                {/* <p>
                   Issues discovered during testing.
-                </p>
+                </p> */}
               </div>
             </div>
 

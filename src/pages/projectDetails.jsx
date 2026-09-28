@@ -1053,17 +1053,28 @@ function ProjectDetails() {
     await fetchProjectTasks(backendProjectId);
   };
 
-  const startQaTesting = (taskId) => {
+  const startQaTesting = async (taskId) => {
     setSelectedQaTaskId(taskId);
     setQaExpanded(true);
     setQaMessage("");
     setQaError("");
 
+    // Always load the latest QA/ticket state when opening QA.
+    try {
+      await Promise.all([
+        loadQaTests(),
+        loadQaTickets(),
+        fetchProjectTasks(backendProjectId),
+      ]);
+    } catch (error) {
+      console.error("Failed to refresh QA workspace:", error);
+    }
+
     window.setTimeout(() => {
       document
         .getElementById("task-qa-workspace")
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
+    }, 100);
   };
 
   const ensureQaTestForTask = async (task) => {
@@ -1141,15 +1152,39 @@ function ProjectDetails() {
   };
 
   const handleTaskQaFail = async (task) => {
-    // Open the same centered ticket form used elsewhere in the app.
-    // The QA adapter is created automatically if this task has no QA row yet.
     try {
       setQaError("");
       setQaMessage("");
+
       const test = await ensureQaTestForTask(task);
-      setSelectedQaTest({ ...test, task_id: task.id, name: test.name || task.title });
+      const testId = qaTestId(test);
+
+      // Do not create duplicate active tickets for the same QA test.
+      const existingTicket = qaTickets.find(
+        (ticket) =>
+          String(getTicketQaTestId(ticket)) === String(testId) &&
+          !["COMPLETED", "COMPLETE", "DONE", "CLOSED", "RESOLVED"].includes(
+            normalizeQaStatus(ticket.status)
+          )
+      );
+
+      if (existingTicket) {
+        setQaMessage(
+          `An active ticket already exists for this QA test (Ticket #${getTicketId(existingTicket)}).`
+        );
+        await loadQaTickets();
+        return;
+      }
+
+      setSelectedQaTest({
+        ...test,
+        task_id: task.id,
+        name: test.name || task.title,
+      });
       setTicketTitle(`Issue found in ${task.title || task.name || "task"}`);
-      setTicketDescription(`Issue found while testing "${task.title || task.name || "this task"}".`);
+      setTicketDescription(
+        `Issue found while testing "${task.title || task.name || "this task"}".`
+      );
       setTicketPriority("Medium");
       setTicketDeadline("");
       setShowQaTicketModal(true);
@@ -1416,6 +1451,25 @@ function ProjectDetails() {
       }
 
       if (!response.ok) {
+        // Backend may reject a second active ticket for the same QA test.
+        // Refresh the ticket list and keep the user on the QA page.
+        if (response.status === 400 || response.status === 409) {
+          await loadQaTickets();
+          setShowQaTicketModal(false);
+          setSelectedQaTest(null);
+          setTicketTitle("");
+          setTicketDescription("");
+          setTicketPriority("Medium");
+          setTicketDeadline("");
+
+          setQaMessage(
+            data.message ||
+              data.error ||
+              "An active ticket already exists for this QA test."
+          );
+          return;
+        }
+
         throw new Error(
           data.message ||
             data.error ||
@@ -2719,11 +2773,8 @@ function ProjectDetails() {
               style={{ alignItems: "center", gap: "20px" }}
             >
               <div>
-                <p className="welcome-label" style={{ marginBottom: "6px" }}>
-                  QUALITY ASSURANCE
-                </p>
                 <h3 style={{ marginBottom: "6px" }}>QA Testing</h3>
-                <p>Test completed development tasks directly. FAIL creates a ticket for fixing and re-testing.</p>
+                {/* <p>Test completed development tasks directly. FAIL creates a ticket for fixing and re-testing.</p> */}
               </div>
 
               <button
@@ -2750,10 +2801,10 @@ function ProjectDetails() {
             {/* TASKS AWAITING QA */}
             <div style={{ marginTop: "30px" }}>
               <div className="panel-header" style={{ marginBottom: "12px" }}>
-                <div>
+                {/* <div>
                   <h3>Tasks Awaiting QA</h3>
                   <p>The selected completed task is tested here. PASS completes QA; FAIL creates a fix ticket.</p>
-                </div>
+                </div> */}
               </div>
 
               {(() => {
@@ -2763,13 +2814,8 @@ function ProjectDetails() {
                   const test = qaTests.find((item) => String(getTestTaskId(item)) === String(task.id));
                   const statusValue = normalizeQaStatus(test?.status || task.qa_status || "PENDING");
                   if (statusValue === "PASSED") return false;
-                  if (test) {
-                    const ticket = qaTickets.find(
-                      (item) => String(getTicketQaTestId(item)) === String(qaTestId(test)) &&
-                        !["COMPLETED", "COMPLETE", "DONE", "CLOSED", "RESOLVED"].includes(normalizeQaStatus(item.status))
-                    );
-                    if (ticket) return false;
-                  }
+                  // Keep the selected task visible here even if it has
+                  // an active fix ticket, so QA can see its current state.
                   return true;
                 });
 
@@ -2831,7 +2877,7 @@ function ProjectDetails() {
               <div className="panel-header" style={{ marginBottom: "12px" }}>
                 <div>
                   <h3>QA Testing Tickets</h3>
-                  <p>Failed tasks move here. Claim a ticket, fix it, complete it, and the task returns to QA testing.</p>
+                  {/* <p>Failed tasks move here. Claim a ticket, fix it, complete it, and the task returns to QA testing.</p> */}
                 </div>
               </div>
 
