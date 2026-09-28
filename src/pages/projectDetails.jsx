@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 
 import { useProjects } from "../context/ProjectContext.jsx";
+import TaskRecommendationPanel from "../components/TaskRecommendationPanel.jsx";
 
 
 
@@ -51,6 +52,7 @@ function ProjectDetails() {
   const [taskAssignee, setTaskAssignee] = useState("");
 
   const [taskDeadline, setTaskDeadline] = useState("");
+  const [selectedRecommendationTask, setSelectedRecommendationTask] = useState(null);
 
   // Same userId that the backend gets from the JWT.
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -1805,6 +1807,13 @@ function ProjectDetails() {
 
 
 
+            <p>
+
+              {project.description ||
+
+                "No project description provided."}
+
+            </p>
 
 
 
@@ -2012,7 +2021,11 @@ function ProjectDetails() {
 
 
 
-               
+                  <p>
+
+                    Description provided for this project.
+
+                  </p>
 
 
 
@@ -2074,7 +2087,13 @@ function ProjectDetails() {
 
 
 
-             
+                <p>
+
+                  Create work, assign members or leave
+
+                  tasks open for team members to claim.
+
+                </p>
 
 
 
@@ -2131,6 +2150,7 @@ function ProjectDetails() {
                     <th>Progress</th>
 
                     <th>Action</th>
+                    <th>AI</th>
 
                   </tr>
 
@@ -2154,7 +2174,7 @@ function ProjectDetails() {
 
                       <td
 
-                        colSpan="6"
+                        colSpan="7"
 
                         style={{
 
@@ -2186,7 +2206,7 @@ function ProjectDetails() {
 
                       <td
 
-                        colSpan="6"
+                        colSpan="7"
 
                         style={{
 
@@ -2705,7 +2725,26 @@ function ProjectDetails() {
                             })()}
                           </td>
 
-
+                          {/* AI RECOMMENDATION */}
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRecommendationTask(task)}
+                              style={{
+                                border: "1px solid rgba(139,92,246,.35)",
+                                borderRadius: "8px",
+                                padding: "8px 11px",
+                                background: "rgba(139,92,246,.10)",
+                                color: "#c4b5fd",
+                                fontWeight: 700,
+                                fontSize: "11px",
+                                cursor: "pointer",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              AI Recommend
+                            </button>
+                          </td>
 
                         </tr>
 
@@ -2737,6 +2776,13 @@ function ProjectDetails() {
 
 
 
+          {selectedRecommendationTask && (
+            <TaskRecommendationPanel
+              task={selectedRecommendationTask}
+              onClose={() => setSelectedRecommendationTask(null)}
+            />
+          )}
+
         </div>
 
 
@@ -2758,7 +2804,7 @@ function ProjectDetails() {
             >
               <div>
                 <h3 style={{ marginBottom: "6px" }}>QA Testing</h3>
-                {/* <p>Test completed development tasks directly. FAIL creates a ticket for fixing and re-testing.</p> */}
+                <p>Test completed development tasks directly. FAIL creates a ticket for fixing and re-testing.</p>
               </div>
 
               <button
@@ -2786,8 +2832,8 @@ function ProjectDetails() {
             <div style={{ marginTop: "30px" }}>
               <div className="panel-header" style={{ marginBottom: "12px" }}>
                 <div>
-                  {/* <h3>Tasks Awaiting QA</h3> */}
-                  {/* <p>The selected completed task is tested here. PASS completes QA; FAIL creates a fix ticket.</p> */}
+                  <h3>Tasks Awaiting QA</h3>
+                  <p>The selected completed task is tested here. PASS completes QA; FAIL creates a fix ticket.</p>
                 </div>
               </div>
 
@@ -2879,7 +2925,7 @@ function ProjectDetails() {
               <div className="panel-header" style={{ marginBottom: "12px" }}>
                 <div>
                   <h3>QA Testing Tickets</h3>
-                  {/* <p>Failed tasks move here. Claim a ticket, fix it, complete it, and the task returns to QA testing.</p> */}
+                  <p>Failed tasks move here. Claim a ticket, fix it, complete it, and the task returns to QA testing.</p>
                 </div>
               </div>
 
@@ -2967,10 +3013,10 @@ function ProjectDetails() {
               <div className="modal-header">
                 <div>
                   <h2>Create QA ticket</h2>
-                  {/* <p>
+                  <p>
                     This ticket will be linked to the failed QA test and appear
                     in QA Testing Tickets.
-                  </p> */}
+                  </p>
                 </div>
 
                 <button
