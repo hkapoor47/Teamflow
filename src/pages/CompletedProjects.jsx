@@ -142,10 +142,7 @@ function CompletedProjects() {
             Completed Projects
           </h2>
 
-          <p className="welcome-description">
-            View all projects that have
-            been completed.
-          </p>
+          
 
         </section>
 
@@ -161,10 +158,7 @@ function CompletedProjects() {
                 Completed Projects
               </h3>
 
-              <p>
-                All completed projects
-                are shown here.
-              </p>
+            
 
             </div>
 
@@ -225,9 +219,7 @@ function CompletedProjects() {
               0 && (
               <div className="completed-empty">
 
-                <h3>
-                  No completed projects yet
-                </h3>
+               
 
                 <p>
                   Projects will appear

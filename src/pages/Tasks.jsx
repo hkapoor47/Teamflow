@@ -105,17 +105,13 @@ function Tasks() {
     }));
   }, [showCreateTask]);
 
+  // The Tasks page is for individual tasks only.
+  // Tasks belonging to a project are handled inside that project.
   const visibleTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      if (projectFilter === "all") return true;
-
-      if (projectFilter === "none") {
-        return getTaskProjectId(task) == null;
-      }
-
-      return String(getTaskProjectId(task)) === String(projectFilter);
-    });
-  }, [tasks, projectFilter]);
+    return tasks.filter(
+      (task) => getTaskProjectId(task) == null
+    );
+  }, [tasks]);
 
   const getProject = (id) =>
     projects.find((project) => String(project.id) === String(id));
@@ -153,7 +149,7 @@ function Tasks() {
       setCreatingTask(true);
 
       await createTask({
-        projectId: newTask.projectId || null,
+        projectId: null,
         title: newTask.title.trim(),
         description: newTask.description.trim(),
         priority: newTask.priority,
@@ -172,9 +168,7 @@ function Tasks() {
 
       setShowCreateTask(false);
       notify(
-        newTask.projectId
-          ? "Project task created successfully."
-          : "Individual task created successfully."
+"Individual task created successfully."
       );
     } catch (error) {
       notify(error.message || "Failed to create task.");
@@ -800,28 +794,18 @@ function Tasks() {
           </p>
         </section>
 
-        <div className="task-filters panel">
-          <label>
-            Project
-            <select
-              value={projectFilter}
-              onChange={(event) => setProjectFilter(event.target.value)}
-            >
-              <option value="all">All tasks</option>
-              <option value="none">Individual — No Project</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
+        <div
+          className="task-filters panel"
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
           <button
             className="primary-button"
             onClick={() => setShowCreateTask(true)}
           >
-            + Create task
+            + Create individual task
           </button>
         </div>
 
@@ -878,23 +862,21 @@ function Tasks() {
                   </div>
 
                   <div className="form-group">
-                    <label>Project</label>
-                    <select
-                      value={newTask.projectId}
-                      onChange={(event) =>
-                        setNewTask({
-                          ...newTask,
-                          projectId: event.target.value,
-                        })
-                      }
+                    <label>Task Type</label>
+                    <input
+                      type="text"
+                      value="Individual Task"
+                      disabled
+                    />
+                    <small
+                      style={{
+                        display: "block",
+                        marginTop: "6px",
+                        color: "#8195ae",
+                      }}
                     >
-                      <option value="">No Project — Individual Task</option>
-                      {projects.map((project) => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </select>
+                      This task will not be linked to a project.
+                    </small>
                   </div>
 
                   <div className="form-group">
@@ -974,8 +956,8 @@ function Tasks() {
         <section className="panel task-board">
           <div className="panel-header">
             <div>
-              <h3>Task board</h3>
-              <p>{visibleTasks.length} tasks match your filters.</p>
+              <h3>Individual Tasks</h3>
+              <p>{visibleTasks.length} individual tasks.</p>
             </div>
           </div>
 

@@ -338,13 +338,8 @@ function Tickets() {
           </p>
 
           <h2>
-            My tickets and blockers.
+            My Tickets
           </h2>
-
-          <p className="welcome-description">
-            Manage your claimed QA issues and
-            track them until they are resolved.
-          </p>
 
         </section>
 
@@ -369,12 +364,6 @@ function Tickets() {
               <h3>
                 My Project Issues
               </h3>
-
-              <p>
-                QA issues claimed or assigned
-                to you.
-              </p>
-
             </div>
 
           </div>
@@ -402,10 +391,7 @@ function Tickets() {
                 No active tickets assigned to you
               </strong>
 
-              <p>
-                Tickets that you claim or are
-                assigned to you will appear here.
-              </p>
+              
 
             </div>
 
@@ -465,13 +451,6 @@ function Tickets() {
                           {ticket.title ||
                             `Ticket #${id}`}
                         </h3>
-
-
-                        <p>
-                          {ticket.description ||
-                            "No description provided."}
-                        </p>
-
 
                         <div className="ticket-details">
 
