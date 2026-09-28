@@ -19,13 +19,52 @@ function getToken() {
   return localStorage.getItem("token");
 }
 
+// Decode JWT payload.
+// Only used to get the logged-in user's ID.
+// Token verification itself is still done by backend.
+function getUserIdFromToken() {
+  try {
+    const token = getToken();
+
+    if (!token) {
+      return null;
+    }
+
+    const payload = token.split(".")[1];
+
+    if (!payload) {
+      return null;
+    }
+
+    const decoded = JSON.parse(
+      atob(
+        payload
+          .replace(/-/g, "+")
+          .replace(/_/g, "/")
+      )
+    );
+
+    return decoded?.userId || null;
+
+  } catch (error) {
+    console.error(
+      "Unable to decode user token:",
+      error
+    );
+
+    return null;
+  }
+}
+
 export default function UserProfileProvider({
   children,
 }) {
   const initialProfile = loadUserProfile();
 
   const [department, setDepartmentState] =
-    useState(initialProfile.department || "");
+    useState(
+      initialProfile.department || ""
+    );
 
   const [skills, setSkills] = useState(
     Array.isArray(initialProfile.skills)
@@ -50,8 +89,10 @@ export default function UserProfileProvider({
   const [loadingHistory, setLoadingHistory] =
     useState(false);
 
-  const [loadingPerformance, setLoadingPerformance] =
-    useState(false);
+  const [
+    loadingPerformance,
+    setLoadingPerformance,
+  ] = useState(false);
 
   const [skillError, setSkillError] =
     useState("");
@@ -121,6 +162,7 @@ export default function UserProfileProvider({
             : [];
 
         setSkills(backendSkills);
+
       } catch (error) {
         console.error(
           "Fetch skills error:",
@@ -131,6 +173,7 @@ export default function UserProfileProvider({
           error.message ||
             "Failed to load skills"
         );
+
       } finally {
         setLoadingSkills(false);
       }
@@ -140,11 +183,7 @@ export default function UserProfileProvider({
 
   /* =====================================================
      GET WORK HISTORY
-
      GET /api/users/:userId/history
-
-     NOTE:
-     Backend history API must exist for this.
   ===================================================== */
 
   const fetchHistory = useCallback(
@@ -155,29 +194,20 @@ export default function UserProfileProvider({
         return;
       }
 
+      const userId =
+        getUserIdFromToken();
+
+      if (!userId) {
+        setHistoryError(
+          "Unable to identify logged-in user."
+        );
+        return;
+      }
+
       setLoadingHistory(true);
       setHistoryError("");
 
       try {
-        const decodedToken =
-          JSON.parse(
-            atob(
-              token
-                .split(".")[1]
-                .replace(/-/g, "+")
-                .replace(/_/g, "/")
-            )
-          );
-
-        const userId =
-          decodedToken?.userId;
-
-        if (!userId) {
-          throw new Error(
-            "User ID not found in token"
-          );
-        }
-
         const response = await fetch(
           `${API_BASE_URL}/users/${userId}/history`,
           {
@@ -207,6 +237,7 @@ export default function UserProfileProvider({
         setHistory(
           backendHistory
         );
+
       } catch (error) {
         console.error(
           "Fetch history error:",
@@ -217,6 +248,7 @@ export default function UserProfileProvider({
           error.message ||
             "Failed to load work history"
         );
+
       } finally {
         setLoadingHistory(false);
       }
@@ -226,7 +258,6 @@ export default function UserProfileProvider({
 
   /* =====================================================
      GET PERFORMANCE
-
      GET /api/users/:userId/performance
   ===================================================== */
 
@@ -239,28 +270,16 @@ export default function UserProfileProvider({
           return;
         }
 
+        const userId =
+          getUserIdFromToken();
+
+        if (!userId) {
+          return;
+        }
+
         setLoadingPerformance(true);
 
         try {
-          const decodedToken =
-            JSON.parse(
-              atob(
-                token
-                  .split(".")[1]
-                  .replace(/-/g, "+")
-                  .replace(/_/g, "/")
-              )
-            );
-
-          const userId =
-            decodedToken?.userId;
-
-          if (!userId) {
-            throw new Error(
-              "User ID not found in token"
-            );
-          }
-
           const response = await fetch(
             `${API_BASE_URL}/users/${userId}/performance`,
             {
@@ -283,11 +302,13 @@ export default function UserProfileProvider({
           }
 
           setPerformance(data);
+
         } catch (error) {
           console.error(
             "Fetch performance error:",
             error
           );
+
         } finally {
           setLoadingPerformance(false);
         }
@@ -296,7 +317,7 @@ export default function UserProfileProvider({
     );
 
   /* =====================================================
-     LOAD PROFILE DATA WHEN PROVIDER STARTS
+     LOAD BACKEND DATA WHEN PROVIDER STARTS
   ===================================================== */
 
   useEffect(() => {
@@ -404,6 +425,7 @@ export default function UserProfileProvider({
         );
 
         return newSkill;
+
       } catch (error) {
         console.error(
           "Add skill error:",
@@ -500,6 +522,7 @@ export default function UserProfileProvider({
         );
 
         return updatedSkill;
+
       } catch (error) {
         console.error(
           "Update skill error:",
@@ -569,6 +592,7 @@ export default function UserProfileProvider({
         );
 
         return data;
+
       } catch (error) {
         console.error(
           "Delete skill error:",
@@ -588,9 +612,7 @@ export default function UserProfileProvider({
 
   /* =====================================================
      ADD HISTORY
-
      Kept for compatibility.
-     Actual history now comes from backend.
   ===================================================== */
 
   const addHistory = useCallback(
@@ -647,35 +669,25 @@ export default function UserProfileProvider({
     }),
     [
       department,
-
       skills,
-
       history,
-
       performance,
 
       loadingSkills,
-
       loadingHistory,
-
       loadingPerformance,
 
       skillError,
-
       historyError,
 
       setDepartment,
 
       addSkill,
-
       updateSkill,
-
       removeSkill,
 
       fetchSkills,
-
       fetchHistory,
-
       fetchPerformance,
 
       addHistory,
