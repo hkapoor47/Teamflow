@@ -585,12 +585,12 @@ export default function Profile() {
                   Work History
                 </h2>
 
-                <p>
+                {/* <p>
                   Your previous project
                   and task activity will
                   be maintained here for
                   future recommendations.
-                </p>
+                </p> */}
 
               </div>
 
@@ -668,160 +668,12 @@ export default function Profile() {
             </section>
 
 
-            {/* =============================================
-                RECOMMENDATION PROFILE
-            ============================================= */}
-
-            <section className="profile-section">
-
-              <div className="profile-section-header">
-
-                <h2>
-                  Recommendation Profile
-                </h2>
-
-                <p>
-                  These attributes will
-                  help TeamFlow understand
-                  what type of work fits
-                  your profile.
-                </p>
-
-              </div>
-
-
-              <div className="profile-tags">
-
-
-                {department && (
-
-                  <div className="profile-tag">
-
-                    <span>
-                      {department}
-                    </span>
-
-                  </div>
-
-                )}
-
-
-                {skills
-                  .slice(0, 6)
-                  .map(
-                    (skill) => (
-
-                      <div
-                        className="profile-tag"
-                        key={
-                          `profile-${skill.id}`
-                        }
-                      >
-
-                        <span>
-                          {
-                            skill.skill_name
-                          }
-                        </span>
-
-                      </div>
-
-                    )
-                  )}
-
-
-                {!department &&
-                  skills.length === 0 && (
-
-                    <p
-                      style={{
-                        color:
-                          "#71859f",
-                        fontSize:
-                          "12px",
-                        margin: 0,
-                      }}
-                    >
-                      Complete your
-                      profile to improve
-                      future task
-                      recommendations.
-                    </p>
-
-                  )}
-
-              </div>   
-
-            </section>
 
           </div>
 
         </div>
 
 
-        {/* =================================================
-            RECOMMENDATION BANNER
-        ================================================= */}
-
-        <section className="profile-recommendation-card">
-
-
-          <div>
-
-            <span className="profile-recommendation-label">
-              COMING NEXT
-            </span>
-
-            <h2>
-              Personalized Task
-              Recommendations
-            </h2>
-
-            <p>
-              TeamFlow will use your
-              department, skills and
-              work history to find
-              tasks that are relevant
-              to you.
-            </p>
-
-          </div>
-
-
-          <div className="profile-recommendation-flow">
-
-            <span>
-              Department
-            </span>
-
-            <b>
-              +
-            </b>
-
-            <span>
-              Skills
-            </span>
-
-            <b>
-              +
-            </b>
-
-            <span>
-              History
-            </span>
-
-            <b>
-              →
-            </b>
-
-            <strong>
-              Recommendations
-            </strong>
-
-          </div>
-
-
-        </section>
 
 
       </div>
