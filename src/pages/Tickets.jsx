@@ -342,47 +342,9 @@ function Tickets() {
           </h2>
 
           <p className="welcome-description">
-            Manage the QA issues assigned to
-            you and track them until they are
-            resolved.
+            Manage your claimed QA issues and
+            track them until they are resolved.
           </p>
-
-        </section>
-
-
-        <section className="ticket-summary">
-
-          <div className="ticket-summary-card">
-            <span>
-              My Active Tickets
-            </span>
-
-            <strong>
-              {myActiveTickets.length}
-            </strong>
-          </div>
-
-
-          <div className="ticket-summary-card">
-            <span>
-              Open
-            </span>
-
-            <strong>
-              {openCount}
-            </strong>
-          </div>
-
-
-          <div className="ticket-summary-card">
-            <span>
-              Claimed / In Progress
-            </span>
-
-            <strong>
-              {claimedCount}
-            </strong>
-          </div>
 
         </section>
 
@@ -405,7 +367,7 @@ function Tickets() {
               </p>
 
               <h3>
-                Project Issues
+                My Project Issues
               </h3>
 
               <p>
