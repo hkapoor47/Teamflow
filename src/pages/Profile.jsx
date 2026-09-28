@@ -86,7 +86,6 @@ export default function Profile() {
     loadingSkills,
     skillError,
 
-    setDepartment,
     addSkill,
     removeSkill,
   } = useUserProfile();
@@ -104,6 +103,27 @@ export default function Profile() {
 
   const initials =
     getInitials(userName);
+
+
+  /* =====================================================
+     DEPARTMENT FROM REGISTRATION
+  ===================================================== */
+
+  const registeredDepartment = (() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+
+      if (!storedUser) {
+        return department || "";
+      }
+
+      const user = JSON.parse(storedUser);
+
+      return user?.department || department || "";
+    } catch {
+      return department || "";
+    }
+  })();
 
 
   /* =====================================================
@@ -224,7 +244,7 @@ export default function Profile() {
             </h2>
 
             <p>
-              {department ||
+              {registeredDepartment ||
                 "Department not selected"}
             </p>
 
@@ -282,7 +302,7 @@ export default function Profile() {
             </span>
 
             <strong>
-              {department
+              {registeredDepartment
                 ? "Set"
                 : "Not Set"}
             </strong>
@@ -324,32 +344,18 @@ export default function Profile() {
               </div>
 
 
-              <select
-                value={department}
-                onChange={(event) =>
-                  setDepartment(
-                    event.target.value
-                  )
-                }
+              <div
                 className="profile-select"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  minHeight: "48px",
+                  cursor: "default",
+                }}
               >
-
-                <option value="">
-                  Select your department
-                </option>
-
-                {DEPARTMENTS.map(
-                  (item) => (
-                    <option
-                      key={item}
-                      value={item}
-                    >
-                      {item}
-                    </option>
-                  )
-                )}
-
-              </select>
+                {registeredDepartment ||
+                  "Department not set"}
+              </div>
 
             </section>
 
@@ -565,7 +571,13 @@ export default function Profile() {
                 WORK HISTORY
             ============================================= */}
 
-            <section className="profile-section">
+            <section
+              className="profile-section"
+              style={{
+                minHeight: "395px",
+                boxSizing: "border-box",
+              }}
+            >
 
               <div className="profile-section-header">
 
