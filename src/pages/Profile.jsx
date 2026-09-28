@@ -194,12 +194,12 @@ export default function Profile() {
               Professional Profile
             </h1>
 
-            <p>
+            {/* <p>
               Manage your department
               and skills so TeamFlow
               can recommend relevant
               work to you.
-            </p>
+            </p> */}
 
           </div>
 
@@ -319,12 +319,7 @@ export default function Profile() {
                   Department
                 </h2>
 
-                <p>
-                  Your primary working
-                  domain. This will be
-                  used to filter relevant
-                  projects and tasks.
-                </p>
+                
 
               </div>
 
@@ -371,11 +366,7 @@ export default function Profile() {
                   Skills
                 </h2>
 
-                <p>
-                  Add the technologies
-                  and skills you can
-                  work with.
-                </p>
+               
 
               </div>
 
