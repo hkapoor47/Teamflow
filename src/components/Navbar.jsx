@@ -1,14 +1,31 @@
 import { Bell } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+
+const TITLES = [
+  ["/dashboard", "Dashboard"],
+  ["/projects", "Projects"],
+  ["/tasks", "Tasks"],
+  ["/tickets", "Tickets"],
+  ["/completed-projects", "Completed projects"],
+  ["/qa-reviews", "QA review"],
+  ["/team", "Team"],
+  ["/analytics", "Analytics"],
+  ["/notifications", "Notifications"],
+  ["/profile", "Profile"],
+];
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const match = TITLES.find(([path]) => pathname.startsWith(path));
+  const title = match ? match[1] : "TeamFlow";
 
   return (
     <header className="navbar">
-      <div>
-        <h1>Teamflow</h1>
-        {/* <p>Project delivery workspace</p> */}
+      <div className="navbar-title">
+        <span className="navbar-crumb">TeamFlow</span>
+        <h1>{title}</h1>
       </div>
 
       <div className="navbar-right">
