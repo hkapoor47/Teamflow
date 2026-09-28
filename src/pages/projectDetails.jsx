@@ -1511,6 +1511,7 @@ function ProjectDetails() {
 
       await loadQaTickets();
       await loadQaTests();
+      await fetchProjectTasks(backendProjectId);
     } catch (error) {
       console.error("Failed to create QA ticket:", error);
       setQaError(error.message || "Failed to create QA ticket.");
@@ -2774,7 +2775,7 @@ function ProjectDetails() {
             >
               <div>
                 <h3 style={{ marginBottom: "6px" }}>QA Testing</h3>
-                {/* <p>Test completed development tasks directly. FAIL creates a ticket for fixing and re-testing.</p> */}
+                <p>Test completed development tasks directly. FAIL creates a ticket for fixing and re-testing.</p>
               </div>
 
               <button
@@ -2801,10 +2802,10 @@ function ProjectDetails() {
             {/* TASKS AWAITING QA */}
             <div style={{ marginTop: "30px" }}>
               <div className="panel-header" style={{ marginBottom: "12px" }}>
-                {/* <div>
+                <div>
                   <h3>Tasks Awaiting QA</h3>
                   <p>The selected completed task is tested here. PASS completes QA; FAIL creates a fix ticket.</p>
-                </div> */}
+                </div>
               </div>
 
               {(() => {
@@ -2814,8 +2815,26 @@ function ProjectDetails() {
                   const test = qaTests.find((item) => String(getTestTaskId(item)) === String(task.id));
                   const statusValue = normalizeQaStatus(test?.status || task.qa_status || "PENDING");
                   if (statusValue === "PASSED") return false;
-                  // Keep the selected task visible here even if it has
-                  // an active fix ticket, so QA can see its current state.
+                  // Once a ticket is created, the task leaves Awaiting QA
+                  // and stays in QA Testing Tickets until the fix is completed.
+                  // After ticket completion, the backend resets QA state and
+                  // the task can appear here again for re-testing.
+                  if (test) {
+                    const activeTicket = qaTickets.find(
+                      (item) =>
+                        String(getTicketQaTestId(item)) === String(qaTestId(test)) &&
+                        ![
+                          "COMPLETED",
+                          "COMPLETE",
+                          "DONE",
+                          "CLOSED",
+                          "RESOLVED",
+                        ].includes(normalizeQaStatus(item.status))
+                    );
+
+                    if (activeTicket) return false;
+                  }
+
                   return true;
                 });
 
@@ -2877,7 +2896,7 @@ function ProjectDetails() {
               <div className="panel-header" style={{ marginBottom: "12px" }}>
                 <div>
                   <h3>QA Testing Tickets</h3>
-                  {/* <p>Failed tasks move here. Claim a ticket, fix it, complete it, and the task returns to QA testing.</p> */}
+                  <p>Failed tasks move here. Claim a ticket, fix it, complete it, and the task returns to QA testing.</p>
                 </div>
               </div>
 
