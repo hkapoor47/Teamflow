@@ -27,12 +27,22 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/teamflow_deploy
+          chmod 600 ~/.ssh/teamflow_deploy
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Deploy to S3
-        run: aws s3 sync dist/ s3://teamflow-frontend-2026 --delete
+      - name: Prepare frontend directory on EC2
+        run: |
+          ssh -i ~/.ssh/teamflow_deploy \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "mkdir -p /home/ec2-user/frontend"
+
+      - name: Deploy frontend to EC2
+        run: |
+          tar -czf - -C dist . | \
+          ssh -i ~/.ssh/teamflow_deploy \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "tar -xzf - -C /home/ec2-user/frontend"
