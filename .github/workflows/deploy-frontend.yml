@@ -34,7 +34,7 @@ jobs:
           chmod 600 ~/.ssh/teamflow_deploy
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Prepare frontend directory on EC2
+      - name: Create frontend directory
         run: |
           ssh -i ~/.ssh/teamflow_deploy \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
