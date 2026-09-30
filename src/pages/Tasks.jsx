@@ -105,13 +105,17 @@ function Tasks() {
     }));
   }, [showCreateTask]);
 
-  // Show only individual tasks on the global Tasks page.
-  // Keep the existing project filter and all APIs unchanged.
   const visibleTasks = useMemo(() => {
-    return tasks.filter(
-      (task) => getTaskProjectId(task) == null
-    );
-  }, [tasks]);
+    return tasks.filter((task) => {
+      if (projectFilter === "all") return true;
+
+      if (projectFilter === "none") {
+        return getTaskProjectId(task) == null;
+      }
+
+      return String(getTaskProjectId(task)) === String(projectFilter);
+    });
+  }, [tasks, projectFilter]);
 
   const getProject = (id) =>
     projects.find((project) => String(project.id) === String(id));
@@ -791,9 +795,9 @@ function Tasks() {
         <section className="teamflow-heading">
           <p className="welcome-label">TASK WORKSPACE</p>
           <h2>All work, one clear queue.</h2>
-          <p className="welcome-description">
+          {/* <p className="welcome-description">
             Create project work or individual tasks, then claim, complete and QA them.
-          </p>
+          </p> */}
         </section>
 
         <div className="task-filters panel">
