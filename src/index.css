@@ -7077,3 +7077,50 @@ td:first-child small { font-weight: 400; }
     max-height: calc(100vh - 30px) !important;
   }
 }
+
+/* =====================================================
+   TASK MODALS — ALWAYS CENTERED IN VIEWPORT
+===================================================== */
+
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+
+  width: 100vw !important;
+  height: 100vh !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  margin: 0 !important;
+  padding: 24px !important;
+
+  box-sizing: border-box !important;
+
+  z-index: 999999 !important;
+
+  background: rgba(0, 0, 0, 0.65) !important;
+
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+
+  overflow: hidden !important;
+}
+
+.modal-overlay .modal-card {
+  position: relative !important;
+
+  width: min(590px, calc(100vw - 48px)) !important;
+  max-width: 590px !important;
+
+  max-height: calc(100vh - 48px) !important;
+
+  margin: 0 !important;
+
+  box-sizing: border-box !important;
+
+  overflow-y: auto !important;
+
+  border-radius: 18px !important;
+}
