@@ -86,8 +86,11 @@ function TaskRecommendationPanel({ task, onClose }) {
   return (
     <section
       style={{
+        gridColumn: "1 / -1",
+        width: "100%",
+        boxSizing: "border-box",
         marginTop: "20px",
-        padding: "22px",
+        padding: "24px",
         borderRadius: "14px",
         border: "1px solid rgba(45,212,191,.25)",
         background: "rgba(15,23,42,.72)",
@@ -206,9 +209,14 @@ function TaskRecommendationPanel({ task, onClose }) {
                 return (
                   <div
                     key={employee.employeeId ?? index}
+                    className="teamflow-ai-recommendation-row"
                     style={{
+                      display: "grid",
+                      gridTemplateColumns: "220px minmax(0, 1fr)",
+                      alignItems: "center",
+                      gap: "18px",
                       padding: "16px",
-                      borderRadius: "11px",
+                      borderRadius: "12px",
                       border:
                         index === 0
                           ? "1px solid rgba(20,184,166,.45)"
@@ -225,7 +233,6 @@ function TaskRecommendationPanel({ task, onClose }) {
                         justifyContent: "space-between",
                         alignItems: "center",
                         gap: "12px",
-                        flexWrap: "wrap",
                       }}
                     >
                       <div>
@@ -258,7 +265,7 @@ function TaskRecommendationPanel({ task, onClose }) {
 
                     <div
                       style={{
-                        marginTop: "5px",
+                        marginTop: "6px",
                         color: probability >= 50 ? "#86efac" : "#fcd34d",
                         fontSize: "12px",
                         fontWeight: 700,
@@ -268,11 +275,12 @@ function TaskRecommendationPanel({ task, onClose }) {
                     </div>
 
                     <div
+                      className="teamflow-ai-recommendation-metrics"
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                        gridTemplateColumns: "repeat(4, minmax(110px, 1fr))",
                         gap: "8px",
-                        marginTop: "13px",
+                        marginTop: "0",
                       }}
                     >
                       {[
@@ -327,6 +335,16 @@ function TaskRecommendationPanel({ task, onClose }) {
           </div>
         </>
       )}
+    <style>{`
+      @media (max-width: 1050px) {
+        .teamflow-ai-recommendation-row { grid-template-columns: 180px minmax(0, 1fr) !important; }
+        .teamflow-ai-recommendation-metrics { grid-template-columns: repeat(2, minmax(110px, 1fr)) !important; }
+      }
+      @media (max-width: 700px) {
+        .teamflow-ai-recommendation-row { grid-template-columns: 1fr !important; }
+        .teamflow-ai-recommendation-metrics { grid-template-columns: repeat(2, minmax(100px, 1fr)) !important; }
+      }
+    `}</style>
     </section>
   );
 }
