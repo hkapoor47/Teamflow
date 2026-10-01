@@ -2,29 +2,18 @@ import { Link, useNavigate } from "react-router-dom";
 
 import {
 
-  User,
-
-  Mail,
-
-  Lock,
-
-  Building2,
-
-  Code2,
-
-  ArrowRight,
-
+ User,
+Mail,
+Lock,
+Building2,
+Code2,
+ArrowRight,
 } from "lucide-react";
 
-
-
 const Register = () => {
+const navigate = useNavigate();
 
-  const navigate = useNavigate();
-
-
-
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
 
     e.preventDefault();
 
