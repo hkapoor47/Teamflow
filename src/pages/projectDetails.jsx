@@ -198,6 +198,11 @@ function ProjectDetails() {
 
   const project = apiProject || contextProject;
 
+  // The user who created this project is its manager.
+  // A user can therefore be a manager in one project and an employee in another.
+  const isProjectManager =
+    Number(currentUserId) === Number(project?.created_by);
+
 
 
   /* =====================================================
@@ -674,6 +679,11 @@ function ProjectDetails() {
   const submitTask = async (event) => {
 
     event.preventDefault();
+
+    if (!isProjectManager) {
+      alert("Only the project manager can create tasks.");
+      return;
+    }
 
 
 
