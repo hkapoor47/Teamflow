@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -3007,7 +3008,7 @@ function ProjectDetails() {
         )}
 
         {/* QA TICKET MODAL */}
-        {showQaTicketModal && (
+        {showQaTicketModal && createPortal(
           <div
             className="project-modal-overlay"
             onMouseDown={(event) => {
@@ -3110,13 +3111,14 @@ function ProjectDetails() {
               </form>
             </div>
           </div>
+        , document.body
         )}
 
         {/* CREATE TASK MODAL */}
 
 
 
-        {showTaskModal && (
+        {showTaskModal && createPortal(
 
 
 
@@ -3450,6 +3452,7 @@ function ProjectDetails() {
 
 
 
+        , document.body
         )}
 
 

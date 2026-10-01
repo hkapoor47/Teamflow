@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { useProjects } from "../context/ProjectContext.jsx";
 
@@ -795,9 +796,9 @@ function Tasks() {
         <section className="teamflow-heading">
           <p className="welcome-label">TASK WORKSPACE</p>
           <h2>All work, one clear queue.</h2>
-          {/* <p className="welcome-description">
+          <p className="welcome-description">
             Create project work or individual tasks, then claim, complete and QA them.
-          </p> */}
+          </p>
         </section>
 
         <div className="task-filters panel">
@@ -827,7 +828,7 @@ function Tasks() {
 
         {notice && <div className="claim-notice">{notice}</div>}
 
-        {showCreateTask && (
+        {showCreateTask && createPortal(
           <div className="modal-overlay">
             <div className="modal-card">
               <div className="modal-header">
@@ -969,6 +970,7 @@ function Tasks() {
               </form>
             </div>
           </div>
+        , document.body
         )}
 
         <section className="panel task-board">
