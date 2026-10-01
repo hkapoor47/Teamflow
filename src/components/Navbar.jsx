@@ -60,7 +60,16 @@ const Navbar = () => {
 
   const currentUser = getCurrentUser();
 
-  const userName = currentUser.name;
+  const userName = currentUser.name
+  .trim()
+  .toLowerCase()
+  .split(/\s+/)
+  .map(
+    (word) =>
+      word.charAt(0).toUpperCase() +
+      word.slice(1)
+  )
+  .join(" ");
 
   // ==========================================
   // USER INITIALS
