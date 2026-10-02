@@ -51,9 +51,9 @@ function ProjectDetails() {
   const [taskAssignee, setTaskAssignee] = useState("");
 
   const [taskDeadline, setTaskDeadline] = useState("");
-  const [taskRecommendations, setTaskRecommendations] = useState([]);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
-  const [recommendationsError, setRecommendationsError] = useState("");
+  const [aiRecommendations, setAiRecommendations] = useState([]);
+  const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
+  const [aiRecommendationError, setAiRecommendationError] = useState("");
 
   // Same userId that the backend gets from the JWT.
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -111,60 +111,6 @@ function ProjectDetails() {
       setCurrentUserId(null);
     }
   }, []);
-
-
-  /* =====================================================
-     AI ASSIGNMENT RECOMMENDATIONS
-     Runs before task creation using the task title.
-  ===================================================== */
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadTaskRecommendations = async () => {
-      const title = taskTitle.trim();
-
-      if (!showTaskModal || !backendProjectId || !title) {
-        setTaskRecommendations([]);
-        setRecommendationsError("");
-        setRecommendationsLoading(false);
-        return;
-      }
-
-      try {
-        setRecommendationsLoading(true);
-        setRecommendationsError("");
-
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
-        const response = await fetch(
-          `${API_BASE_URL}/recommendations/preview?projectId=${backendProjectId}&title=${encodeURIComponent(title)}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to load recommendations");
-        }
-
-        if (!cancelled) {
-          setTaskRecommendations(Array.isArray(data.recommendations) ? data.recommendations : []);
-        }
-      } catch (error) {
-        console.error("Failed to load task recommendations:", error);
-        if (!cancelled) {
-          setTaskRecommendations([]);
-          setRecommendationsError(error.message || "Recommendation unavailable");
-        }
-      } finally {
-        if (!cancelled) setRecommendationsLoading(false);
-      }
-    };
-
-    const timer = setTimeout(loadTaskRecommendations, 350);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [taskTitle, showTaskModal, backendProjectId]);
 
 
   /* =====================================================
@@ -718,6 +664,85 @@ function ProjectDetails() {
 
 
   /* =====================================================
+     AI ASSIGNMENT RECOMMENDATIONS
+
+     Runs before the task is created. The manager can use the
+     recommendation to choose an assignee, but the manager remains
+     responsible for the final assignment decision.
+  ===================================================== */
+
+  const getAiRecommendations = async () => {
+    if (!backendProjectId) {
+      alert("Backend project ID could not be found. Please refresh the page.");
+      return;
+    }
+
+    if (!taskTitle.trim()) {
+      alert("Enter the task name first so AI can recommend the right person.");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        alert("Authentication required. Please login again.");
+        return;
+      }
+
+      setAiRecommendationLoading(true);
+      setAiRecommendationError("");
+
+      const query = new URLSearchParams({
+        projectId: String(backendProjectId),
+        title: taskTitle.trim(),
+      });
+
+      const response = await fetch(
+        `${API_BASE_URL}/recommendations/preview?${query.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to generate AI recommendations"
+        );
+      }
+
+      const recommendations = Array.isArray(data.recommendations)
+        ? data.recommendations
+        : [];
+
+      setAiRecommendations(recommendations);
+
+      if (!recommendations.length) {
+        setAiRecommendationError(
+          "No team members are available for an AI recommendation."
+        );
+      }
+    } catch (error) {
+      console.error("AI recommendation error:", error);
+      setAiRecommendationError(
+        error.message || "Failed to generate AI recommendations."
+      );
+      setAiRecommendations([]);
+    } finally {
+      setAiRecommendationLoading(false);
+    }
+  };
+
+  const selectAiAssignee = (employeeId) => {
+    setTaskAssignee(String(employeeId));
+  };
+
+  /* =====================================================
 
      CREATE TASK
 
@@ -875,18 +900,28 @@ function ProjectDetails() {
 
 
       /*
+
        * Task successfully created.
+
        *
-       * If the manager did not manually select an assignee,
-       * immediately open the AI assignment recommendation.
-       * The manager can then assign the suggested real user by name.
+
+       * Instead of relying only on the POST response,
+
+       * fetch all tasks again and filter the current project.
+
        */
-      const createdTask = data.task || data;
+
+
 
       closeTaskModal();
 
-      await fetchProjectTasks(backendProjectId);
 
+
+      await fetchProjectTasks(
+
+        backendProjectId
+
+      );
 
     } catch (error) {
 
@@ -2205,7 +2240,6 @@ function ProjectDetails() {
                     <th>Progress</th>
 
                     <th>Action</th>
-                    <th>AI</th>
 
                   </tr>
 
@@ -2780,6 +2814,7 @@ function ProjectDetails() {
                             })()}
                           </td>
 
+
                         </tr>
 
 
@@ -3287,21 +3322,47 @@ function ProjectDetails() {
 
 
 
-                  {/* ASSIGN MEMBER */}
-
-
+                  {/* ASSIGN MEMBER + AI RECOMMENDATION */}
 
                   <div className="form-group">
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "12px",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <label style={{ marginBottom: 0 }}>Assign to</label>
 
-
-
-                    <label>
-
-                      Assign to
-
-                    </label>
-
-
+                      <button
+                        type="button"
+                        onClick={getAiRecommendations}
+                        disabled={aiRecommendationLoading || !taskTitle.trim()}
+                        style={{
+                          border: "1px solid rgba(45,212,191,.35)",
+                          borderRadius: "8px",
+                          padding: "7px 11px",
+                          background: "rgba(20,184,166,.10)",
+                          color: "#5eead4",
+                          fontWeight: 700,
+                          fontSize: "11px",
+                          cursor:
+                            aiRecommendationLoading || !taskTitle.trim()
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity:
+                            aiRecommendationLoading || !taskTitle.trim()
+                              ? 0.6
+                              : 1,
+                        }}
+                      >
+                        {aiRecommendationLoading
+                          ? "Finding best match..."
+                          : "✨ AI Recommend"}
+                      </button>
+                    </div>
 
                     <select
                       value={taskAssignee}
@@ -3309,55 +3370,158 @@ function ProjectDetails() {
                     >
                       <option value="">Leave unassigned</option>
 
-                      {taskRecommendations.length > 0 ? (
-                        <>
-                          <optgroup label="⭐ AI Recommended">
-                            {taskRecommendations.slice(0, 3).map((member) => (
-                              <option key={member.employeeId} value={member.employeeId}>
-                                ⭐ {member.name} — {Number(member.recommendationScore).toFixed(0)}% Recommended
-                              </option>
-                            ))}
-                          </optgroup>
-
-                          {taskRecommendations.length > 3 && (
-                            <optgroup label="Other team members">
-                              {taskRecommendations.slice(3).map((member) => (
-                                <option key={member.employeeId} value={member.employeeId}>
-                                  {member.name}
-                                </option>
-                              ))}
-                            </optgroup>
-                          )}
-                        </>
-                      ) : (
-                        members.map((member) => (
-                          <option key={member.id} value={member.id}>
-                            {member.name}
-                          </option>
-                        ))
-                      )}
+                      {members.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name}
+                        </option>
+                      ))}
                     </select>
 
-                    {recommendationsLoading && (
-                      <div style={{ marginTop: "7px", fontSize: "11px", color: "#94a3b8" }}>
-                        AI is ranking team members for this task...
+                    <p
+                      style={{
+                        margin: "7px 0 0",
+                        color: "#94a3b8",
+                        fontSize: "11px",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      AI uses skills, previous work, workload, deadlines and QA history to suggest the best fit.
+                    </p>
+
+                    {aiRecommendationError && (
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          padding: "10px 12px",
+                          borderRadius: "8px",
+                          background: "rgba(239,68,68,.10)",
+                          border: "1px solid rgba(239,68,68,.20)",
+                          color: "#fca5a5",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {aiRecommendationError}
                       </div>
                     )}
 
-                    {!recommendationsLoading && recommendationsError && (
-                      <div style={{ marginTop: "7px", fontSize: "11px", color: "#fbbf24" }}>
-                        AI recommendation unavailable — showing all team members.
+                    {aiRecommendations.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: "14px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "8px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "#5eead4",
+                            fontSize: "11px",
+                            fontWeight: 800,
+                            letterSpacing: ".06em",
+                          }}
+                        >
+                          AI SUGGESTED TEAM MEMBERS
+                        </div>
+
+                        {aiRecommendations.slice(0, 5).map((recommendation, index) => {
+                          const employeeId =
+                            recommendation.employeeId ?? recommendation.id;
+                          const score = Number(
+                            recommendation.recommendationScore ??
+                              recommendation.successProbability ??
+                              0
+                          );
+                          const isSelected =
+                            String(taskAssignee) === String(employeeId);
+
+                          return (
+                            <button
+                              key={employeeId}
+                              type="button"
+                              onClick={() => selectAiAssignee(employeeId)}
+                              style={{
+                                width: "100%",
+                                textAlign: "left",
+                                border: isSelected
+                                  ? "1px solid rgba(45,212,191,.70)"
+                                  : "1px solid rgba(148,163,184,.16)",
+                                borderRadius: "10px",
+                                padding: "11px 12px",
+                                background: isSelected
+                                  ? "rgba(20,184,166,.12)"
+                                  : "rgba(15,23,42,.55)",
+                                color: "#e2e8f0",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: "10px",
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+                                  <span
+                                    style={{
+                                      minWidth: "24px",
+                                      height: "24px",
+                                      borderRadius: "7px",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      background: "rgba(148,163,184,.12)",
+                                      color: "#cbd5e1",
+                                      fontSize: "11px",
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    #{index + 1}
+                                  </span>
+                                  <span style={{ fontWeight: 800, fontSize: "13px" }}>
+                                    {recommendation.name || `User ${employeeId}`}
+                                  </span>
+                                </div>
+
+                                <span
+                                  style={{
+                                    color: score >= 70 ? "#5eead4" : "#fbbf24",
+                                    fontWeight: 900,
+                                    fontSize: "14px",
+                                  }}
+                                >
+                                  {score.toFixed(2)}%
+                                </span>
+                              </div>
+
+                              {recommendation.reasons?.length > 0 && (
+                                <div
+                                  style={{
+                                    marginTop: "6px",
+                                    color: "#94a3b8",
+                                    fontSize: "11px",
+                                  }}
+                                >
+                                  {recommendation.reasons.slice(0, 2).join(" • ")}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+
+                        <div
+                          style={{
+                            color: "#64748b",
+                            fontSize: "10px",
+                            marginTop: "2px",
+                          }}
+                        >
+                          Click a recommendation to select that person. You can still choose anyone from the dropdown.
+                        </div>
                       </div>
                     )}
-
-                    {!recommendationsLoading && !recommendationsError && taskRecommendations.length > 0 && (
-                      <div style={{ marginTop: "7px", fontSize: "11px", color: "#94a3b8" }}>
-                        Top matches use skills, similar task history, completion, deadlines, QA and current workload.
-                      </div>
-                    )}
-
-
-
                   </div>
 
 
