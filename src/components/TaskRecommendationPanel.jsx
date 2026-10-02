@@ -34,6 +34,9 @@ function TaskRecommendationPanel({ task, onClose }) {
   const [taskInfo, setTaskInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [users, setUsers] = useState([]);
+  const [assigningId, setAssigningId] = useState(null);
+  const [assignedId, setAssignedId] = useState(null);
 
   useEffect(() => {
     const loadRecommendations = async () => {
@@ -49,18 +52,19 @@ function TaskRecommendationPanel({ task, onClose }) {
           throw new Error("Authentication required. Please login again.");
         }
 
-        const response = await fetch(
-          `${API_BASE_URL}/recommendations/task/${task.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const [recommendationResponse, usersResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/recommendations/task/${task.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_BASE_URL}/users`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
-        const data = await response.json();
+        const data = await recommendationResponse.json();
+        const usersData = await usersResponse.json();
 
-        if (!response.ok) {
+        if (!recommendationResponse.ok) {
           throw new Error(
             data.message || data.error || "Failed to load AI recommendations"
           );
@@ -69,6 +73,13 @@ function TaskRecommendationPanel({ task, onClose }) {
         setTaskInfo(data.task || null);
         setRecommendations(
           Array.isArray(data.recommendations) ? data.recommendations : []
+        );
+        setUsers(
+          Array.isArray(usersData.users)
+            ? usersData.users
+            : Array.isArray(usersData)
+              ? usersData
+              : []
         );
       } catch (err) {
         console.error("AI recommendation error:", err);
@@ -80,6 +91,60 @@ function TaskRecommendationPanel({ task, onClose }) {
 
     loadRecommendations();
   }, [task?.id]);
+
+  const getEmployeeName = (employee) => {
+    const id = employee.employeeId ?? employee.userId ?? employee.id;
+    const user = users.find((item) => String(item.id) === String(id));
+
+    return (
+      employee.employeeName ||
+      employee.userName ||
+      employee.name ||
+      user?.name ||
+      user?.username ||
+      user?.email ||
+      `User ${id}`
+    );
+  };
+
+  const assignRecommendation = async (employee) => {
+    const employeeId = employee.employeeId ?? employee.userId ?? employee.id;
+
+    if (!employeeId || !task?.id) return;
+
+    try {
+      setAssigningId(employeeId);
+      setError("");
+
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Authentication required. Please login again.");
+
+      const response = await fetch(
+        `${API_BASE_URL}/projects/tasks/${task.id}/assign`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ assigned_to: Number(employeeId) }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to assign task");
+      }
+
+      setAssignedId(Number(employeeId));
+    } catch (err) {
+      console.error("AI assignment error:", err);
+      setError(err.message || "Failed to assign task.");
+    } finally {
+      setAssigningId(null);
+    }
+  };
 
   if (!task) return null;
 
@@ -250,7 +315,7 @@ function TaskRecommendationPanel({ task, onClose }) {
                         >
                           #{employee.rank || index + 1}
                         </span>
-                        <strong>Employee {employee.employeeId}</strong>
+                        <strong>{getEmployeeName(employee)}</strong>
                       </div>
 
                       <strong
@@ -272,6 +337,35 @@ function TaskRecommendationPanel({ task, onClose }) {
                       }}
                     >
                       {employee.prediction || "Prediction unavailable"}
+                    </div>
+
+                    <div style={{ marginTop: "10px" }}>
+                      <button
+                        type="button"
+                        onClick={() => assignRecommendation(employee)}
+                        disabled={
+                          assigningId === (employee.employeeId ?? employee.userId ?? employee.id) ||
+                          assignedId === Number(employee.employeeId ?? employee.userId ?? employee.id)
+                        }
+                        style={{
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "9px 14px",
+                          background: assignedId === Number(employee.employeeId ?? employee.userId ?? employee.id)
+                            ? "#15803d"
+                            : "#14b8a6",
+                          color: "white",
+                          fontWeight: 800,
+                          fontSize: "11px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {assignedId === Number(employee.employeeId ?? employee.userId ?? employee.id)
+                          ? "Assigned"
+                          : assigningId === (employee.employeeId ?? employee.userId ?? employee.id)
+                            ? "Assigning..."
+                            : `Assign to ${getEmployeeName(employee)}`}
+                      </button>
                     </div>
 
                     <div

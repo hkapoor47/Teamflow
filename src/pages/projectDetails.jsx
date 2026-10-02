@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 
 import { useNavigate, useParams } from "react-router-dom";
 
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 
 import { useProjects } from "../context/ProjectContext.jsx";
-import TaskRecommendationPanel from "../components/TaskRecommendationPanel.jsx";
 
 
 
@@ -53,7 +51,9 @@ function ProjectDetails() {
   const [taskAssignee, setTaskAssignee] = useState("");
 
   const [taskDeadline, setTaskDeadline] = useState("");
-  const [selectedRecommendationTask, setSelectedRecommendationTask] = useState(null);
+  const [taskRecommendations, setTaskRecommendations] = useState([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [recommendationsError, setRecommendationsError] = useState("");
 
   // Same userId that the backend gets from the JWT.
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -111,6 +111,60 @@ function ProjectDetails() {
       setCurrentUserId(null);
     }
   }, []);
+
+
+  /* =====================================================
+     AI ASSIGNMENT RECOMMENDATIONS
+     Runs before task creation using the task title.
+  ===================================================== */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTaskRecommendations = async () => {
+      const title = taskTitle.trim();
+
+      if (!showTaskModal || !backendProjectId || !title) {
+        setTaskRecommendations([]);
+        setRecommendationsError("");
+        setRecommendationsLoading(false);
+        return;
+      }
+
+      try {
+        setRecommendationsLoading(true);
+        setRecommendationsError("");
+
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const response = await fetch(
+          `${API_BASE_URL}/recommendations/preview?projectId=${backendProjectId}&title=${encodeURIComponent(title)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load recommendations");
+        }
+
+        if (!cancelled) {
+          setTaskRecommendations(Array.isArray(data.recommendations) ? data.recommendations : []);
+        }
+      } catch (error) {
+        console.error("Failed to load task recommendations:", error);
+        if (!cancelled) {
+          setTaskRecommendations([]);
+          setRecommendationsError(error.message || "Recommendation unavailable");
+        }
+      } finally {
+        if (!cancelled) setRecommendationsLoading(false);
+      }
+    };
+
+    const timer = setTimeout(loadTaskRecommendations, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [taskTitle, showTaskModal, backendProjectId]);
 
 
   /* =====================================================
@@ -821,28 +875,18 @@ function ProjectDetails() {
 
 
       /*
-
        * Task successfully created.
-
        *
-
-       * Instead of relying only on the POST response,
-
-       * fetch all tasks again and filter the current project.
-
+       * If the manager did not manually select an assignee,
+       * immediately open the AI assignment recommendation.
+       * The manager can then assign the suggested real user by name.
        */
-
-
+      const createdTask = data.task || data;
 
       closeTaskModal();
 
+      await fetchProjectTasks(backendProjectId);
 
-
-      await fetchProjectTasks(
-
-        backendProjectId
-
-      );
 
     } catch (error) {
 
@@ -2736,27 +2780,6 @@ function ProjectDetails() {
                             })()}
                           </td>
 
-                          {/* AI RECOMMENDATION */}
-                          <td>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedRecommendationTask(task)}
-                              style={{
-                                border: "1px solid rgba(139,92,246,.35)",
-                                borderRadius: "8px",
-                                padding: "8px 11px",
-                                background: "rgba(139,92,246,.10)",
-                                color: "#c4b5fd",
-                                fontWeight: 700,
-                                fontSize: "11px",
-                                cursor: "pointer",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              AI Recommend
-                            </button>
-                          </td>
-
                         </tr>
 
 
@@ -2786,13 +2809,6 @@ function ProjectDetails() {
           </section>
 
 
-
-          {selectedRecommendationTask && (
-            <TaskRecommendationPanel
-              task={selectedRecommendationTask}
-              onClose={() => setSelectedRecommendationTask(null)}
-            />
-          )}
 
         </div>
 
@@ -3008,7 +3024,7 @@ function ProjectDetails() {
         )}
 
         {/* QA TICKET MODAL */}
-        {showQaTicketModal && createPortal(
+        {showQaTicketModal && (
           <div
             className="project-modal-overlay"
             onMouseDown={(event) => {
@@ -3111,14 +3127,13 @@ function ProjectDetails() {
               </form>
             </div>
           </div>
-        , document.body
         )}
 
         {/* CREATE TASK MODAL */}
 
 
 
-        {showTaskModal && createPortal(
+        {showTaskModal && (
 
 
 
@@ -3289,56 +3304,57 @@ function ProjectDetails() {
 
 
                     <select
-
                       value={taskAssignee}
-
-                      onChange={(event) =>
-
-                        setTaskAssignee(
-
-                          event.target.value
-
-                        )
-
-                      }
-
+                      onChange={(event) => setTaskAssignee(event.target.value)}
                     >
+                      <option value="">Leave unassigned</option>
 
+                      {taskRecommendations.length > 0 ? (
+                        <>
+                          <optgroup label="⭐ AI Recommended">
+                            {taskRecommendations.slice(0, 3).map((member) => (
+                              <option key={member.employeeId} value={member.employeeId}>
+                                ⭐ {member.name} — {Number(member.recommendationScore).toFixed(0)}% Recommended
+                              </option>
+                            ))}
+                          </optgroup>
 
-
-                      <option value="">
-
-                        Leave unassigned
-
-                      </option>
-
-
-
-                      {members.map((member) => (
-
-
-
-                        <option
-
-                          key={member.id}
-
-                          value={member.id}
-
-                        >
-
-                          {member.name} —{" "}
-
-                          {member.role}
-
-                        </option>
-
-
-
-                      ))}
-
-
-
+                          {taskRecommendations.length > 3 && (
+                            <optgroup label="Other team members">
+                              {taskRecommendations.slice(3).map((member) => (
+                                <option key={member.employeeId} value={member.employeeId}>
+                                  {member.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </>
+                      ) : (
+                        members.map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.name}
+                          </option>
+                        ))
+                      )}
                     </select>
+
+                    {recommendationsLoading && (
+                      <div style={{ marginTop: "7px", fontSize: "11px", color: "#94a3b8" }}>
+                        AI is ranking team members for this task...
+                      </div>
+                    )}
+
+                    {!recommendationsLoading && recommendationsError && (
+                      <div style={{ marginTop: "7px", fontSize: "11px", color: "#fbbf24" }}>
+                        AI recommendation unavailable — showing all team members.
+                      </div>
+                    )}
+
+                    {!recommendationsLoading && !recommendationsError && taskRecommendations.length > 0 && (
+                      <div style={{ marginTop: "7px", fontSize: "11px", color: "#94a3b8" }}>
+                        Top matches use skills, similar task history, completion, deadlines, QA and current workload.
+                      </div>
+                    )}
 
 
 
@@ -3452,7 +3468,6 @@ function ProjectDetails() {
 
 
 
-        , document.body
         )}
 
 
