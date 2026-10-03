@@ -2993,7 +2993,6 @@ function ProjectDetails() {
                   </div>
                 );
               })()}
-            </div>
 
           </section>
         )}
