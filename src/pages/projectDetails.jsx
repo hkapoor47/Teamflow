@@ -1018,6 +1018,15 @@ function ProjectDetails() {
     ticket?.testCaseId ??
     null;
 
+  // Older QA tickets may be linked directly to the task instead of
+  // qa_test_id. Support both shapes so a failed task cannot appear twice.
+  const getTicketTaskId = (ticket) =>
+    ticket?.task_id ??
+    ticket?.taskId ??
+    ticket?.linked_task_id ??
+    ticket?.linkedTaskId ??
+    null;
+
   const getTicketClaimedBy = (ticket) =>
     ticket?.claimed_by ??
     ticket?.claimedBy ??
@@ -1252,19 +1261,34 @@ function ProjectDetails() {
       const testId = qaTestId(test);
 
       // Do not create duplicate active tickets for the same QA test.
-      const existingTicket = qaTickets.find(
-        (ticket) =>
-          String(getTicketQaTestId(ticket)) === String(testId) &&
-          !["COMPLETED", "COMPLETE", "DONE", "CLOSED", "RESOLVED"].includes(
-            normalizeQaStatus(ticket.status)
-          )
-      );
+      const existingTicket = qaTickets.find((ticket) => {
+        const sameQaTest =
+          getTicketQaTestId(ticket) != null &&
+          String(getTicketQaTestId(ticket)) === String(testId);
+        const sameTask =
+          getTicketTaskId(ticket) != null &&
+          String(getTicketTaskId(ticket)) === String(task.id);
+        const active = ![
+          "COMPLETED",
+          "COMPLETE",
+          "DONE",
+          "CLOSED",
+          "RESOLVED",
+        ].includes(normalizeQaStatus(ticket.status));
+
+        return active && (sameQaTest || sameTask);
+      });
 
       if (existingTicket) {
         setQaMessage(
-          `An active ticket already exists for this QA test (Ticket #${getTicketId(existingTicket)}).`
+          `This task already has an active QA ticket (Ticket #${getTicketId(existingTicket)}). Complete that ticket before failing the task again.`
         );
         await loadQaTickets();
+        window.setTimeout(() => {
+          document
+            .getElementById("qa-tickets-workspace")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 50);
         return;
       }
 
@@ -1746,11 +1770,15 @@ function ProjectDetails() {
 
   const activeQaTests = qaTests.filter((test) => {
     const status = normalizeQaStatus(test.status);
-    const ticket = qaTickets.find(
-      (item) =>
+    const ticket = qaTickets.find((item) => {
+      const sameQaTest =
         getTicketQaTestId(item) != null &&
-        String(getTicketQaTestId(item)) === String(qaTestId(test))
-    );
+        String(getTicketQaTestId(item)) === String(qaTestId(test));
+      const sameTask =
+        getTicketTaskId(item) != null &&
+        String(getTicketTaskId(item)) === String(getTestTaskId(test));
+      return sameQaTest || sameTask;
+    });
 
     const ticketStatus = normalizeQaStatus(ticket?.status);
 
@@ -2911,17 +2939,23 @@ function ProjectDetails() {
                   // After ticket completion, the backend resets QA state and
                   // the task can appear here again for re-testing.
                   if (test) {
-                    const activeTicket = qaTickets.find(
-                      (item) =>
-                        String(getTicketQaTestId(item)) === String(qaTestId(test)) &&
-                        ![
-                          "COMPLETED",
-                          "COMPLETE",
-                          "DONE",
-                          "CLOSED",
-                          "RESOLVED",
-                        ].includes(normalizeQaStatus(item.status))
-                    );
+                    const activeTicket = qaTickets.find((item) => {
+                      const sameQaTest =
+                        getTicketQaTestId(item) != null &&
+                        String(getTicketQaTestId(item)) === String(qaTestId(test));
+                      const sameTask =
+                        getTicketTaskId(item) != null &&
+                        String(getTicketTaskId(item)) === String(task.id);
+                      const active = ![
+                        "COMPLETED",
+                        "COMPLETE",
+                        "DONE",
+                        "CLOSED",
+                        "RESOLVED",
+                      ].includes(normalizeQaStatus(item.status));
+
+                      return active && (sameQaTest || sameTask);
+                    });
 
                     if (activeTicket) return false;
                   }
@@ -3012,8 +3046,20 @@ function ProjectDetails() {
                     <tbody>
                       {qaTickets.map((ticket, index) => {
                         const ticketId = getTicketId(ticket);
-                        const linkedTest = qaTests.find((test) => String(getTicketQaTestId(ticket)) === String(qaTestId(test)));
-                        const linkedTask = linkedTest ? projectTasks.find((task) => String(task.id) === String(getTestTaskId(linkedTest))) : null;
+                        const linkedTest = qaTests.find((test) => {
+                          const sameQaTest =
+                            getTicketQaTestId(ticket) != null &&
+                            String(getTicketQaTestId(ticket)) === String(qaTestId(test));
+                          const sameTask =
+                            getTicketTaskId(ticket) != null &&
+                            String(getTicketTaskId(ticket)) === String(getTestTaskId(test));
+                          return sameQaTest || sameTask;
+                        });
+                        const linkedTask = linkedTest
+                          ? projectTasks.find((task) => String(task.id) === String(getTestTaskId(linkedTest)))
+                          : getTicketTaskId(ticket) != null
+                            ? projectTasks.find((task) => String(task.id) === String(getTicketTaskId(ticket)))
+                            : null;
                         const ticketStatus = normalizeQaStatus(ticket.status);
                         const claimedBy = getTicketClaimedBy(ticket);
                         const claimedName = getTicketClaimedName(ticket);
@@ -3646,4 +3692,4 @@ function ProjectDetails() {
 
 
 
-export default ProjectDetails;
+export default ProjectDetails;  
