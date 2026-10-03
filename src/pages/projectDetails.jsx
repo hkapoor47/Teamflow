@@ -485,11 +485,11 @@ function ProjectDetails() {
 
   // Keep this hook before every conditional return. React requires the same hook order on every render.
   useEffect(() => {
-    if (backendProjectId && qaExpanded) {
+    if (backendProjectId) {
       loadQaTests();
       loadQaTickets();
     }
-  }, [backendProjectId, qaExpanded]);
+  }, [backendProjectId]);
 
 
   if (loadingProject && !project) {
@@ -562,47 +562,30 @@ function ProjectDetails() {
 
 
 
-  const assignedIds = [
+  // Count unique people actually participating in this project.
+  // This is intentionally derived from project tasks instead of the
+  // global `members` list, which is not project-scoped.
+  const projectMemberIds = new Set();
 
-    ...new Set(
+  if (project?.created_by != null) {
+    projectMemberIds.add(Number(project.created_by));
+  }
 
-      projectTasks
+  projectTasks.forEach((task) => {
+    const assignedId =
+      task.assigned_to ??
+      task.assigneeId ??
+      task.assignee_id;
 
-        .map(
+    const claimedId =
+      task.claimed_by ??
+      task.claimedBy;
 
-          (task) =>
+    if (assignedId != null) projectMemberIds.add(Number(assignedId));
+    if (claimedId != null) projectMemberIds.add(Number(claimedId));
+  });
 
-            task.assigned_to ??
-
-            task.assigneeId ??
-
-            task.assignee_id
-
-        )
-
-        .filter(
-
-          (value) =>
-
-            value !== null &&
-
-            value !== undefined
-
-        )
-
-        .map(Number)
-
-    ),
-
-  ];
-
-
-
-  const projectMembers = members.filter((member) =>
-
-    assignedIds.includes(Number(member.id))
-
-  );
+  const projectMemberCount = projectMemberIds.size;
 
 
 
@@ -2192,23 +2175,16 @@ function ProjectDetails() {
 
 
 
-              <button
-
-                className="create-project-button"
-
-                onClick={() =>
-
-                  setShowTaskModal(true)
-
-                }
-
-              >
-
-                <span>+</span>
-
-                Create task
-
-              </button>
+              {isProjectManager && (
+                <button
+                  type="button"
+                  className="create-project-button"
+                  onClick={() => setShowTaskModal(true)}
+                >
+                  <span>+</span>
+                  Create task
+                </button>
+              )}
 
 
 
@@ -2405,14 +2381,42 @@ function ProjectDetails() {
 
 
                             <strong>
-
                               {task.title ||
-
                                 task.name ||
-
                                 "Untitled task"}
-
                             </strong>
+                            {Number(
+                              task.qa_failure_count ??
+                                task.qaFailureCount ??
+                                task.failure_count ??
+                                0
+                            ) > 0 && (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  marginTop: "6px",
+                                  padding: "4px 8px",
+                                  borderRadius: "999px",
+                                  background: "rgba(239,68,68,.10)",
+                                  border: "1px solid rgba(239,68,68,.25)",
+                                  color: "#fca5a5",
+                                  fontSize: "10px",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                QA failed {Number(
+                                  task.qa_failure_count ??
+                                    task.qaFailureCount ??
+                                    task.failure_count ??
+                                    0
+                                )} {Number(
+                                  task.qa_failure_count ??
+                                    task.qaFailureCount ??
+                                    task.failure_count ??
+                                    0
+                                ) === 1 ? "time" : "times"}
+                              </span>
+                            )}
 
 
 
@@ -3191,13 +3195,11 @@ function ProjectDetails() {
 
 
 
-        {showTaskModal && (
-
-
-
-          <div
-
-            className="project-modal-overlay"
+        {showTaskModal &&
+          isProjectManager &&
+          createPortal(
+            <div
+              className="project-modal-overlay"
 
             onMouseDown={(event) => {
 
@@ -3651,11 +3653,9 @@ function ProjectDetails() {
 
 
 
-          </div>
-
-
-
-        )}
+            </div>,
+            document.body
+          )}
 
 
 
