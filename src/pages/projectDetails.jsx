@@ -2891,14 +2891,14 @@ function ProjectDetails() {
               </div>
             )}
 
-            {/* TASKS AWAITING QA */}
+            {/* TASKS AWAITING QA
             <div style={{ marginTop: "30px" }}>
               <div className="panel-header" style={{ marginBottom: "12px" }}>
                 <div>
                   <h3>Tasks Awaiting QA</h3>
                   <p>The selected completed task is tested here. PASS completes QA; FAIL creates a fix ticket.</p>
                 </div>
-              </div>
+              </div> */}
 
               {(() => {
                 const awaiting = projectTasks.filter((task) => {
@@ -2948,15 +2948,36 @@ function ProjectDetails() {
                         {awaiting.map((task) => {
                           const test = qaTests.find((item) => String(getTestTaskId(item)) === String(task.id));
                           const status = normalizeQaStatus(test?.status || task.qa_status || "PENDING");
+                          const failureCount = Number(
+                            test?.failure_count ?? test?.failureCount ?? 0
+                          );
                           return (
                             <tr key={`awaiting-${task.id}`}>
                               <td>
                                 <strong>{task.title || task.name || "Untitled task"}</strong>
                               </td>
                               <td>
-                                <span style={{ display: "inline-flex", padding: "6px 11px", borderRadius: "999px", background: "rgba(20,184,166,.12)", border: "1px solid rgba(20,184,166,.3)", color: "#5eead4", fontWeight: 800, fontSize: "11px" }}>
-                                  {status}
-                                </span>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                  <span style={{ display: "inline-flex", padding: "6px 11px", borderRadius: "999px", background: "rgba(20,184,166,.12)", border: "1px solid rgba(20,184,166,.3)", color: "#5eead4", fontWeight: 800, fontSize: "11px" }}>
+                                    {status}
+                                  </span>
+                                  {failureCount > 0 && (
+                                    <span
+                                      style={{
+                                        display: "inline-flex",
+                                        padding: "5px 9px",
+                                        borderRadius: "999px",
+                                        background: "rgba(239,68,68,.10)",
+                                        border: "1px solid rgba(239,68,68,.25)",
+                                        color: "#fca5a5",
+                                        fontWeight: 700,
+                                        fontSize: "11px",
+                                      }}
+                                    >
+                                      Failed {failureCount} {failureCount === 1 ? "time" : "times"}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td>
                                 <div style={{ display: "flex", gap: "7px", flexWrap: "wrap" }}>
