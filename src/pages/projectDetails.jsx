@@ -642,6 +642,9 @@ function ProjectDetails() {
     setTaskAssignee("");
 
     setTaskDeadline("");
+    setAiRecommendations([]);
+    setAiRecommendationError("");
+    setAiRecommendationLoading(false);
 
   };
 
@@ -692,23 +695,45 @@ function ProjectDetails() {
         }
       );
 
-      const data = await response.json();
+      const responseText = await response.text();
 
-      if (!response.ok) {
+      let data = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        console.error("AI recommendation returned non-JSON:", responseText);
         throw new Error(
-          data.message || "Failed to generate AI recommendations"
+          `Recommendation API returned an invalid response (${response.status}).`
         );
       }
 
-      const recommendations = Array.isArray(data.recommendations)
-        ? data.recommendations
-        : [];
+      console.log("AI RECOMMENDATION STATUS:", response.status);
+      console.log("AI RECOMMENDATION RESPONSE:", data);
 
+      if (!response.ok) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            `Failed to generate AI recommendations (${response.status})`
+        );
+      }
+
+      // Support the normal backend shape { recommendations: [] } as well as
+      // wrapped responses such as { data: { recommendations: [] } }.
+      const recommendations =
+        (Array.isArray(data.recommendations) && data.recommendations) ||
+        (Array.isArray(data.data?.recommendations) && data.data.recommendations) ||
+        (Array.isArray(data.data) && data.data) ||
+        (Array.isArray(data) && data) ||
+        [];
+
+      console.log("AI RECOMMENDATIONS PARSED:", recommendations);
       setAiRecommendations(recommendations);
 
       if (!recommendations.length) {
         setAiRecommendationError(
-          "No team members are available for an AI recommendation."
+          data.message ||
+            "The AI service returned no recommendations for this task."
         );
       }
     } catch (error) {
@@ -2031,7 +2056,7 @@ function ProjectDetails() {
 
             <strong>
 
-              {projectMembers.length}
+              {projectMemberCount}
 
             </strong>
 
@@ -2161,13 +2186,13 @@ function ProjectDetails() {
 
 
 
-                <p>
+                {/* <p>
 
                   Create work, assign members or leave
 
                   tasks open for team members to claim.
 
-                </p>
+                </p> */}
 
 
 
@@ -2385,38 +2410,43 @@ function ProjectDetails() {
                                 task.name ||
                                 "Untitled task"}
                             </strong>
-                            {Number(
-                              task.qa_failure_count ??
-                                task.qaFailureCount ??
-                                task.failure_count ??
-                                0
-                            ) > 0 && (
-                              <span
-                                style={{
-                                  display: "inline-flex",
-                                  marginTop: "6px",
-                                  padding: "4px 8px",
-                                  borderRadius: "999px",
-                                  background: "rgba(239,68,68,.10)",
-                                  border: "1px solid rgba(239,68,68,.25)",
-                                  color: "#fca5a5",
-                                  fontSize: "10px",
-                                  fontWeight: 800,
-                                }}
-                              >
-                                QA failed {Number(
-                                  task.qa_failure_count ??
-                                    task.qaFailureCount ??
-                                    task.failure_count ??
-                                    0
-                                )} {Number(
-                                  task.qa_failure_count ??
-                                    task.qaFailureCount ??
-                                    task.failure_count ??
-                                    0
-                                ) === 1 ? "time" : "times"}
-                              </span>
-                            )}
+{Number(
+  task.qa_failure_count ??
+    task.qaFailureCount ??
+    task.failure_count ??
+    0
+) > 0 && (
+  <div
+    style={{
+      marginTop: "6px",
+      display: "inline-flex",
+      alignItems: "center",
+      padding: "4px 9px",
+      borderRadius: "999px",
+      background: "rgba(239,68,68,.10)",
+      border: "1px solid rgba(239,68,68,.25)",
+      color: "#fca5a5",
+      fontSize: "11px",
+      fontWeight: 700,
+    }}
+  >
+    QA Failed{" "}
+    {Number(
+      task.qa_failure_count ??
+        task.qaFailureCount ??
+        task.failure_count ??
+        0
+    )}{" "}
+    {Number(
+      task.qa_failure_count ??
+        task.qaFailureCount ??
+        task.failure_count ??
+        0
+    ) === 1
+      ? "time"
+      : "times"}
+  </div>
+)}
 
 
 
@@ -3327,15 +3357,11 @@ function ProjectDetails() {
 
                       value={taskTitle}
 
-                      onChange={(event) =>
-
-                        setTaskTitle(
-
-                          event.target.value
-
-                        )
-
-                      }
+                      onChange={(event) => {
+                        setTaskTitle(event.target.value);
+                        setAiRecommendations([]);
+                        setAiRecommendationError("");
+                      }}
 
                       placeholder="e.g. Build login page"
 
