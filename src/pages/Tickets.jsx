@@ -1,171 +1,326 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
-import {
-  apiGet,
-  API_BASE_URL,
-  getCurrentUserId,
-  getToken,
-  getArray,
-  normalizeStatus,
-  formatDate,
-} from "./workspaceApi.js";
+
+const API_BASE_URL = "http://65.0.11.153:5001/api";
+
+const normalizeStatus = (value) =>
+  String(value || "OPEN").trim().toUpperCase();
 
 function Tickets() {
   const [tickets, setTickets] = useState([]);
-  const [tab, setTab] = useState("claimed");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [actionId, setActionId] = useState(null);
-
-  const userId = getCurrentUserId();
+  const [claimingTicketId, setClaimingTicketId] = useState(null);
+  const [completingTicketId, setCompletingTicketId] = useState(null);
 
   const loadTickets = async () => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("Authentication required. Please login again.");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const data = await apiGet("/tickets");
-      setTickets(getArray(data, ["tickets", "data"]));
+      setError("");
+
+      const response = await fetch(`${API_BASE_URL}/tickets`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const text = await response.text();
+      let data = {};
+
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error("Invalid ticket API response.");
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || `Failed to fetch tickets (${response.status})`
+        );
+      }
+
+      const apiTickets =
+        data.tickets ||
+        data.data ||
+        (Array.isArray(data) ? data : []);
+
+      setTickets(Array.isArray(apiTickets) ? apiTickets : []);
     } catch (err) {
-      setError(err.message);
+      console.error("Load tickets error:", err);
+      setError(err.message || "Failed to load tickets.");
+      setTickets([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadTickets(); }, []);
+  useEffect(() => {
+    loadTickets();
+  }, []);
 
-  const mine = useMemo(() => {
-    return tickets.filter((ticket) => {
-      const createdBy = ticket.created_by ?? ticket.createdBy;
-      const claimedBy = ticket.claimed_by ?? ticket.claimedBy;
+  const getId = (ticket) =>
+    ticket?.id ?? ticket?.ticket_id ?? ticket?.ticketId;
 
-      if (tab === "created") {
-        return createdBy != null && String(createdBy) === String(userId);
-      }
+  const getClaimedBy = (ticket) =>
+    ticket?.claimed_by ?? ticket?.claimedBy ?? null;
 
-      if (tab === "claimed") {
-        return claimedBy != null && String(claimedBy) === String(userId);
-      }
+  const getClaimedName = (ticket) =>
+    ticket?.claimed_by_name ??
+    ticket?.claimedByName ??
+    ticket?.claimer_name ??
+    null;
 
-      return (
-        (createdBy != null && String(createdBy) === String(userId)) ||
-        (claimedBy != null && String(claimedBy) === String(userId))
+  const claimTicket = async (ticketId) => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("Authentication required. Please login again.");
+      return;
+    }
+
+    try {
+      setClaimingTicketId(ticketId);
+      setError("");
+
+      const response = await fetch(
+        `${API_BASE_URL}/tickets/${ticketId}/claim`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
       );
-    });
-  }, [tickets, tab, userId]);
 
-  const claimTicket = async (id) => {
-    try {
-      setActionId(id);
-      const response = await fetch(`${API_BASE_URL}/tickets/${id}/claim`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-          "Content-Type": "application/json",
-        },
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.message || "Failed to claim ticket.");
+      const text = await response.text();
+      let data = {};
+
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {}
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to claim ticket.");
+      }
+
       await loadTickets();
     } catch (err) {
-      setError(err.message);
+      console.error("Claim ticket error:", err);
+      setError(err.message || "Failed to claim ticket.");
     } finally {
-      setActionId(null);
+      setClaimingTicketId(null);
     }
   };
 
-  const completeTicket = async (id) => {
+  const completeTicket = async (ticketId) => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setError("Authentication required. Please login again.");
+      return;
+    }
+
     try {
-      setActionId(id);
-      const response = await fetch(`${API_BASE_URL}/tickets/${id}/complete`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-          "Content-Type": "application/json",
-        },
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.message || "Failed to complete ticket.");
+      setCompletingTicketId(ticketId);
+      setError("");
+
+      const response = await fetch(
+        `${API_BASE_URL}/tickets/${ticketId}/complete`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const text = await response.text();
+      let data = {};
+
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {}
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to complete ticket.");
+      }
+
       await loadTickets();
     } catch (err) {
-      setError(err.message);
+      console.error("Complete ticket error:", err);
+      setError(err.message || "Failed to complete ticket.");
     } finally {
-      setActionId(null);
+      setCompletingTicketId(null);
     }
   };
+
+  const openCount = tickets.filter((ticket) =>
+    ["OPEN", "PENDING"].includes(normalizeStatus(ticket.status))
+  ).length;
+
+  const inProgressCount = tickets.filter((ticket) =>
+    ["CLAIMED", "IN PROGRESS", "IN_PROGRESS"].includes(
+      normalizeStatus(ticket.status)
+    )
+  ).length;
+
+  const completedCount = tickets.filter((ticket) =>
+    ["COMPLETED", "COMPLETE", "DONE", "CLOSED", "RESOLVED"].includes(
+      normalizeStatus(ticket.status)
+    )
+  ).length;
 
   return (
     <DashboardLayout>
       <div className="teamflow-page workspace-page">
         <section className="teamflow-heading">
-          <p className="welcome-label">MY WORK</p>
-          <h2>My tickets.</h2>
+          <p className="welcome-label">PROJECT ISSUES</p>
+          <h2>All tickets.</h2>
           <p className="welcome-description">
-            Tickets you created, claimed or are currently responsible for.
+            Every ticket created across the workspace is visible here.
           </p>
         </section>
 
-        <div className="workspace-tabs">
-          <button className={tab === "claimed" ? "active" : ""} onClick={() => setTab("claimed")}>Claimed by Me</button>
-          <button className={tab === "created" ? "active" : ""} onClick={() => setTab("created")}>Created by Me</button>
-          <button className={tab === "all" ? "active" : ""} onClick={() => setTab("all")}>All My Tickets</button>
-        </div>
+        <section className="ticket-summary">
+          <div className="ticket-summary-card">
+            <span>All Tickets</span>
+            <strong>{tickets.length}</strong>
+          </div>
+          <div className="ticket-summary-card">
+            <span>Open</span>
+            <strong>{openCount}</strong>
+          </div>
+          <div className="ticket-summary-card">
+            <span>In Progress</span>
+            <strong>{inProgressCount}</strong>
+          </div>
+          <div className="ticket-summary-card">
+            <span>Completed</span>
+            <strong>{completedCount}</strong>
+          </div>
+        </section>
 
-        {error && <div className="workspace-alert">{error}</div>}
+        {error && <div className="claim-notice">{error}</div>}
 
-        <section className="workspace-panel">
-          <div className="workspace-panel-head">
+        <section className="panel">
+          <div className="panel-heading">
             <div>
               <p className="welcome-label">TICKETS</p>
-              <h3>{tab === "claimed" ? "Claimed by me" : tab === "created" ? "Created by me" : "All my tickets"}</h3>
+              <h3>All Project Issues</h3>
+              <p>Claim an unassigned ticket or complete one you own.</p>
             </div>
-            <span className="workspace-count">{mine.length}</span>
           </div>
 
           {loading ? (
-            <div className="workspace-empty">Loading tickets...</div>
-          ) : mine.length === 0 ? (
-            <div className="workspace-empty">
-              <strong>No tickets here yet</strong>
-              <p>Tickets matching this view will appear here.</p>
+            <div className="empty-state">
+              <strong>Loading tickets...</strong>
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="empty-state">
+              <span>✦</span>
+              <strong>No tickets yet</strong>
+              <p>Tickets created from QA failures will appear here.</p>
             </div>
           ) : (
-            <div className="workspace-list">
-              {mine.map((ticket) => {
-                const id = ticket.id ?? ticket.ticket_id;
-                const claimedBy = ticket.claimed_by ?? ticket.claimedBy;
-                const mineClaim = claimedBy != null && String(claimedBy) === String(userId);
-                const status = normalizeStatus(ticket.status) || "OPEN";
+            <div className="ticket-list">
+              {tickets.map((ticket) => {
+                const id = getId(ticket);
+                const claimedBy = getClaimedBy(ticket);
+                const status = normalizeStatus(ticket.status);
+                const isCompleted = [
+                  "COMPLETED",
+                  "COMPLETE",
+                  "DONE",
+                  "CLOSED",
+                  "RESOLVED",
+                ].includes(status);
 
                 return (
-                  <article className="workspace-ticket" key={id}>
-                    <div>
-                      <div className="workspace-ticket-top">
-                        <span>#{id}</span>
-                        <b>{status}</b>
+                  <div className="ticket-card" key={id}>
+                    <div className="ticket-information">
+                      <div className="ticket-top-row">
+                        <span className="ticket-id">#{id}</span>
+                        <span
+                          className={`ticket-status ticket-status-${status
+                            .toLowerCase()
+                            .replaceAll(" ", "-")}`}
+                        >
+                          {status}
+                        </span>
                       </div>
+
                       <h3>{ticket.title || `Ticket #${id}`}</h3>
-                      <p>{ticket.description || "No description provided."}</p>
-                      <div className="workspace-meta">
-                        <span>Project: {ticket.project_name || ticket.projectName || "—"}</span>
-                        <span>Priority: {ticket.priority || "Medium"}</span>
-                        <span>Deadline: {formatDate(ticket.due_date || ticket.deadline)}</span>
-                        <span>Claimed: {mineClaim ? "You" : "Another member"}</span>
+
+                      <p>
+                        {ticket.description || "No description provided."}
+                      </p>
+
+                      <div className="ticket-details">
+                        <span>
+                          Project:{" "}
+                          {ticket.project_name ||
+                            ticket.projectName ||
+                            ticket.project_title ||
+                            "—"}
+                        </span>
+                        <span>
+                          Priority: {ticket.priority || "Medium"}
+                        </span>
+                        <span>
+                          Deadline:{" "}
+                          {ticket.due_date || ticket.deadline
+                            ? new Date(
+                                ticket.due_date || ticket.deadline
+                              ).toLocaleDateString("en-IN", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "—"}
+                        </span>
+                        <span>
+                          Claimed:{" "}
+                          {claimedBy
+                            ? getClaimedName(ticket) || "Assigned"
+                            : "Unclaimed"}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="workspace-actions">
-                      {!claimedBy && (
-                        <button onClick={() => claimTicket(id)} disabled={actionId === id}>
-                          {actionId === id ? "Claiming..." : "Claim Ticket"}
+                    <div className="ticket-actions">
+                      {!claimedBy && !isCompleted && (
+                        <button
+                          type="button"
+                          onClick={() => claimTicket(id)}
+                          disabled={claimingTicketId === id}
+                        >
+                          {claimingTicketId === id
+                            ? "Claiming..."
+                            : "Claim Ticket"}
                         </button>
                       )}
-                      {mineClaim && !["COMPLETED", "DONE", "CLOSED", "RESOLVED"].includes(status) && (
-                        <button onClick={() => completeTicket(id)} disabled={actionId === id}>
-                          {actionId === id ? "Completing..." : "Complete"}
+
+                      {claimedBy && !isCompleted && (
+                        <button
+                          type="button"
+                          onClick={() => completeTicket(id)}
+                          disabled={completingTicketId === id}
+                        >
+                          {completingTicketId === id
+                            ? "Completing..."
+                            : "Complete"}
                         </button>
                       )}
                     </div>
-                  </article>
+                  </div>
                 );
               })}
             </div>

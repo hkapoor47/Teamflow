@@ -4,9 +4,6 @@ import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import useUserProfile from "../context/useUserProfile.js";
 
 
-
-
-
 const SUGGESTED_SKILLS = [
   "React",
   "JavaScript",
@@ -92,27 +89,6 @@ export default function Profile() {
 
   const initials =
     getInitials(userName);
-
-
-  /* =====================================================
-     DEPARTMENT FROM REGISTRATION
-  ===================================================== */
-
-  const registeredDepartment = (() => {
-    try {
-      const storedUser = localStorage.getItem("user");
-
-      if (!storedUser) {
-        return department || "";
-      }
-
-      const user = JSON.parse(storedUser);
-
-      return user?.department || department || "";
-    } catch {
-      return department || "";
-    }
-  })();
 
 
   /* =====================================================
@@ -233,7 +209,7 @@ export default function Profile() {
             </h2>
 
             <p>
-              {registeredDepartment ||
+              {department ||
                 "Department not selected"}
             </p>
 
@@ -291,7 +267,7 @@ export default function Profile() {
             </span>
 
             <strong>
-              {registeredDepartment
+              {department
                 ? "Set"
                 : "Not Set"}
             </strong>
@@ -306,7 +282,10 @@ export default function Profile() {
             MAIN CONTENT
         ================================================= */}
 
-        <div className="profile-content-grid">
+        <div
+          className="profile-content-grid"
+          style={{ alignItems: "start" }}
+        >
 
 
           {/* =================================================
@@ -333,17 +312,8 @@ export default function Profile() {
               </div>
 
 
-              <div
-                className="profile-select"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  minHeight: "48px",
-                  cursor: "default",
-                }}
-              >
-                {registeredDepartment ||
-                  "Department not set"}
+              <div className="profile-department-display">
+                {department || "Department not set"}
               </div>
 
             </section>
@@ -560,13 +530,7 @@ export default function Profile() {
                 WORK HISTORY
             ============================================= */}
 
-            <section
-              className="profile-section"
-              style={{
-                minHeight: "395px",
-                boxSizing: "border-box",
-              }}
-            >
+            <section className="profile-section">
 
               <div className="profile-section-header">
 
@@ -630,16 +594,22 @@ export default function Profile() {
                           <h3>
                             {item.title ||
                               item.taskTitle ||
+                              item.task_title ||
+                              item.name ||
                               "Task activity"}
                           </h3>
 
                           <p>
                             {item.projectName ||
+                              item.project_name ||
+                              item.projectTitle ||
                               "TeamFlow Project"}
                           </p>
 
                           <small>
                             {item.status ||
+                              item.event ||
+                              item.action ||
                               "Completed"}
                           </small>
 
