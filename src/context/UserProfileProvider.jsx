@@ -28,7 +28,7 @@ import {
 
 const API_BASE_URL =
 
-  "http\://65.0.11.153:5001/api";
+  "http://65.0.11.153:5001/api";
 
 
 
@@ -82,7 +82,7 @@ function getUserIdFromToken() {
 
           .replace(/-/g, "+")
 
-          .replace(/\_/g, "/")
+          .replace(/_/g, "/")
 
       )
 
@@ -224,11 +224,11 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      SAVE PROFILE LOCALLY
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -260,13 +260,13 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      GET SKILLS
 
      GET /api/users/skills
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -296,7 +296,7 @@ export default function UserProfileProvider({
 
         const response = await fetch(
 
-          \`${API_BASE_URL}/users/skills\`,
+          `${API_BASE_URL}/users/skills`,
 
           {
 
@@ -306,7 +306,7 @@ export default function UserProfileProvider({
 
               Authorization:
 
-                \`Bearer ${token}\`,
+                `Bearer ${token}`,
 
             },
 
@@ -386,13 +386,13 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      GET WORK HISTORY
 
      GET /api/users/:userId/history
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -442,7 +442,7 @@ export default function UserProfileProvider({
 
         const response = await fetch(
 
-          \`${API_BASE_URL}/users/${userId}/history\`,
+          `${API_BASE_URL}/users/${userId}/history`,
 
           {
 
@@ -452,7 +452,7 @@ export default function UserProfileProvider({
 
               Authorization:
 
-                \`Bearer ${token}\`,
+                `Bearer ${token}`,
 
             },
 
@@ -536,13 +536,13 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      GET PERFORMANCE
 
      GET /api/users/:userId/performance
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -586,7 +586,7 @@ export default function UserProfileProvider({
 
           const response = await fetch(
 
-            \`${API_BASE_URL}/users/${userId}/performance\`,
+            `${API_BASE_URL}/users/${userId}/performance`,
 
             {
 
@@ -596,7 +596,7 @@ export default function UserProfileProvider({
 
                 Authorization:
 
-                  \`Bearer ${token}\`,
+                  `Bearer ${token}`,
 
               },
 
@@ -656,11 +656,11 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      LOAD BACKEND DATA WHEN PROVIDER STARTS
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -684,11 +684,11 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      SET DEPARTMENT
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -706,13 +706,13 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      ADD SKILL
 
      POST /api/users/skills
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -784,7 +784,7 @@ export default function UserProfileProvider({
 
         const response = await fetch(
 
-          \`${API_BASE_URL}/users/skills\`,
+          `${API_BASE_URL}/users/skills`,
 
           {
 
@@ -802,7 +802,7 @@ export default function UserProfileProvider({
 
               Authorization:
 
-                \`Bearer ${token}\`,
+                `Bearer ${token}`,
 
             },
 
@@ -910,13 +910,13 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      UPDATE SKILL
 
      PATCH /api/users/skills/:skillId
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -970,7 +970,7 @@ export default function UserProfileProvider({
 
         const response = await fetch(
 
-          \`${API_BASE_URL}/users/skills/${skillId}\`,
+          `${API_BASE_URL}/users/skills/${skillId}`,
 
           {
 
@@ -988,7 +988,7 @@ export default function UserProfileProvider({
 
               Authorization:
 
-                \`Bearer ${token}\`,
+                `Bearer ${token}`,
 
             },
 
@@ -1104,13 +1104,13 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      DELETE SKILL
 
      DELETE /api/users/skills/:skillId
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -1150,7 +1150,7 @@ export default function UserProfileProvider({
 
         const response = await fetch(
 
-          \`${API_BASE_URL}/users/skills/${skillId}\`,
+          `${API_BASE_URL}/users/skills/${skillId}`,
 
           {
 
@@ -1160,7 +1160,7 @@ export default function UserProfileProvider({
 
               Authorization:
 
-                \`Bearer ${token}\`,
+                `Bearer ${token}`,
 
             },
 
@@ -1244,13 +1244,13 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      ADD HISTORY
 
      Kept for compatibility.
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -1278,11 +1278,11 @@ export default function UserProfileProvider({
 
 
 
-  /\* =====================================================
+  /* =====================================================
 
      CONTEXT VALUE
 
-  ===================================================== \*/
+  ===================================================== */
 
 
 
@@ -1418,7 +1418,7 @@ export default function UserProfileProvider({
 
   return (
 
-    \<UserProfileContext.Provider
+    <UserProfileContext.Provider
 
       value={value}
 
@@ -1426,7 +1426,7 @@ export default function UserProfileProvider({
 
       {children}
 
-    \</UserProfileContext.Provider>
+    </UserProfileContext.Provider>
 
   );
 
