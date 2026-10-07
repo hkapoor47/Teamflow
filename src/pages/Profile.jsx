@@ -4,20 +4,6 @@ import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import useUserProfile from "../context/useUserProfile.js";
 
 
-const DEPARTMENTS = [
-  "Web Development",
-  "Mobile Development",
-  "AI / Machine Learning",
-  "Data Science",
-  "DevOps / Cloud",
-  "Cyber Security",
-  "UI / UX Design",
-  "Finance",
-  "Marketing",
-  "Other",
-];
-
-
 const SUGGESTED_SKILLS = [
   "React",
   "JavaScript",
@@ -74,6 +60,145 @@ function getInitials(name) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+
+function formatDate(value) {
+  if (!value) {
+    return "Not set";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not set";
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+
+function getDeadlineInfo(item) {
+  const dueValue =
+    item.due_date ||
+    item.dueDate ||
+    item.deadline ||
+    item.fix_deadline ||
+    null;
+
+  if (!dueValue) {
+    return {
+      label: "No deadline",
+      className: "profile-deadline-neutral",
+      date: null,
+    };
+  }
+
+  const dueDate = new Date(dueValue);
+
+  if (Number.isNaN(dueDate.getTime())) {
+    return {
+      label: "Deadline unavailable",
+      className: "profile-deadline-neutral",
+      date: null,
+    };
+  }
+
+  const completedValue =
+    item.completed_at ||
+    item.completedAt ||
+    null;
+
+  const completedDate = completedValue
+    ? new Date(completedValue)
+    : null;
+
+  const completionStatus = String(
+    item.completion_status ||
+      item.completionStatus ||
+      item.status ||
+      ""
+  ).toUpperCase();
+
+  const wasOnTime =
+    item.was_on_time ??
+    item.wasOnTime ??
+    null;
+
+  if (
+    completedDate &&
+    !Number.isNaN(completedDate.getTime())
+  ) {
+    if (wasOnTime === true) {
+      return {
+        label: "Completed on time",
+        className: "profile-deadline-success",
+        date: dueDate,
+      };
+    }
+
+    if (wasOnTime === false) {
+      return {
+        label: "Completed late",
+        className: "profile-deadline-danger",
+        date: dueDate,
+      };
+    }
+
+    return {
+      label:
+        completionStatus === "COMPLETED"
+          ? "Completed"
+          : "Completed",
+      className: "profile-deadline-success",
+      date: dueDate,
+    };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const deadlineDay = new Date(dueDate);
+  deadlineDay.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.ceil(
+    (deadlineDay - today) /
+      (1000 * 60 * 60 * 24)
+  );
+
+  if (diffDays < 0) {
+    return {
+      label: `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? "" : "s"}`,
+      className: "profile-deadline-danger",
+      date: dueDate,
+    };
+  }
+
+  if (diffDays === 0) {
+    return {
+      label: "Due today",
+      className: "profile-deadline-warning",
+      date: dueDate,
+    };
+  }
+
+  if (diffDays === 1) {
+    return {
+      label: "Due tomorrow",
+      className: "profile-deadline-warning",
+      date: dueDate,
+    };
+  }
+
+  return {
+    label: `Due in ${diffDays} days`,
+    className: "profile-deadline-neutral",
+    date: dueDate,
+  };
 }
 
 
@@ -585,12 +710,12 @@ export default function Profile() {
                   Work History
                 </h2>
 
-                {/* <p>
+                <p>
                   Your previous project
                   and task activity will
                   be maintained here for
                   future recommendations.
-                </p> */}
+                </p>
 
               </div>
 
@@ -623,42 +748,94 @@ export default function Profile() {
                 <div className="profile-history-list">
 
                   {history.map(
-                    (item, index) => (
+                    (item, index) => {
+                      const deadline =
+                        getDeadlineInfo(item);
 
-                      <div
-                        className="profile-history-item"
-                        key={
-                          item.id ||
-                          index
-                        }
-                      >
+                      return (
+                        <div
+                          className="profile-history-item"
+                          key={
+                            item.id ||
+                            item.task_id ||
+                            index
+                          }
+                        >
 
-                        <div className="profile-history-marker" />
+                          <div className="profile-history-marker" />
 
+                          <div className="profile-history-content">
 
-                        <div>
+                            <div className="profile-history-title-row">
+                              <div>
+                                <h3>
+                                  {item.title ||
+                                    item.taskTitle ||
+                                    "Task activity"}
+                                </h3>
 
-                          <h3>
-                            {item.title ||
-                              item.taskTitle ||
-                              "Task activity"}
-                          </h3>
+                                <p>
+                                  {item.projectName ||
+                                    item.project_name ||
+                                    "TeamFlow Project"}
+                                </p>
+                              </div>
 
-                          <p>
-                            {item.projectName ||
-                              "TeamFlow Project"}
-                          </p>
+                              <span
+                                className={`profile-history-status ${deadline.className}`}
+                              >
+                                {item.completion_status ||
+                                  item.completionStatus ||
+                                  item.status ||
+                                  "In progress"}
+                              </span>
+                            </div>
 
-                          <small>
-                            {item.status ||
-                              "Completed"}
-                          </small>
+                            <div className="profile-history-meta">
+
+                              <span>
+                                Assigned:{" "}
+                                {formatDate(
+                                  item.assigned_at ||
+                                    item.assignedAt ||
+                                    item.claimed_at ||
+                                    item.claimedAt
+                                )}
+                              </span>
+
+                              <span>
+                                Deadline:{" "}
+                                {formatDate(
+                                  deadline.date
+                                )}
+                              </span>
+
+                              {(
+                                item.completed_at ||
+                                item.completedAt
+                              ) && (
+                                <span>
+                                  Completed:{" "}
+                                  {formatDate(
+                                    item.completed_at ||
+                                      item.completedAt
+                                  )}
+                                </span>
+                              )}
+
+                            </div>
+
+                            <div
+                              className={`profile-history-deadline ${deadline.className}`}
+                            >
+                              {deadline.label}
+                            </div>
+
+                          </div>
 
                         </div>
-
-                      </div>
-
-                    )
+                      );
+                    }
                   )}
 
                 </div>
@@ -668,12 +845,160 @@ export default function Profile() {
             </section>
 
 
+            {/* =============================================
+                RECOMMENDATION PROFILE
+            ============================================= */}
+
+            <section className="profile-section">
+
+              <div className="profile-section-header">
+
+                <h2>
+                  Recommendation Profile
+                </h2>
+
+                <p>
+                  These attributes will
+                  help TeamFlow understand
+                  what type of work fits
+                  your profile.
+                </p>
+
+              </div>
+
+
+              <div className="profile-tags">
+
+
+                {registeredDepartment && (
+
+                  <div className="profile-tag">
+
+                    <span>
+                      {registeredDepartment}
+                    </span>
+
+                  </div>
+
+                )}
+
+
+                {skills
+                  .slice(0, 6)
+                  .map(
+                    (skill) => (
+
+                      <div
+                        className="profile-tag"
+                        key={
+                          `profile-${skill.id}`
+                        }
+                      >
+
+                        <span>
+                          {
+                            skill.skill_name
+                          }
+                        </span>
+
+                      </div>
+
+                    )
+                  )}
+
+
+                {!registeredDepartment &&
+                  skills.length === 0 && (
+
+                    <p
+                      style={{
+                        color:
+                          "#71859f",
+                        fontSize:
+                          "12px",
+                        margin: 0,
+                      }}
+                    >
+                      Complete your
+                      profile to improve
+                      future task
+                      recommendations.
+                    </p>
+
+                  )}
+
+              </div>   
+
+            </section>
 
           </div>
 
         </div>
 
 
+        {/* =================================================
+            RECOMMENDATION BANNER
+        ================================================= */}
+
+        <section className="profile-recommendation-card">
+
+
+          <div>
+
+            <span className="profile-recommendation-label">
+              COMING NEXT
+            </span>
+
+            <h2>
+              Personalized Task
+              Recommendations
+            </h2>
+
+            <p>
+              TeamFlow will use your
+              department, skills and
+              work history to find
+              tasks that are relevant
+              to you.
+            </p>
+
+          </div>
+
+
+          <div className="profile-recommendation-flow">
+
+            <span>
+              Department
+            </span>
+
+            <b>
+              +
+            </b>
+
+            <span>
+              Skills
+            </span>
+
+            <b>
+              +
+            </b>
+
+            <span>
+              History
+            </span>
+
+            <b>
+              →
+            </b>
+
+            <strong>
+              Recommendations
+            </strong>
+
+          </div>
+
+
+        </section>
 
 
       </div>
