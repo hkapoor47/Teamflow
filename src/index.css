@@ -7156,3 +7156,150 @@ td:first-child small { font-weight: 400; }
   border-color: #14b8a6;
   background: #0b1628;
 }
+
+/* =====================================================
+   LOGIN RESPONSIVENESS FIX
+===================================================== */
+
+@media (max-width: 900px) {
+  .auth-page,
+  .login-page,
+  .auth-container {
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  .auth-layout,
+  .login-container {
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  .auth-left,
+  .auth-right,
+  .login-left,
+  .login-right {
+    width: 100%;
+    max-width: none;
+  }
+
+  .auth-right,
+  .login-right {
+    display: none;
+  }
+
+  .auth-card,
+  .login-card {
+    width: min(92%, 430px);
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .auth-card,
+  .login-card {
+    width: calc(100% - 32px);
+    min-width: 0;
+    margin: 16px auto;
+    padding: 28px 22px;
+  }
+
+  .auth-left,
+  .login-left {
+    padding: 16px;
+  }
+
+  .auth-card h1,
+  .login-card h1 {
+    font-size: 34px;
+    line-height: 1.1;
+  }
+
+  .auth-card input,
+  .login-card input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .auth-card button,
+  .login-card button {
+    width: 100%;
+  }
+}
+/* =====================================================
+   TEAMFLOW PROFILE — HISTORY + DEADLINE STYLES
+   Paste this at the bottom of your Profile CSS file.
+===================================================== */
+
+.profile-history-content {
+  width: 100%;
+}
+
+.profile-history-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-history-title-row h3 {
+  margin: 0;
+}
+
+.profile-history-title-row p {
+  margin: 5px 0 0;
+}
+
+.profile-history-status {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.profile-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  color: #8195ae;
+  font-size: 11px;
+}
+
+.profile-history-deadline {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 9px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.profile-deadline-success {
+  color: #17855b;
+  background: #eaf8f1;
+}
+
+.profile-deadline-warning {
+  color: #9a6a00;
+  background: #fff7df;
+}
+
+.profile-deadline-danger {
+  color: #b42318;
+  background: #fff0ee;
+}
+
+.profile-deadline-neutral {
+  color: #5f7085;
+  background: #eef3f7;
+}
+
+@media (max-width: 700px) {
+  .profile-history-title-row {
+    flex-direction: column;
+  }
+}
