@@ -8179,3 +8179,91 @@ td:first-child small { font-weight: 400; }
   .team-grid { grid-template-columns:1fr; }
 }
 
+/* Add these rules to the CSS file that already styles Profile.jsx. */
+
+.profile-history-content {
+  width: 100%;
+}
+
+.profile-history-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-history-title-row h3 {
+  margin: 0;
+}
+
+.profile-history-title-row p {
+  margin: 5px 0 0;
+}
+
+.profile-history-status {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.profile-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  color: #8195ae;
+  font-size: 11px;
+}
+
+.profile-history-deadline {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 9px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.profile-deadline-success {
+  color: #17855b;
+  background: #eaf8f1;
+}
+
+.profile-deadline-warning {
+  color: #9a6a00;
+  background: #fff7df;
+}
+
+.profile-deadline-danger {
+  color: #b42318;
+  background: #fff0ee;
+}
+
+.profile-deadline-neutral {
+  color: #5f7085;
+  background: #eef3f7;
+}
+
+@media (max-width: 700px) {
+  .profile-history-title-row {
+    flex-direction: column;
+  }
+}
+
+
+/* =========================================================
+   PROFILE CLEANUP — 07 OCT 2026
+   Hide only the top navbar notification bell.
+   Sidebar Notifications remains available.
+========================================================= */
+.navbar .notification-button {
+  display: none !important;
+}
+
+.navbar .notification-button + * {
+  margin-left: 0;
+}
