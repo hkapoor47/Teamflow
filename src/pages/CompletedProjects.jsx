@@ -1,406 +1,105 @@
-import React, {
-  useEffect,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
+import { apiGet, getArray, getCurrentUserId, normalizeStatus, formatDate } from "./workspaceApi.js";
 
-const API_BASE_URL =
-  "http://65.0.11.153:5001/api";
-
-function getToken() {
-  return localStorage.getItem("token");
-}
-
-function CompletedProjects() {
-  const [
-    completedProjects,
-    setCompletedProjects,
-  ] = useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
+function Completed() {
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("projects");
+  const navigate = useNavigate();
+  const userId = getCurrentUserId();
 
   useEffect(() => {
-    fetchCompletedProjects();
+    Promise.all([apiGet("/projects"), apiGet("/all-tasks")])
+      .then(([projectData, taskData]) => {
+        setProjects(getArray(projectData, ["projects", "data"]));
+        setTasks(getArray(taskData, ["tasks", "data"]));
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  const fetchCompletedProjects =
-    async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const completedProjects = useMemo(
+    () => projects.filter((p) => normalizeStatus(p.status) === "COMPLETED"),
+    [projects]
+  );
 
-        const token = getToken();
+  const completedTasks = useMemo(
+    () => tasks.filter((task) => {
+      const owner = task.claimed_by ?? task.claimedBy ?? task.assigned_to ?? task.assignee_id;
+      return String(owner) === String(userId) &&
+        ["COMPLETED", "COMPLETE", "DONE", "CLOSED"].includes(normalizeStatus(task.status));
+    }),
+    [tasks, userId]
+  );
 
-        const response = await fetch(
-          `${API_BASE_URL}/projects`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              ...(token
-                ? {
-                    Authorization:
-                      `Bearer ${token}`,
-                  }
-                : {}),
-            },
-          }
-        );
-
-        const data =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data?.message ||
-              "Failed to fetch projects"
-          );
-        }
-
-        const projects =
-          Array.isArray(data)
-            ? data
-            : Array.isArray(data?.projects)
-            ? data.projects
-            : [];
-
-        const completed =
-          projects.filter(
-            (project) =>
-              String(
-                project.status || ""
-              ).toUpperCase() ===
-              "COMPLETED"
-          );
-
-        setCompletedProjects(
-          completed
-        );
-
-      } catch (error) {
-        console.error(
-          "Fetch completed projects error:",
-          error
-        );
-
-        setError(
-          error.message ||
-            "Failed to load completed projects"
-        );
-
-      } finally {
-        setLoading(false);
-      }
-    };
-
-  const formatDate = (date) => {
-    if (!date) {
-      return "—";
-    }
-
-    const parsedDate =
-      new Date(date);
-
-    if (
-      Number.isNaN(
-        parsedDate.getTime()
-      )
-    ) {
-      return "—";
-    }
-
-    return parsedDate.toLocaleDateString(
-      "en-US",
-      {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }
-    );
-  };
+  const data = tab === "projects" ? completedProjects : completedTasks;
 
   return (
     <DashboardLayout>
-      <div className="teamflow-page completed-page">
-
-        {/* PAGE HEADER */}
-
-        <section className="teamflow-heading completed-heading">
-
-          <p className="welcome-label">
-            TEAMFLOW WORKSPACE
+      <div className="teamflow-page workspace-page">
+        <section className="teamflow-heading">
+          <p className="welcome-label">DELIVERY HISTORY</p>
+          <h2>Completed work.</h2>
+          <p className="welcome-description">
+            Successfully completed projects and tasks from your workspace.
           </p>
-
-          <h2>
-            Completed Projects
-          </h2>
-
-          
-
         </section>
 
-        {/* MAIN PANEL */}
+        <div className="workspace-tabs">
+          <button className={tab === "projects" ? "active" : ""} onClick={() => setTab("projects")}>
+            Completed Projects
+          </button>
+          <button className={tab === "tasks" ? "active" : ""} onClick={() => setTab("tasks")}>
+            My Completed Tasks
+          </button>
+        </div>
 
-        <section className="completed-panel">
-
-          <div className="completed-panel-header">
-
+        <section className="workspace-panel">
+          <div className="workspace-panel-head">
             <div>
-
-              <h3>
-                Completed Projects
-              </h3>
-
-            
-
+              <p className="welcome-label">{tab === "projects" ? "PROJECTS" : "TASKS"}</p>
+              <h3>{tab === "projects" ? "Completed projects" : "Completed tasks"}</h3>
             </div>
-
-            <div className="completed-total">
-              {completedProjects.length}{" "}
-              Completed
-            </div>
-
+            <span className="workspace-count">{data.length}</span>
           </div>
 
-          {/* LOADING */}
-
-          {loading && (
-            <div className="completed-empty">
-
-              <h3>
-                Loading projects...
-              </h3>
-
-              <p>
-                Please wait while we
-                fetch completed projects.
-              </p>
-
+          {loading ? (
+            <div className="workspace-empty">Loading completed work...</div>
+          ) : data.length === 0 ? (
+            <div className="workspace-empty">
+              <strong>Nothing completed yet</strong>
+              <p>Completed work will appear here automatically.</p>
+            </div>
+          ) : (
+            <div className="workspace-list">
+              {data.map((item) => (
+                <article
+                  className="workspace-row"
+                  key={item.id}
+                  onClick={() => tab === "projects" && navigate(`/projects/${item.id}`)}
+                  role={tab === "projects" ? "button" : undefined}
+                >
+                  <div className="workspace-row-icon tone-success">✓</div>
+                  <div className="workspace-row-main">
+                    <strong>{item.name || item.title}</strong>
+                    <p>
+                      {tab === "projects"
+                        ? item.description || "Project successfully completed."
+                        : item.project_name || item.projectName || "TeamFlow task"}
+                    </p>
+                  </div>
+                  <time>{formatDate(item.completed_at || item.updated_at || item.created_at)}</time>
+                </article>
+              ))}
             </div>
           )}
-
-          {/* ERROR */}
-
-          {!loading && error && (
-            <div className="completed-empty">
-
-              <h3>
-                Unable to load projects
-              </h3>
-
-              <p>
-                {error}
-              </p>
-
-              <button
-                className="secondary-button"
-                onClick={
-                  fetchCompletedProjects
-                }
-              >
-                Try Again
-              </button>
-
-            </div>
-          )}
-
-          {/* EMPTY */}
-
-          {!loading &&
-            !error &&
-            completedProjects.length ===
-              0 && (
-              <div className="completed-empty">
-
-               
-
-                <p>
-                  Projects will appear
-                  here once they are
-                  completed.
-                </p>
-
-              </div>
-            )}
-
-          {/* PROJECT LIST */}
-
-          {!loading &&
-            !error &&
-            completedProjects.length >
-              0 && (
-              <div className="completed-list">
-
-                {completedProjects.map(
-                  (project) => (
-                    <div
-                      className="completed-card"
-                      key={project.id}
-                    >
-
-                      {/* PROJECT HEADER */}
-
-                      <div className="completed-card-top">
-
-                        <div className="completed-project-info">
-
-                          <div className="completed-avatar">
-                            {project.name
-                              ? project.name
-                                  .charAt(0)
-                                  .toUpperCase()
-                              : "P"}
-                          </div>
-
-                          <div className="completed-project-text">
-
-                            <div className="completed-title-row">
-
-                              <h3>
-                                {project.name}
-                              </h3>
-
-                              <span className="completed-status">
-                                ✓ Completed
-                              </span>
-
-                            </div>
-
-                            <p>
-                              {project.description ||
-                                "No project description available."}
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                      {/* PROJECT STATS */}
-
-                      <div className="completed-stats">
-
-                        <div className="completed-stat">
-
-                          <span>
-                            Status
-                          </span>
-
-                          <strong>
-                            Completed
-                          </strong>
-
-                          <small>
-                            project status
-                          </small>
-
-                        </div>
-
-                        <div className="completed-stat">
-
-                          <span>
-                            Deadline
-                          </span>
-
-                          <strong>
-                            {formatDate(
-                              project.deadline
-                            )}
-                          </strong>
-
-                          <small>
-                            project deadline
-                          </small>
-
-                        </div>
-
-                        <div className="completed-stat">
-
-                          <span>
-                            Completed On
-                          </span>
-
-                          <strong>
-                            {formatDate(
-                              project.updated_at ||
-                                project.updatedAt ||
-                                project.completed_at
-                            )}
-                          </strong>
-
-                          <small>
-                            completion date
-                          </small>
-
-                        </div>
-
-                        <div className="completed-stat">
-
-                          <span>
-                            Progress
-                          </span>
-
-                          <strong>
-                            100%
-                          </strong>
-
-                          <small>
-                            project complete
-                          </small>
-
-                        </div>
-
-                      </div>
-
-                      {/* PROGRESS */}
-
-                      <div className="completed-progress">
-
-                        <div className="completed-progress-header">
-
-                          <span>
-                            Project Progress
-                          </span>
-
-                          <strong>
-                            100%
-                          </strong>
-
-                        </div>
-
-                        <div className="completed-progress-track">
-
-                          <div
-                            className="completed-progress-fill"
-                            style={{
-                              width: "100%",
-                            }}
-                          />
-
-                        </div>
-
-                      </div>
-
-                    </div>
-                  )
-                )}
-
-              </div>
-            )}
-
         </section>
-
       </div>
     </DashboardLayout>
   );
 }
 
-export default CompletedProjects;
+export default Completed;

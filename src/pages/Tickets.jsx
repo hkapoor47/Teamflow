@@ -1,534 +1,177 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
-
-const API_BASE_URL = "http://65.0.11.153:5001/api";
-
-const normalizeStatus = (value) =>
-  String(value || "OPEN").trim().toUpperCase();
+import {
+  apiGet,
+  API_BASE_URL,
+  getCurrentUserId,
+  getToken,
+  getArray,
+  normalizeStatus,
+  formatDate,
+} from "./workspaceApi.js";
 
 function Tickets() {
   const [tickets, setTickets] = useState([]);
+  const [tab, setTab] = useState("claimed");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [claimingTicketId, setClaimingTicketId] = useState(null);
-  const [completingTicketId, setCompletingTicketId] = useState(null);
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [actionId, setActionId] = useState(null);
 
-  useEffect(() => {
-    try {
-      const token = localStorage.getItem("token");
-
-      if (!token) return;
-
-      const payload = JSON.parse(
-        atob(token.split(".")[1])
-      );
-
-      setCurrentUserId(
-        payload.userId ??
-        payload.id ??
-        payload.sub ??
-        null
-      );
-    } catch (err) {
-      console.error(
-        "Failed to read current user:",
-        err
-      );
-    }
-  }, []);
+  const userId = getCurrentUserId();
 
   const loadTickets = async () => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      setError(
-        "Authentication required. Please login again."
-      );
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
-      setError("");
-
-      const response = await fetch(
-        `${API_BASE_URL}/tickets`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const text = await response.text();
-
-      let data = {};
-
-      try {
-        data = text
-          ? JSON.parse(text)
-          : {};
-      } catch {
-        throw new Error(
-          "Invalid ticket API response."
-        );
-      }
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-          `Failed to fetch tickets (${response.status})`
-        );
-      }
-
-      const apiTickets =
-        data.tickets ||
-        data.data ||
-        (Array.isArray(data)
-          ? data
-          : []);
-
-      setTickets(
-        Array.isArray(apiTickets)
-          ? apiTickets
-          : []
-      );
-
+      const data = await apiGet("/tickets");
+      setTickets(getArray(data, ["tickets", "data"]));
     } catch (err) {
-      console.error(
-        "Load tickets error:",
-        err
-      );
-
-      setError(
-        err.message ||
-        "Failed to load tickets."
-      );
-
-      setTickets([]);
-
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadTickets();
-  }, []);
+  useEffect(() => { loadTickets(); }, []);
 
-  const getId = (ticket) =>
-    ticket?.id ??
-    ticket?.ticket_id ??
-    ticket?.ticketId;
+  const mine = useMemo(() => {
+    return tickets.filter((ticket) => {
+      const createdBy = ticket.created_by ?? ticket.createdBy;
+      const claimedBy = ticket.claimed_by ?? ticket.claimedBy;
 
-  const getClaimedBy = (ticket) =>
-    ticket?.claimed_by ??
-    ticket?.claimedBy ??
-    null;
-
-  const getClaimedName = (ticket) =>
-    ticket?.claimed_by_name ??
-    ticket?.claimedByName ??
-    null;
-
-  const claimTicket = async (ticketId) => {
-    const token =
-      localStorage.getItem("token");
-
-    if (!token) {
-      return setError(
-        "Authentication required. Please login again."
-      );
-    }
-
-    try {
-      setClaimingTicketId(ticketId);
-      setError("");
-
-      const response = await fetch(
-        `${API_BASE_URL}/tickets/${ticketId}/claim`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type":
-              "application/json",
-          },
-        }
-      );
-
-      const text =
-        await response.text();
-
-      let data = {};
-
-      try {
-        data = text
-          ? JSON.parse(text)
-          : {};
-      } catch {}
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-          "Failed to claim ticket."
-        );
+      if (tab === "created") {
+        return createdBy != null && String(createdBy) === String(userId);
       }
 
-      await loadTickets();
-
-    } catch (err) {
-      console.error(
-        "Claim ticket error:",
-        err
-      );
-
-      setError(
-        err.message ||
-        "Failed to claim ticket."
-      );
-
-    } finally {
-      setClaimingTicketId(null);
-    }
-  };
-
-  const completeTicket = async (
-    ticketId
-  ) => {
-    const token =
-      localStorage.getItem("token");
-
-    if (!token) {
-      return setError(
-        "Authentication required. Please login again."
-      );
-    }
-
-    try {
-      setCompletingTicketId(ticketId);
-      setError("");
-
-      const response = await fetch(
-        `${API_BASE_URL}/tickets/${ticketId}/complete`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type":
-              "application/json",
-          },
-        }
-      );
-
-      const text =
-        await response.text();
-
-      let data = {};
-
-      try {
-        data = text
-          ? JSON.parse(text)
-          : {};
-      } catch {}
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-          "Failed to complete ticket."
-        );
+      if (tab === "claimed") {
+        return claimedBy != null && String(claimedBy) === String(userId);
       }
-
-      await loadTickets();
-
-    } catch (err) {
-      console.error(
-        "Complete ticket error:",
-        err
-      );
-
-      setError(
-        err.message ||
-        "Failed to complete ticket."
-      );
-
-    } finally {
-      setCompletingTicketId(null);
-    }
-  };
-
-  /*
-   * IMPORTANT:
-   * Only show active tickets that belong to
-   * the currently logged-in user.
-   *
-   * In the current tickets schema, "claimed_by"
-   * is the field that identifies the user working
-   * on the ticket.
-   */
-  const myActiveTickets =
-    tickets.filter((ticket) => {
-      const status =
-        normalizeStatus(
-          ticket.status
-        );
-
-      const isActive =
-        ![
-          "COMPLETED",
-          "COMPLETE",
-          "DONE",
-          "CLOSED",
-          "RESOLVED",
-        ].includes(status);
-
-      const claimedBy =
-        getClaimedBy(ticket);
-
-      const belongsToMe =
-        claimedBy != null &&
-        currentUserId != null &&
-        String(claimedBy) ===
-          String(currentUserId);
 
       return (
-        isActive &&
-        belongsToMe
+        (createdBy != null && String(createdBy) === String(userId)) ||
+        (claimedBy != null && String(claimedBy) === String(userId))
       );
     });
+  }, [tickets, tab, userId]);
 
-  const openCount =
-    myActiveTickets.filter(
-      (ticket) =>
-        [
-          "OPEN",
-          "PENDING",
-        ].includes(
-          normalizeStatus(
-            ticket.status
-          )
-        )
-    ).length;
+  const claimTicket = async (id) => {
+    try {
+      setActionId(id);
+      const response = await fetch(`${API_BASE_URL}/tickets/${id}/claim`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Failed to claim ticket.");
+      await loadTickets();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionId(null);
+    }
+  };
 
-  const claimedCount =
-    myActiveTickets.filter(
-      (ticket) =>
-        [
-          "CLAIMED",
-          "IN PROGRESS",
-          "IN_PROGRESS",
-        ].includes(
-          normalizeStatus(
-            ticket.status
-          )
-        )
-    ).length;
+  const completeTicket = async (id) => {
+    try {
+      setActionId(id);
+      const response = await fetch(`${API_BASE_URL}/tickets/${id}/complete`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Failed to complete ticket.");
+      await loadTickets();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionId(null);
+    }
+  };
 
   return (
     <DashboardLayout>
-
-      <div className="teamflow-page">
-
+      <div className="teamflow-page workspace-page">
         <section className="teamflow-heading">
-
-          <p className="welcome-label">
-            MY PROJECT ISSUES
+          <p className="welcome-label">MY WORK</p>
+          <h2>My tickets.</h2>
+          <p className="welcome-description">
+            Tickets you created, claimed or are currently responsible for.
           </p>
-
-          <h2>
-            My Tickets
-          </h2>
-
         </section>
 
+        <div className="workspace-tabs">
+          <button className={tab === "claimed" ? "active" : ""} onClick={() => setTab("claimed")}>Claimed by Me</button>
+          <button className={tab === "created" ? "active" : ""} onClick={() => setTab("created")}>Created by Me</button>
+          <button className={tab === "all" ? "active" : ""} onClick={() => setTab("all")}>All My Tickets</button>
+        </div>
 
-        {error && (
-          <div className="claim-notice">
-            {error}
-          </div>
-        )}
+        {error && <div className="workspace-alert">{error}</div>}
 
-
-        <section className="panel">
-
-          <div className="panel-heading">
-
+        <section className="workspace-panel">
+          <div className="workspace-panel-head">
             <div>
-
-              <p className="welcome-label">
-                MY TICKETS
-              </p>
-
-              <h3>
-                My Project Issues
-              </h3>
+              <p className="welcome-label">TICKETS</p>
+              <h3>{tab === "claimed" ? "Claimed by me" : tab === "created" ? "Created by me" : "All my tickets"}</h3>
             </div>
-
+            <span className="workspace-count">{mine.length}</span>
           </div>
-
 
           {loading ? (
-
-            <div className="empty-state">
-
-              <strong>
-                Loading tickets...
-              </strong>
-
+            <div className="workspace-empty">Loading tickets...</div>
+          ) : mine.length === 0 ? (
+            <div className="workspace-empty">
+              <strong>No tickets here yet</strong>
+              <p>Tickets matching this view will appear here.</p>
             </div>
-
-          ) : myActiveTickets.length === 0 ? (
-
-            <div className="empty-state">
-
-              <span>
-                ✦
-              </span>
-
-              <strong>
-                No active tickets assigned to you
-              </strong>
-
-              
-
-            </div>
-
           ) : (
+            <div className="workspace-list">
+              {mine.map((ticket) => {
+                const id = ticket.id ?? ticket.ticket_id;
+                const claimedBy = ticket.claimed_by ?? ticket.claimedBy;
+                const mineClaim = claimedBy != null && String(claimedBy) === String(userId);
+                const status = normalizeStatus(ticket.status) || "OPEN";
 
-            <div className="ticket-list">
-
-              {myActiveTickets.map(
-                (ticket) => {
-
-                  const id =
-                    getId(ticket);
-
-                  const claimedBy =
-                    getClaimedBy(ticket);
-
-                  const claimedByMe =
-                    claimedBy != null &&
-                    String(claimedBy) ===
-                      String(currentUserId);
-
-                  const status =
-                    normalizeStatus(
-                      ticket.status
-                    );
-
-                  return (
-
-                    <div
-                      className="ticket-card"
-                      key={id}
-                    >
-
-                      <div className="ticket-information">
-
-                        <div className="ticket-top-row">
-
-                          <span className="ticket-id">
-                            #{id}
-                          </span>
-
-                          <span
-                            className={`ticket-status ticket-status-${status
-                              .toLowerCase()
-                              .replaceAll(
-                                " ",
-                                "-"
-                              )}`}
-                          >
-                            {status}
-                          </span>
-
-                        </div>
-
-
-                        <h3>
-                          {ticket.title ||
-                            `Ticket #${id}`}
-                        </h3>
-
-                        <div className="ticket-details">
-
-                          <span>
-                            Project:{" "}
-                            {ticket.project_name ||
-                              ticket.projectName ||
-                              "—"}
-                          </span>
-
-                          <span>
-                            Priority:{" "}
-                            {ticket.priority ||
-                              "Medium"}
-                          </span>
-
-                          <span>
-                            Deadline:{" "}
-                            {ticket.due_date ||
-                              ticket.deadline ||
-                              "Not set"}
-                          </span>
-
-                          <span>
-                            Assigned:{" "}
-                            {getClaimedName(
-                              ticket
-                            ) ||
-                              `User ${claimedBy}`}
-                          </span>
-
-                        </div>
-
+                return (
+                  <article className="workspace-ticket" key={id}>
+                    <div>
+                      <div className="workspace-ticket-top">
+                        <span>#{id}</span>
+                        <b>{status}</b>
                       </div>
-
-
-                      <div className="ticket-actions">
-
-                        {claimedByMe ? (
-
-                          <button
-                            className="ticket-action-primary"
-                            onClick={() =>
-                              completeTicket(id)
-                            }
-                            disabled={
-                              completingTicketId ===
-                              id
-                            }
-                          >
-                            {completingTicketId ===
-                            id
-                              ? "Completing..."
-                              : "Complete"}
-                          </button>
-
-                        ) : (
-
-                          <span className="ticket-closed">
-                            Assigned to you
-                          </span>
-
-                        )}
-
+                      <h3>{ticket.title || `Ticket #${id}`}</h3>
+                      <p>{ticket.description || "No description provided."}</p>
+                      <div className="workspace-meta">
+                        <span>Project: {ticket.project_name || ticket.projectName || "—"}</span>
+                        <span>Priority: {ticket.priority || "Medium"}</span>
+                        <span>Deadline: {formatDate(ticket.due_date || ticket.deadline)}</span>
+                        <span>Claimed: {mineClaim ? "You" : "Another member"}</span>
                       </div>
-
                     </div>
-                  );
-                }
-              )}
 
+                    <div className="workspace-actions">
+                      {!claimedBy && (
+                        <button onClick={() => claimTicket(id)} disabled={actionId === id}>
+                          {actionId === id ? "Claiming..." : "Claim Ticket"}
+                        </button>
+                      )}
+                      {mineClaim && !["COMPLETED", "DONE", "CLOSED", "RESOLVED"].includes(status) && (
+                        <button onClick={() => completeTicket(id)} disabled={actionId === id}>
+                          {actionId === id ? "Completing..." : "Complete"}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
-
         </section>
-
       </div>
-
     </DashboardLayout>
   );
 }

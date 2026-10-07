@@ -478,7 +478,7 @@ try {
 
 
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className="register-form">
 
 
 

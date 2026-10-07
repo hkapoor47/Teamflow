@@ -1,255 +1,171 @@
+import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
-import { useProjects } from "../context/ProjectContext.jsx";
+import {
+  apiGet,
+  getArray,
+  getCurrentUserId,
+  normalizeStatus,
+  formatDate,
+} from "./workspaceApi.js";
 
 function Notifications() {
-  const { claimRequests, tasks, members } = useProjects();
+  const [tasks, setTasks] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const currentUser = JSON.parse(
-    localStorage.getItem("user") || "{}"
-  );
+  const userId = getCurrentUserId();
 
-  const currentUserId =
-    currentUser?.id ??
-    currentUser?.userId ??
-    currentUser?.user_id;
+  useEffect(() => {
+    Promise.all([
+      apiGet("/all-tasks"),
+      apiGet("/tickets"),
+    ])
+      .then(([taskData, ticketData]) => {
+        setTasks(getArray(taskData, ["tasks", "data"]));
+        setTickets(getArray(ticketData, ["tickets", "data"]));
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const currentUserRole = String(
-    currentUser?.role || ""
-  ).toLowerCase();
+  const notifications = useMemo(() => {
+    const now = new Date();
+    const result = [];
 
-  const isManager =
-    currentUserRole === "manager" ||
-    currentUserRole === "project_manager";
+    tasks
+      .filter((task) => {
+        const owner =
+          task.assigned_to ??
+          task.assignee_id ??
+          task.assigneeId ??
+          task.claimed_by ??
+          task.claimedBy;
+        return owner != null && String(owner) === String(userId);
+      })
+      .forEach((task) => {
+        if (task.due_date) {
+          const due = new Date(task.due_date);
+          if (!Number.isNaN(due.getTime())) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dueDay = new Date(due);
+            dueDay.setHours(0, 0, 0, 0);
+            const days = Math.ceil(
+              (dueDay - today) / 86400000
+            );
 
-  /*
-   * Deadline is considered "approaching" when it is
-   * within the next 3 days.
-   */
-  const now = new Date();
+            if (days < 0) {
+              result.push({
+                type: "deadline",
+                tone: "danger",
+                title: "Task is overdue",
+                text: `"${task.title}" is overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"}.`,
+                date: due,
+              });
+            } else if (days <= 2) {
+              result.push({
+                type: "deadline",
+                tone: "warning",
+                title: days === 0 ? "Task is due today" : "Upcoming deadline",
+                text: `"${task.title}" is due ${days === 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`}.`,
+                date: due,
+              });
+            }
+          }
+        }
 
-  const threeDaysFromNow = new Date(now);
-  threeDaysFromNow.setDate(
-    threeDaysFromNow.getDate() + 3
-  );
+        if (["COMPLETED", "COMPLETE", "DONE"].includes(normalizeStatus(task.status))) {
+          result.push({
+            type: "task",
+            tone: "success",
+            title: "Task completed",
+            text: `"${task.title}" has been marked completed and is awaiting QA.`,
+            date: task.updated_at || task.completed_at,
+          });
+        }
+      });
 
-  const deadlineNotifications = tasks
-    .filter((task) => {
-      const status = String(
-        task.status ||
-          task.task_status ||
-          ""
-      ).toUpperCase();
+    tickets
+      .filter((ticket) => {
+        const claimed =
+          ticket.claimed_by ??
+          ticket.claimedBy;
+        return claimed != null && String(claimed) === String(userId);
+      })
+      .forEach((ticket) => {
+        result.push({
+          type: "ticket",
+          tone: "info",
+          title: "Ticket claimed",
+          text: `You are working on "${ticket.title || `Ticket #${ticket.id}`}".`,
+          date: ticket.updated_at || ticket.created_at,
+        });
 
-      // Don't notify for completed tasks
-      if (
-        ["COMPLETED", "COMPLETE", "DONE", "CLOSED"].includes(
-          status
-        )
-      ) {
-        return false;
-      }
+        if (ticket.due_date || ticket.deadline) {
+          const due = new Date(ticket.due_date || ticket.deadline);
+          if (!Number.isNaN(due.getTime()) && due >= now) {
+            result.push({
+              type: "deadline",
+              tone: "warning",
+              title: "Ticket deadline",
+              text: `"${ticket.title || "Ticket"}" is due on ${formatDate(due)}.`,
+              date: due,
+            });
+          }
+        }
+      });
 
-      const dueDate =
-        task.due_date ??
-        task.dueDate ??
-        task.deadline ??
-        null;
-
-      if (!dueDate) return false;
-
-      const deadline = new Date(dueDate);
-
-      if (Number.isNaN(deadline.getTime())) {
-        return false;
-      }
-
-      /*
-       * Only future deadlines within 3 days.
-       */
-      if (
-        deadline <= now ||
-        deadline > threeDaysFromNow
-      ) {
-        return false;
-      }
-
-      const assignedTo =
-        task.assigned_to ??
-        task.assigneeId ??
-        task.assignee_id;
-
-      /*
-       * USER:
-       * Only see their own assigned tasks.
-       *
-       * MANAGER:
-       * See tasks belonging to their projects.
-       *
-       * For now, the manager relationship is determined
-       * from project manager information already present
-       * on the task/project data.
-       */
-      if (!isManager) {
-        return (
-          Number(assignedTo) ===
-          Number(currentUserId)
-        );
-      }
-
-      return true;
-    })
-    .map((task) => {
-      const dueDate =
-        task.due_date ??
-        task.dueDate ??
-        task.deadline;
-
-      const deadline = new Date(dueDate);
-
-      const diffMs =
-        deadline.getTime() - now.getTime();
-
-      const diffHours =
-        Math.ceil(diffMs / (1000 * 60 * 60));
-
-      let message;
-
-      if (diffHours <= 24) {
-        message = "Deadline is approaching today.";
-      } else {
-        const days = Math.ceil(
-          diffHours / 24
-        );
-
-        message = `Deadline in ${days} day${
-          days === 1 ? "" : "s"
-        }.`;
-      }
-
-      return {
-        id: `deadline-${task.id}`,
-        taskId: task.id,
-        title:
-          task.title ||
-          task.name ||
-          "Untitled task",
-        message,
-        dueDate: deadline,
-      };
-    });
+    return result
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+      .slice(0, 30);
+  }, [tasks, tickets, userId]);
 
   return (
     <DashboardLayout>
-      <div className="teamflow-page">
-
+      <div className="teamflow-page workspace-page">
         <section className="teamflow-heading">
-          <p className="welcome-label">
-            NOTIFICATIONS
-          </p>
-
-          <h2>
-            {isManager
-              ? "Manager updates."
-              : "Your updates."}
-          </h2>
-
+          <p className="welcome-label">SYSTEM UPDATES</p>
+          <h2>Your notifications.</h2>
           <p className="welcome-description">
-            Deadlines and task updates that need
-            your attention.
+            Deadlines, task events and ticket updates that need your attention.
           </p>
         </section>
 
-        {/* DEADLINE NOTIFICATIONS */}
-        <section className="panel notification-list">
+        {error && <div className="workspace-alert">{error}</div>}
 
-          {deadlineNotifications.length > 0 && (
-            <>
-              {deadlineNotifications.map(
-                (notification) => (
-                  <div
-                    className="notification-item"
-                    key={notification.id}
-                  >
-                    <span>⏰</span>
+        <section className="workspace-panel">
+          <div className="workspace-panel-head">
+            <div>
+              <p className="welcome-label">OFFICIAL ALERTS</p>
+              <h3>Recent updates</h3>
+            </div>
+            <span className="workspace-count">{notifications.length}</span>
+          </div>
 
-                    <div>
-                      <strong>
-                        Deadline approaching
-                      </strong>
-
-                      <p>
-                        <b>
-                          {notification.title}
-                        </b>{" "}
-                        — {notification.message}
-                      </p>
-
-                      <small>
-                        Due:{" "}
-                        {notification.dueDate.toLocaleDateString()}
-                      </small>
-                    </div>
+          {loading ? (
+            <div className="workspace-empty">Loading notifications...</div>
+          ) : notifications.length === 0 ? (
+            <div className="workspace-empty">
+              <strong>No new notifications</strong>
+              <p>Deadline alerts and task/ticket updates will appear here.</p>
+            </div>
+          ) : (
+            <div className="workspace-list">
+              {notifications.map((item, index) => (
+                <article className={`workspace-row tone-${item.tone}`} key={`${item.type}-${index}`}>
+                  <div className="workspace-row-icon">
+                    {item.type === "deadline" ? "!" : item.type === "ticket" ? "#" : "✓"}
                   </div>
-                )
-              )}
-            </>
+                  <div className="workspace-row-main">
+                    <strong>{item.title}</strong>
+                    <p>{item.text}</p>
+                  </div>
+                  <time>{formatDate(item.date)}</time>
+                </article>
+              ))}
+            </div>
           )}
-
-          {/* CLAIM REQUESTS */}
-          {claimRequests.length > 0 &&
-            claimRequests.map((request) => {
-              const task = tasks.find(
-                (item) =>
-                  Number(item.id) ===
-                  Number(request.taskId)
-              );
-
-              const member = members.find(
-                (item) =>
-                  Number(item.id) ===
-                  Number(request.memberId)
-              );
-
-              return (
-                <div
-                  className="notification-item"
-                  key={`claim-${request.id}`}
-                >
-                  <span>✦</span>
-
-                  <div>
-                    <strong>
-                      {member?.name || "A user"} requested a task
-                    </strong>
-
-                    <p>
-                      They want to claim "
-                      {task?.title || "this task"}
-                      ". Status:{" "}
-                      {request.status}.
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-
-          {/* EMPTY STATE */}
-          {deadlineNotifications.length === 0 &&
-            claimRequests.length === 0 && (
-              <div className="empty-state">
-                <span>✓</span>
-
-                <strong>
-                  No new notifications
-                </strong>
-
-                <p>
-                  Deadline alerts and task claim
-                  requests will appear here.
-                </p>
-              </div>
-            )}
-
         </section>
       </div>
     </DashboardLayout>

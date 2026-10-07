@@ -7638,3 +7638,544 @@ td:first-child small { font-weight: 400; }
     font-size: 13px;
   }
 }
+
+/* =========================================================
+   TEAMFLOW REGISTER — CLEAN DESKTOP / TABLET UI
+   Replace the previous auth/register responsive patch with
+   this block.
+========================================================= */
+
+/* Page */
+.auth-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #07111f;
+}
+
+/* Desktop split */
+@media (min-width: 1101px) {
+
+  .auth-page {
+    display: grid;
+    grid-template-columns: minmax(420px, 46%) minmax(520px, 54%);
+  }
+
+  .auth-brand {
+    min-height: 100vh;
+    padding: 64px 8vw 64px 6vw;
+    box-sizing: border-box;
+  }
+
+  .auth-form-section {
+    min-height: 100vh;
+    padding: 44px 48px;
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #0a1525;
+  }
+
+  .auth-form-container {
+    width: 100%;
+    max-width: 560px;
+
+    padding: 34px 40px 30px;
+    box-sizing: border-box;
+
+    background: #111f32;
+    border: 1px solid #263c56;
+    border-radius: 20px;
+
+    box-shadow: 0 22px 60px rgba(0,0,0,.28);
+  }
+
+  .auth-mobile-logo {
+    margin-bottom: 24px;
+  }
+
+  .auth-heading {
+    margin-bottom: 22px;
+  }
+
+  /* Register fields in two columns */
+  .register-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+    row-gap: 0;
+  }
+
+  .register-form .auth-input-group {
+    min-width: 0;
+  }
+
+  /* Department spans the full row */
+  .register-form .auth-input-group:nth-child(5) {
+    grid-column: 1 / -1;
+  }
+
+  .register-form .terms-checkbox,
+  .register-form .auth-submit-button {
+    grid-column: 1 / -1;
+  }
+
+  .register-form .auth-input-group {
+    margin-bottom: 14px;
+  }
+
+  .register-form .auth-input-wrapper {
+    height: 45px;
+  }
+
+  .register-form .auth-submit-button {
+    margin-top: 4px;
+  }
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 1100px) {
+
+  .auth-page {
+    display: flex;
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-items: flex-start;
+    justify-content: center;
+
+    padding: 28px 18px 40px;
+    box-sizing: border-box;
+  }
+
+  .auth-brand {
+    display: none !important;
+  }
+
+  .auth-form-section {
+    width: 100%;
+    min-height: auto;
+    padding: 0;
+    background: transparent;
+
+    display: flex;
+    justify-content: center;
+  }
+
+  .auth-form-container {
+    width: min(100%, 680px);
+    padding: 32px 36px 28px;
+
+    box-sizing: border-box;
+
+    background: #111f32;
+    border: 1px solid #263c56;
+    border-radius: 20px;
+
+    box-shadow: 0 20px 55px rgba(0,0,0,.25);
+  }
+
+  .register-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+  }
+
+  .register-form .auth-input-group {
+    min-width: 0;
+  }
+
+  .register-form .auth-input-group:nth-child(5),
+  .register-form .terms-checkbox,
+  .register-form .auth-submit-button {
+    grid-column: 1 / -1;
+  }
+
+  .register-form .auth-input-group {
+    margin-bottom: 14px;
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+
+  .auth-page {
+    padding: 12px;
+    align-items: flex-start;
+  }
+
+  .auth-form-container {
+    width: 100%;
+    max-width: 520px;
+
+    padding: 27px 20px 24px;
+
+    border-radius: 18px;
+  }
+
+  .register-form {
+    display: block;
+  }
+
+  .register-form .auth-input-group {
+    margin-bottom: 15px;
+  }
+
+  .auth-heading h1 {
+    font-size: 27px;
+  }
+}
+
+
+/* =========================================================
+   SELECT
+========================================================= */
+
+.auth-input-wrapper select {
+  width: 100%;
+  height: 100%;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+  color: var(--text-primary);
+
+  font-size: 13px;
+  cursor: pointer;
+
+  appearance: auto;
+}
+
+.auth-input-wrapper select option {
+  background: #111f32;
+  color: #f8fafc;
+}
+
+
+/* =========================================================
+   SMALL POLISH
+========================================================= */
+
+.register-form .auth-input-wrapper {
+  transition:
+    border-color .18s ease,
+    box-shadow .18s ease,
+    background .18s ease;
+}
+
+.register-form .auth-input-wrapper:hover {
+  border-color: #3b5875;
+}
+
+.register-form .auth-input-wrapper:focus-within {
+  border-color: var(--primary);
+  background: #0b192b;
+  box-shadow: 0 0 0 3px rgba(20,184,166,.08);
+}
+
+.register-form .auth-submit-button {
+  margin-bottom: 2px;
+}
+
+
+/* =========================================================
+   WORKSPACE PAGES — Notifications / Tickets / Completed /
+   Team / Analytics
+========================================================= */
+
+.workspace-page { max-width: 1180px; }
+
+.workspace-panel {
+  margin-top: 24px;
+  padding: 24px;
+  background: rgba(17,31,50,.82);
+  border: 1px solid #263c56;
+  border-radius: 18px;
+}
+
+.workspace-panel-head,
+.team-group-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:20px;
+}
+
+.workspace-panel-head h3,
+.team-group-head h3 { margin:3px 0 0; }
+
+.workspace-count {
+  min-width:30px;
+  height:30px;
+  padding:0 9px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  background:rgba(20,184,166,.12);
+  border:1px solid rgba(20,184,166,.28);
+  color:#5eead4;
+  font-size:12px;
+  font-weight:800;
+}
+
+.workspace-tabs {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:24px;
+}
+
+.workspace-tabs button {
+  border:1px solid #2a425d;
+  background:#101e31;
+  color:#9eb0c7;
+  padding:10px 15px;
+  border-radius:9px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:700;
+}
+
+.workspace-tabs button.active {
+  background:rgba(20,184,166,.12);
+  border-color:rgba(20,184,166,.5);
+  color:#5eead4;
+}
+
+.workspace-list { display:flex; flex-direction:column; gap:10px; }
+
+.workspace-row,
+.workspace-ticket {
+  display:flex;
+  align-items:center;
+  gap:15px;
+  padding:16px;
+  border:1px solid #263c56;
+  background:#0d1a2c;
+  border-radius:13px;
+}
+
+.workspace-row-icon {
+  width:36px;
+  height:36px;
+  flex:0 0 36px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(20,184,166,.1);
+  color:#5eead4;
+  font-weight:800;
+}
+
+.workspace-row-main { flex:1; min-width:0; }
+.workspace-row-main strong { color:#f1f5f9; font-size:13px; }
+.workspace-row-main p,
+.workspace-ticket p { margin:5px 0 0; color:#8fa3bc; font-size:12px; line-height:1.5; }
+
+.workspace-row time {
+  color:#71869f;
+  font-size:10px;
+  white-space:nowrap;
+}
+
+.tone-danger .workspace-row-icon,
+.workspace-row-icon.tone-danger { color:#f87171; background:rgba(239,68,68,.10); }
+.tone-warning .workspace-row-icon { color:#fbbf24; background:rgba(245,158,11,.10); }
+.tone-success .workspace-row-icon { color:#5eead4; }
+
+.workspace-empty {
+  min-height:170px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:7px;
+  color:#8fa3bc;
+  text-align:center;
+  border:1px dashed #2c435c;
+  border-radius:13px;
+}
+
+.workspace-empty strong { color:#dbe6f2; }
+
+.workspace-alert {
+  margin-top:18px;
+  padding:12px 15px;
+  border-radius:10px;
+  color:#fecaca;
+  background:rgba(127,29,29,.25);
+  border:1px solid rgba(248,113,113,.25);
+  font-size:12px;
+}
+
+.workspace-ticket {
+  align-items:flex-start;
+  justify-content:space-between;
+}
+
+.workspace-ticket > div:first-child { flex:1; min-width:0; }
+
+.workspace-ticket-top {
+  display:flex;
+  gap:9px;
+  align-items:center;
+  margin-bottom:7px;
+}
+
+.workspace-ticket-top span { color:#71869f; font-size:10px; }
+.workspace-ticket-top b {
+  padding:4px 7px;
+  border-radius:999px;
+  background:rgba(20,184,166,.10);
+  color:#5eead4;
+  font-size:9px;
+}
+
+.workspace-ticket h3 { margin:0; color:#f1f5f9; font-size:15px; }
+
+.workspace-meta {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px 14px;
+  margin-top:10px;
+  color:#71869f;
+  font-size:10px;
+}
+
+.workspace-actions {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.workspace-actions button {
+  border:0;
+  border-radius:8px;
+  padding:9px 12px;
+  background:#14b8a6;
+  color:#06201e;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.workspace-actions button:disabled { opacity:.55; cursor:not-allowed; }
+
+.analytics-grid {
+  display:grid;
+  grid-template-columns:repeat(4, minmax(0,1fr));
+  gap:13px;
+  margin-top:24px;
+}
+
+.analytics-card {
+  padding:19px;
+  border:1px solid #263c56;
+  border-radius:14px;
+  background:#111f32;
+}
+
+.analytics-card span,
+.analytics-card small {
+  display:block;
+  color:#8297b0;
+  font-size:10px;
+}
+
+.analytics-card strong {
+  display:block;
+  margin:8px 0 4px;
+  color:#f8fafc;
+  font-size:27px;
+}
+
+.analytics-card.danger strong { color:#f87171; }
+
+.analytics-percent { color:#5eead4; font-size:22px; }
+
+.analytics-bar {
+  height:9px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#07111f;
+  border:1px solid #243a54;
+}
+
+.analytics-bar span {
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  background:#14b8a6;
+}
+
+.analytics-bar-labels {
+  display:flex;
+  justify-content:space-between;
+  margin-top:8px;
+  color:#71869f;
+  font-size:10px;
+}
+
+.team-group + .team-group { margin-top:30px; padding-top:25px; border-top:1px solid #22364e; }
+
+.team-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+
+.team-member-card {
+  display:flex;
+  gap:11px;
+  align-items:center;
+  padding:15px;
+  background:#0d1a2c;
+  border:1px solid #263c56;
+  border-radius:13px;
+}
+
+.team-avatar {
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:11px;
+  background:#19bfae;
+  color:#05221f;
+  font-weight:900;
+}
+
+.team-member-card strong { color:#eef5fb; font-size:12px; }
+.team-member-card p { margin:3px 0; color:#71869f; font-size:10px; }
+.team-member-card span { color:#5eead4; font-size:9px; font-weight:700; }
+
+@media (max-width: 900px) {
+  .analytics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .team-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+@media (max-width: 600px) {
+  .workspace-panel { padding:16px; }
+  .workspace-row,
+  .workspace-ticket { align-items:flex-start; }
+  .workspace-row time { display:none; }
+  .workspace-ticket { flex-direction:column; }
+  .analytics-grid,
+  .team-grid { grid-template-columns:1fr; }
+}
+
