@@ -1,965 +1,889 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import {
 
- User,
-Mail,
-Lock,
-Building2,
-Code2,
-ArrowRight,
+  User,
+
+  Mail,
+
+  Lock,
+
+  Building2,
+
+
+  ArrowRight,
+
 } from "lucide-react";
 
+
+
 const Register = () => {
-const navigate = useNavigate();
 
-const handleSubmit = async (e) => {
+  const navigate = useNavigate();
 
-    e.preventDefault();
+  const DEPARTMENT_OPTIONS = [
+    "Web Development",
+    "Mobile Development",
+    "AI / Machine Learning",
+    "Data Science",
+    "DevOps / Cloud",
+    "Cyber Security",
+    "UI / UX Design",
+    "Finance",
+    "Marketing",
+    "Other",
+  ];
 
+  const [departmentChoice, setDepartmentChoice] = useState("");
+  const [customDepartment, setCustomDepartment] = useState("");
 
 
-    const name = e.target.name.value.trim();
 
-    const email = e.target["register-email"].value.trim();
 
-    const password = e.target["register-password"].value;
+  const handleSubmit = async (e) => {
 
-    const confirmPassword =
+    e.preventDefault();
 
-      e.target["confirm-password"].value;
 
 
+    const name = e.target.name.value.trim();
 
-    const department =
+    const email = e.target["register-email"].value.trim();
 
-      e.target.department.value.trim();
+    const password = e.target["register-password"].value;
 
+    const confirmPassword =
 
+      e.target["confirm-password"].value;
 
-    const skillsInput =
 
-      e.target.skills.value.trim();
 
+    const department =
+      departmentChoice === "Other"
+        ? customDepartment.trim()
+        : departmentChoice.trim();
 
+// -----------------------------
 
-    // -----------------------------
+    // PASSWORD CHECK
 
-    // PASSWORD CHECK
+    // -----------------------------
 
-    // -----------------------------
 
 
+    if (password !== confirmPassword) {
 
-    if (password !== confirmPassword) {
+      alert("Passwords do not match.");
 
-      alert("Passwords do not match.");
+      return;
 
-      return;
+    }
 
-    }
 
 
+    // -----------------------------
 
-    // -----------------------------
+    // DEPARTMENT CHECK
 
-    // DEPARTMENT CHECK
+    // -----------------------------
 
-    // -----------------------------
 
 
+    if (!department) {
 
-    if (!department) {
+      alert("Please select or enter your department.");
 
-      alert("Please enter your department.");
+      return;
 
-      return;
+    }
 
-    }
 
 
+try {
 
-    // -----------------------------
+      const response = await fetch(
 
-    // SKILLS
+        "http://65.0.11.153:5001/api/auth/register",
 
-    // Example:
+        {
 
-    // React, JavaScript, Node.js
+          method: "POST",
 
-    // -----------------------------
 
 
+          headers: {
 
-    const skills = skillsInput
+            "Content-Type": "application/json",
 
-      .split(",")
+          },
 
-      .map((skill) => skill.trim())
 
-      .filter((skill) => skill !== "");
 
+          body: JSON.stringify({
 
+            name,
 
-    if (skills.length === 0) {
+            email,
 
-      alert("Please enter at least one skill.");
+            password,
 
-      return;
+            department,
 
-    }
+            skills,
 
+          }),
 
+        }
 
-    try {
+      );
 
-      const response = await fetch(
 
-        "http://65.0.11.153:5001/api/auth/register",
 
-        {
+      const data = await response.json();
 
-          method: "POST",
 
 
+      console.log("Register response:", data);
 
-          headers: {
 
-            "Content-Type": "application/json",
 
-          },
+      if (!response.ok) {
 
+        alert(
 
+          data.message ||
 
-          body: JSON.stringify({
+          "Registration failed."
 
-            name,
+        );
 
-            email,
+        return;
 
-            password,
+      }
 
-            department,
 
-            skills,
 
-          }),
+      // -----------------------------
 
-        }
+      // SAVE TOKEN
 
-      );
+      // -----------------------------
 
 
 
-      const data = await response.json();
+      if (data.token) {
 
+        localStorage.setItem(
 
+          "token",
 
-      console.log("Register response:", data);
+          data.token
 
+        );
 
+      }
 
-      if (!response.ok) {
 
-        alert(
 
-          data.message ||
+      // -----------------------------
 
-          "Registration failed."
+      // SAVE USER
 
-        );
+      // -----------------------------
 
-        return;
 
-      }
 
+      if (data.user) {
 
+        localStorage.setItem(
 
-      // -----------------------------
+          "user",
 
-      // SAVE TOKEN
+          JSON.stringify(data.user)
 
-      // -----------------------------
+        );
 
+      }
 
 
-      if (data.token) {
 
-        localStorage.setItem(
+      alert(
 
-          "token",
+        data.message ||
 
-          data.token
+        "Account created successfully!"
 
-        );
+      );
 
-      }
 
 
+      // -----------------------------
 
-      // -----------------------------
+      // GO TO DASHBOARD
 
-      // SAVE USER
+      // -----------------------------
 
-      // -----------------------------
 
 
+      navigate("/dashboard");
 
-      if (data.user) {
 
-        localStorage.setItem(
 
-          "user",
+    } catch (error) {
 
-          JSON.stringify(data.user)
+      console.error(
 
-        );
+        "Register API error:",
 
-      }
+        error
 
+      );
 
 
-      alert(
 
-        data.message ||
+      alert(
 
-        "Account created successfully!"
+        "Unable to connect to the backend server."
 
-      );
+      );
 
+    }
 
+  };
 
-      // -----------------------------
 
-      // GO TO DASHBOARD
 
-      // -----------------------------
+  return (
 
+    <div className="auth-page">
 
 
-      navigate("/dashboard");
 
+      {/* =========================
 
+          LEFT BRANDING SECTION
 
-    } catch (error) {
+      ========================== */}
 
-      console.error(
 
-        "Register API error:",
 
-        error
+      <div className="auth-brand">
 
-      );
 
 
+        <div className="auth-brand-content">
 
-      alert(
 
-        "Unable to connect to the backend server."
 
-      );
+          <div className="auth-logo">
 
-    }
 
-  };
 
+            <div className="auth-logo-icon">
 
+              T
 
-  return (
+            </div>
 
-    <div className="auth-page">
 
 
+            <div>
 
-      {/* =========================
+              <h2>TeamFlow</h2>
 
-          LEFT BRANDING SECTION
+              <span>AI</span>
 
-      ========================== */}
+            </div>
 
 
 
-      <div className="auth-brand">
+          </div>
 
 
 
-        <div className="auth-brand-content">
+          <div className="auth-brand-text">
 
 
 
-          <div className="auth-logo">
+            <p className="auth-tagline">
 
+              BUILD. TRACK. DELIVER.
 
+            </p>
 
-            <div className="auth-logo-icon">
 
-              T
 
-            </div>
+            <h1>
 
+              Your team's work,
 
+              <span> all in one place.</span>
 
-            <div>
+            </h1>
 
-              <h2>TeamFlow</h2>
 
-              <span>AI</span>
 
-            </div>
+            <p>
 
+              Create projects, assign work,
 
+              track progress, and keep everyone
 
-          </div>
+              accountable from one workspace.
 
+            </p>
 
 
-          <div className="auth-brand-text">
 
+          </div>
 
 
-            <p className="auth-tagline">
 
-              BUILD. TRACK. DELIVER.
+          <div className="auth-feature-list">
 
-            </p>
 
 
+            <div>
 
-            <h1>
+              <span>✓</span>
 
-              Your team's work,
+              Organize projects
 
-              <span> all in one place.</span>
+            </div>
 
-            </h1>
 
 
+            <div>
 
-            <p>
+              <span>✓</span>
 
-              Create projects, assign work,
+              Assign & track tasks
 
-              track progress, and keep everyone
+            </div>
 
-              accountable from one workspace.
 
-            </p>
 
+            <div>
 
+              <span>✓</span>
 
-          </div>
+              Stay ahead of deadlines
 
+            </div>
 
 
-          <div className="auth-feature-list">
 
+          </div>
 
 
-            <div>
 
-              <span>✓</span>
+        </div>
 
-              Organize projects
 
-            </div>
 
+      </div>
 
 
-            <div>
 
-              <span>✓</span>
 
-              Assign & track tasks
 
-            </div>
+      {/* =========================
 
+          REGISTER SECTION
 
+      ========================== */}
 
-            <div>
 
-              <span>✓</span>
 
-              Stay ahead of deadlines
+      <div className="auth-form-section">
 
-            </div>
 
 
+        <div className="auth-form-container">
 
-          </div>
 
 
+          {/* Mobile Logo */}
 
-        </div>
 
 
+          <div className="auth-mobile-logo">
 
-      </div>
 
 
+            <div className="auth-logo-icon">
 
+              T
 
+            </div>
 
-      {/* =========================
 
-          REGISTER SECTION
 
-      ========================== */}
+            <h2>TeamFlow</h2>
 
 
 
-      <div className="auth-form-section">
+            <span>AI</span>
 
 
 
-        <div className="auth-form-container">
+          </div>
 
 
 
-          {/* Mobile Logo */}
 
 
+          {/* Heading */}
 
-          <div className="auth-mobile-logo">
 
 
+          <div className="auth-heading">
 
-            <div className="auth-logo-icon">
 
-              T
 
-            </div>
+            <p>GET STARTED</p>
 
 
 
-            <h2>TeamFlow</h2>
+            <h1>
 
+              Create your account
 
+            </h1>
 
-            <span>AI</span>
 
 
+            <span>
 
-          </div>
+              Start managing your team
 
+              more effectively.
 
+            </span>
 
 
 
-          {/* Heading */}
+          </div>
 
 
 
-          <div className="auth-heading">
 
 
+          {/* =========================
 
-            <p>GET STARTED</p>
+              FORM
 
+          ========================== */}
 
 
-            <h1>
 
-              Create your account
+          <form onSubmit={handleSubmit}>
 
-            </h1>
 
 
+            {/* NAME */}
 
-            <span>
 
-              Start managing your team
 
-              more effectively.
+            <div className="auth-input-group">
 
-            </span>
 
 
+              <label htmlFor="name">
 
-          </div>
+                Full name
 
+              </label>
 
 
 
+              <div className="auth-input-wrapper">
 
-          {/* =========================
 
-              FORM
 
-          ========================== */}
+                <User size={18} />
 
 
 
-          <form onSubmit={handleSubmit}>
+                <input
 
+                  id="name"
 
+                  name="name"
 
-            {/* NAME */}
+                  type="text"
 
+                  placeholder="Harshita Kapoor"
 
+                  required
 
-            <div className="auth-input-group">
+                />
 
 
 
-              <label htmlFor="name">
+              </div>
 
-                Full name
 
-              </label>
 
+            </div>
 
 
-              <div className="auth-input-wrapper">
 
 
 
-                <User size={18} />
+            {/* EMAIL */}
 
 
 
-                <input
+            <div className="auth-input-group">
 
-                  id="name"
 
-                  name="name"
 
-                  type="text"
+              <label htmlFor="register-email">
 
-                  placeholder="Harshita Kapoor"
+                Email address
 
-                  required
+              </label>
 
-                />
 
 
+              <div className="auth-input-wrapper">
 
-              </div>
 
 
+                <Mail size={18} />
 
-            </div>
 
 
+                <input
 
+                  id="register-email"
 
+                  name="register-email"
 
-            {/* EMAIL */}
+                  type="email"
 
+                  placeholder="you\@example.com"
 
+                  required
 
-            <div className="auth-input-group">
+                />
 
 
 
-              <label htmlFor="register-email">
+              </div>
 
-                Email address
 
-              </label>
 
+            </div>
 
 
-              <div className="auth-input-wrapper">
 
 
 
-                <Mail size={18} />
+            {/* PASSWORD */}
 
 
 
-                <input
+            <div className="auth-input-group">
 
-                  id="register-email"
 
-                  name="register-email"
 
-                  type="email"
+              <label htmlFor="register-password">
 
-                  placeholder="you\@example.com"
+                Password
 
-                  required
+              </label>
 
-                />
 
 
+              <div className="auth-input-wrapper">
 
-              </div>
 
 
+                <Lock size={18} />
 
-            </div>
 
 
+                <input
 
+                  id="register-password"
 
+                  name="register-password"
 
-            {/* PASSWORD */}
+                  type="password"
 
+                  placeholder="Create a password"
 
+                  minLength={8}
 
-            <div className="auth-input-group">
+                  required
 
+                />
 
 
-              <label htmlFor="register-password">
 
-                Password
+              </div>
 
-              </label>
 
 
+            </div>
 
-              <div className="auth-input-wrapper">
 
 
 
-                <Lock size={18} />
 
+            {/* CONFIRM PASSWORD */}
 
 
-                <input
 
-                  id="register-password"
+            <div className="auth-input-group">
 
-                  name="register-password"
 
-                  type="password"
 
-                  placeholder="Create a password"
+              <label htmlFor="confirm-password">
 
-                  minLength={8}
+                Confirm password
 
-                  required
+              </label>
 
-                />
 
 
+              <div className="auth-input-wrapper">
 
-              </div>
 
 
+                <Lock size={18} />
 
-            </div>
 
 
+                <input
 
+                  id="confirm-password"
 
+                  name="confirm-password"
 
-            {/* CONFIRM PASSWORD */}
+                  type="password"
 
+                  placeholder="Confirm your password"
 
+                  minLength={8}
 
-            <div className="auth-input-group">
+                  required
 
+                />
 
 
-              <label htmlFor="confirm-password">
 
-                Confirm password
+              </div>
 
-              </label>
 
 
+            </div>
 
-              <div className="auth-input-wrapper">
 
 
 
-                <Lock size={18} />
 
+            {/* =========================
+                DEPARTMENT
+            ========================== */}
 
+            <div className="auth-input-group">
 
-                <input
+              <label htmlFor="department">
+                Department
+              </label>
 
-                  id="confirm-password"
+              <div className="auth-input-wrapper">
 
-                  name="confirm-password"
+                <Building2 size={18} />
 
-                  type="password"
+                <select
+                  id="department"
+                  name="department"
+                  value={departmentChoice}
+                  onChange={(e) =>
+                    setDepartmentChoice(e.target.value)
+                  }
+                  required
+                >
+                  <option value="" disabled>
+                    Select your department
+                  </option>
 
-                  placeholder="Confirm your password"
+                  {DEPARTMENT_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
 
-                  minLength={8}
+                </select>
 
-                  required
+              </div>
 
-                />
+              {departmentChoice === "Other" && (
+                <div
+                  className="auth-input-wrapper"
+                  style={{ marginTop: "10px" }}
+                >
 
+                  <Building2 size={18} />
 
+                  <input
+                    id="custom-department"
+                    name="custom-department"
+                    type="text"
+                    value={customDepartment}
+                    onChange={(e) =>
+                      setCustomDepartment(e.target.value)
+                    }
+                    placeholder="Enter your department"
+                    required
+                  />
 
-              </div>
+                </div>
+              )}
 
+            </div>
 
 
-            </div>
+            {/* TERMS */}
 
 
 
+            <div className="terms-checkbox">
 
 
-            {/* =========================
 
-                DEPARTMENT
+              <label>
 
-            ========================== */}
 
 
+                <input
 
-            <div className="auth-input-group">
+                  type="checkbox"
 
+                  required
 
+                />
 
-              <label htmlFor="department">
 
-                Department
 
-              </label>
+                <span>
 
+                  I agree to the Terms of Service
 
+                  and Privacy Policy.
 
-              <div className="auth-input-wrapper">
+                </span>
 
 
 
-                <Building2 size={18} />
+              </label>
 
 
 
-                <input
+            </div>
 
-                  id="department"
 
-                  name="department"
 
-                  type="text"
 
-                  placeholder="Web Development"
 
-                  required
+            {/* SUBMIT */}
 
-                />
 
 
+            <button
 
-              </div>
+              type="submit"
 
+              className="auth-submit-button"
 
+            >
 
-            </div>
+              Create Account
 
 
 
+              <ArrowRight size={18} />
 
 
-            {/* =========================
 
-                SKILLS
+            </button>
 
-            ========================== */}
 
 
+          </form>
 
-            <div className="auth-input-group">
 
 
 
-              <label htmlFor="skills">
 
-                Skills
+          {/* DIVIDER */}
 
-              </label>
 
 
+          <div className="auth-divider">
 
-              <div className="auth-input-wrapper">
 
 
+            <span>OR</span>
 
-                <Code2 size={18} />
 
 
+          </div>
 
-                <input
 
-                  id="skills"
 
-                  name="skills"
 
-                  type="text"
 
-                  placeholder="React, JavaScript, Node.js"
+          {/* LOGIN */}
 
-                  required
 
-                />
 
+          <p className="auth-switch">
 
 
-              </div>
 
+            Already have an account?{" "}
 
 
-              <small
 
-                style={{
+            <Link to="/login">
 
-                  marginTop: "6px",
+              Sign in
 
-                  display: "block",
+            </Link>
 
-                  opacity: 0.7,
 
-                }}
 
-              >
+          </p>
 
-                Enter skills separated by commas.
 
-              </small>
 
 
 
-            </div>
+          <p className="auth-demo-note">
 
+            Secure registration • TeamFlow
 
+          </p>
 
 
 
-            {/* TERMS */}
+        </div>
 
 
 
-            <div className="terms-checkbox">
+      </div>
 
 
 
-              <label>
+    </div>
 
-
-
-                <input
-
-                  type="checkbox"
-
-                  required
-
-                />
-
-
-
-                <span>
-
-                  I agree to the Terms of Service
-
-                  and Privacy Policy.
-
-                </span>
-
-
-
-              </label>
-
-
-
-            </div>
-
-
-
-
-
-            {/* SUBMIT */}
-
-
-
-            <button
-
-              type="submit"
-
-              className="auth-submit-button"
-
-            >
-
-              Create Account
-
-
-
-              <ArrowRight size={18} />
-
-
-
-            </button>
-
-
-
-          </form>
-
-
-
-
-
-          {/* DIVIDER */}
-
-
-
-          <div className="auth-divider">
-
-
-
-            <span>OR</span>
-
-
-
-          </div>
-
-
-
-
-
-          {/* LOGIN */}
-
-
-
-          <p className="auth-switch">
-
-
-
-            Already have an account?{" "}
-
-
-
-            <Link to="/login">
-
-              Sign in
-
-            </Link>
-
-
-
-          </p>
-
-
-
-
-
-          <p className="auth-demo-note">
-
-            Secure registration • TeamFlow
-
-          </p>
-
-
-
-        </div>
-
-
-
-      </div>
-
-
-
-    </div>
-
-  );
+  );
 
 };
 

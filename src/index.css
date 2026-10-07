@@ -7158,75 +7158,6 @@ td:first-child small { font-weight: 400; }
 }
 
 /* =====================================================
-   LOGIN RESPONSIVENESS FIX
-===================================================== */
-
-@media (max-width: 900px) {
-  .auth-page,
-  .login-page,
-  .auth-container {
-    width: 100%;
-    min-height: 100vh;
-  }
-
-  .auth-layout,
-  .login-container {
-    width: 100%;
-    min-height: 100vh;
-  }
-
-  .auth-left,
-  .auth-right,
-  .login-left,
-  .login-right {
-    width: 100%;
-    max-width: none;
-  }
-
-  .auth-right,
-  .login-right {
-    display: none;
-  }
-
-  .auth-card,
-  .login-card {
-    width: min(92%, 430px);
-    margin: 0 auto;
-  }
-}
-
-@media (max-width: 600px) {
-  .auth-card,
-  .login-card {
-    width: calc(100% - 32px);
-    min-width: 0;
-    margin: 16px auto;
-    padding: 28px 22px;
-  }
-
-  .auth-left,
-  .login-left {
-    padding: 16px;
-  }
-
-  .auth-card h1,
-  .login-card h1 {
-    font-size: 34px;
-    line-height: 1.1;
-  }
-
-  .auth-card input,
-  .login-card input {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .auth-card button,
-  .login-card button {
-    width: 100%;
-  }
-}
-/* =====================================================
    TEAMFLOW PROFILE — HISTORY + DEADLINE STYLES
    Paste this at the bottom of your Profile CSS file.
 ===================================================== */
@@ -7301,5 +7232,409 @@ td:first-child small { font-weight: 400; }
 @media (max-width: 700px) {
   .profile-history-title-row {
     flex-direction: column;
+  }
+}
+
+/* =========================================================
+   TEAMFLOW AUTH FORM — NEW UI
+   Login + Register
+========================================================= */
+
+.auth-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(20, 184, 166, 0.07),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 85% 80%,
+      rgba(20, 184, 166, 0.045),
+      transparent 30%
+    ),
+    var(--background);
+}
+
+
+/* =========================================================
+   TABLET / COMPACT DESKTOP
+========================================================= */
+
+@media (max-width: 1100px) {
+
+  .auth-page {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 28px 18px;
+    box-sizing: border-box;
+  }
+
+  /* Hide left branding */
+  .auth-brand {
+    display: none !important;
+  }
+
+  .auth-form-section {
+    width: 100%;
+    min-height: auto;
+
+    padding: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: transparent;
+  }
+
+  .auth-form-container {
+    width: min(100%, 560px);
+    max-width: 560px;
+
+    margin: 0 auto;
+
+    padding: 38px 42px 34px;
+
+    box-sizing: border-box;
+
+    background: rgba(17, 31, 50, 0.96);
+
+    border: 1px solid rgba(71, 98, 126, 0.48);
+
+    border-radius: 24px;
+
+    box-shadow:
+      0 24px 70px rgba(0, 0, 0, 0.28),
+      0 0 0 1px rgba(255, 255, 255, 0.015);
+  }
+
+
+  /* Logo */
+
+  .auth-mobile-logo {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 11px;
+
+    margin: 0 0 32px;
+  }
+
+  .auth-mobile-logo .auth-logo-icon {
+    width: 46px;
+    height: 46px;
+
+    border-radius: 13px;
+
+    font-size: 21px;
+
+    box-shadow:
+      0 9px 24px rgba(20, 184, 166, 0.20);
+  }
+
+  .auth-mobile-logo h2 {
+    margin: 0;
+
+    color: #f8fafc;
+
+    font-size: 23px;
+    font-weight: 750;
+
+    letter-spacing: -0.5px;
+  }
+
+  .auth-mobile-logo span {
+    margin-left: -4px;
+
+    color: #5eead4;
+
+    font-size: 11px;
+    font-weight: 800;
+
+    letter-spacing: 0.8px;
+  }
+
+
+  /* Heading */
+
+  .auth-heading {
+    margin-bottom: 27px;
+  }
+
+  .auth-heading > p {
+    margin: 0 0 8px;
+
+    font-size: 10px;
+
+    letter-spacing: 1.7px;
+  }
+
+  .auth-heading h1 {
+    margin: 0 0 8px;
+
+    font-size: 29px;
+
+    line-height: 1.15;
+
+    letter-spacing: -0.9px;
+  }
+
+  .auth-heading > span {
+    display: block;
+
+    font-size: 13px;
+
+    line-height: 1.55;
+  }
+
+
+  /* Inputs */
+
+  .auth-input-group {
+    margin-bottom: 17px;
+  }
+
+  .auth-input-group label,
+  .password-label label {
+    margin-bottom: 7px;
+
+    font-size: 12px;
+
+    font-weight: 700;
+  }
+
+  .auth-input-wrapper {
+    height: 46px;
+
+    border-radius: 10px;
+
+    padding: 0 13px;
+
+    background: rgba(7, 18, 33, 0.62);
+
+    border-color: #304762;
+  }
+
+  .auth-input-wrapper:hover {
+    border-color: #41607e;
+  }
+
+  .auth-input-wrapper:focus-within {
+    border-color: var(--primary);
+
+    box-shadow:
+      0 0 0 3px rgba(20, 184, 166, 0.10);
+  }
+
+  .auth-input-wrapper input {
+    font-size: 13px;
+  }
+
+  .auth-input-wrapper svg {
+    width: 17px;
+    height: 17px;
+  }
+
+
+  /* Button */
+
+  .auth-submit-button {
+    height: 47px;
+
+    margin-top: 3px;
+
+    border-radius: 10px;
+
+    font-size: 13px;
+
+    box-shadow:
+      0 8px 22px rgba(20, 184, 166, 0.15);
+  }
+
+
+  /* Bottom */
+
+  .auth-divider {
+    margin: 22px 0;
+  }
+
+  .auth-switch {
+    margin: 0;
+
+    font-size: 12px;
+  }
+
+  .auth-demo-note {
+    margin: 19px 0 0;
+  }
+}
+
+
+/* =========================================================
+   REGISTER — 2 COLUMN FORM
+========================================================= */
+
+@media (min-width: 701px) and (max-width: 1100px) {
+
+  .auth-form-container:has(form #name) {
+    width: min(100%, 680px);
+
+    max-width: 680px;
+  }
+
+  .auth-form-container:has(form #name) form {
+
+    display: grid;
+
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    column-gap: 16px;
+
+    align-items: start;
+  }
+
+  .auth-form-container:has(form #name)
+  form .auth-input-group {
+    min-width: 0;
+  }
+
+  .auth-form-container:has(form #name)
+  form .auth-input-group:nth-child(5),
+
+  .auth-form-container:has(form #name)
+  form .terms-checkbox,
+
+  .auth-form-container:has(form #name)
+  form .auth-submit-button {
+
+    grid-column: 1 / -1;
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+
+  .auth-page {
+
+    align-items: flex-start;
+
+    padding: 14px;
+  }
+
+  .auth-form-container {
+
+    width: 100%;
+
+    max-width: 500px;
+
+    padding: 28px 20px 25px;
+
+    border-radius: 20px;
+  }
+
+  .auth-mobile-logo {
+
+    margin-bottom: 27px;
+  }
+
+  .auth-mobile-logo .auth-logo-icon {
+
+    width: 42px;
+    height: 42px;
+  }
+
+  .auth-mobile-logo h2 {
+
+    font-size: 21px;
+  }
+
+  .auth-heading h1 {
+
+    font-size: 26px;
+  }
+
+  .auth-heading {
+
+    margin-bottom: 24px;
+  }
+
+  .auth-input-group {
+
+    margin-bottom: 15px;
+  }
+
+  .auth-form-container:has(form #name) form {
+
+    display: block;
+  }
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+========================================================= */
+
+@media (max-width: 400px) {
+
+  .auth-page {
+
+    padding: 8px;
+  }
+
+  .auth-form-container {
+
+    padding: 24px 16px 22px;
+
+    border-radius: 17px;
+  }
+
+  .auth-heading h1 {
+
+    font-size: 24px;
+  }
+}
+/* =========================================================
+   REGISTER DEPARTMENT SELECT
+========================================================= */
+
+.auth-input-wrapper select {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  appearance: auto;
+}
+
+.auth-input-wrapper select option {
+  background: #111f32;
+  color: #f8fafc;
+}
+
+.auth-input-wrapper select:invalid {
+  color: #94a3b8;
+}
+
+@media (max-width: 1100px) {
+  .auth-input-wrapper select {
+    font-size: 13px;
   }
 }
