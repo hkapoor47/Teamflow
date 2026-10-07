@@ -6,7 +6,7 @@ import {
   getCurrentUserId,
   normalizeStatus,
   formatDate,
-} from "./workspaceApi.js";
+} from "../../utils/workspaceApi.js";
 
 function Notifications() {
   const [tasks, setTasks] = useState([]);

@@ -2186,13 +2186,13 @@ function ProjectDetails() {
 
 
 
-                {/* <p>
+                <p>
 
                   Create work, assign members or leave
 
                   tasks open for team members to claim.
 
-                </p> */}
+                </p>
 
 
 
@@ -2200,16 +2200,14 @@ function ProjectDetails() {
 
 
 
-              {isProjectManager && (
-                <button
-                  type="button"
-                  className="create-project-button"
-                  onClick={() => setShowTaskModal(true)}
-                >
-                  <span>+</span>
-                  Create task
-                </button>
-              )}
+              <button
+                type="button"
+                className="create-project-button"
+                onClick={() => setShowTaskModal(true)}
+              >
+                <span>+</span>
+                Create task
+              </button>
 
 
 
@@ -2410,43 +2408,74 @@ function ProjectDetails() {
                                 task.name ||
                                 "Untitled task"}
                             </strong>
-{Number(
-  task.qa_failure_count ??
-    task.qaFailureCount ??
-    task.failure_count ??
-    0
-) > 0 && (
-  <div
-    style={{
-      marginTop: "6px",
-      display: "inline-flex",
-      alignItems: "center",
-      padding: "4px 9px",
-      borderRadius: "999px",
-      background: "rgba(239,68,68,.10)",
-      border: "1px solid rgba(239,68,68,.25)",
-      color: "#fca5a5",
-      fontSize: "11px",
-      fontWeight: 700,
-    }}
-  >
-    QA Failed{" "}
-    {Number(
-      task.qa_failure_count ??
-        task.qaFailureCount ??
-        task.failure_count ??
-        0
-    )}{" "}
-    {Number(
-      task.qa_failure_count ??
-        task.qaFailureCount ??
-        task.failure_count ??
-        0
-    ) === 1
-      ? "time"
-      : "times"}
-  </div>
-)}
+                            {Number(
+                              task.qa_failure_count ??
+                                task.qaFailureCount ??
+                                task.failure_count ??
+                                0
+                            ) > 0 && (
+                              <div
+                                style={{
+                                  marginTop: "6px",
+                                  display: "inline-flex",
+                                  padding: "4px 8px",
+                                  borderRadius: "999px",
+                                  background: "rgba(239,68,68,.10)",
+                                  border: "1px solid rgba(239,68,68,.25)",
+                                  color: "#fca5a5",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                QA Failed{" "}
+                                {Number(
+                                  task.qa_failure_count ??
+                                    task.qaFailureCount ??
+                                    task.failure_count ??
+                                    0
+                                )}{" "}
+                                {Number(
+                                  task.qa_failure_count ??
+                                    task.qaFailureCount ??
+                                    task.failure_count ??
+                                    0
+                                ) === 1
+                                  ? "time"
+                                  : "times"}
+                              </div>
+                            )}
+                            {Number(
+                              task.qa_failure_count ??
+                                task.qaFailureCount ??
+                                task.failure_count ??
+                                0
+                            ) > 0 && (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  marginTop: "6px",
+                                  padding: "4px 8px",
+                                  borderRadius: "999px",
+                                  background: "rgba(239,68,68,.10)",
+                                  border: "1px solid rgba(239,68,68,.25)",
+                                  color: "#fca5a5",
+                                  fontSize: "10px",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                QA failed {Number(
+                                  task.qa_failure_count ??
+                                    task.qaFailureCount ??
+                                    task.failure_count ??
+                                    0
+                                )} {Number(
+                                  task.qa_failure_count ??
+                                    task.qaFailureCount ??
+                                    task.failure_count ??
+                                    0
+                                ) === 1 ? "time" : "times"}
+                              </span>
+                            )}
 
 
 
@@ -3226,7 +3255,6 @@ function ProjectDetails() {
 
 
         {showTaskModal &&
-          isProjectManager &&
           createPortal(
             <div
               className="project-modal-overlay"

@@ -1,7 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import useUserProfile from "../context/useUserProfile.js";
+
+
+const DEPARTMENTS = [
+  "Web Development",
+  "Mobile Development",
+  "AI / Machine Learning",
+  "Data Science",
+  "DevOps / Cloud",
+  "Cyber Security",
+  "UI / UX Design",
+  "Finance",
+  "Marketing",
+  "Other",
+];
 
 
 const SUGGESTED_SKILLS = [
@@ -63,6 +77,30 @@ function getInitials(name) {
 }
 
 
+
+const API_BASE_URL = "http://65.0.11.153:5001/api";
+
+function getToken() {
+  return localStorage.getItem("token");
+}
+
+function getCurrentUserId() {
+  try {
+    const token = getToken();
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.userId ?? payload.id ?? payload.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function getDateValue(item) {
+  return item?.completed_at || item?.completedAt || item?.updated_at ||
+    item?.updatedAt || item?.created_at || item?.createdAt ||
+    item?.due_date || item?.deadline || null;
+}
+
 export default function Profile() {
   const {
     department,
@@ -83,12 +121,133 @@ export default function Profile() {
   const [skillActionLoading, setSkillActionLoading] =
     useState(false);
 
+  const [activityHistory, setActivityHistory] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+
+  const currentUserId = getCurrentUserId();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadActivity = async () => {
+      const token = getToken();
+      if (!token || currentUserId == null) {
+        if (mounted) setActivityLoading(false);
+        return;
+      }
+
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const [tasksResponse, projectsResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/all-tasks`, { headers }),
+          fetch(`${API_BASE_URL}/projects`, { headers }),
+        ]);
+
+        const tasksData = await tasksResponse.json();
+        const projectsData = await projectsResponse.json();
+
+        if (!tasksResponse.ok) throw new Error(tasksData?.message || "Failed to load tasks");
+        if (!projectsResponse.ok) throw new Error(projectsData?.message || "Failed to load projects");
+
+        const tasks = Array.isArray(tasksData?.tasks) ? tasksData.tasks : [];
+        const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : [];
+        const projectMap = new Map(projects.map((project) => [String(project.id), project]));
+
+        const taskActivity = tasks
+          .filter((task) => {
+            const assigned = task.assigned_to ?? task.assigneeId ?? task.assignee_id;
+            const claimed = task.claimed_by ?? task.claimedBy;
+            return String(assigned) === String(currentUserId) || String(claimed) === String(currentUserId);
+          })
+          .map((task) => {
+            const project = projectMap.get(String(task.project_id ?? task.projectId));
+            return {
+              id: `task-${task.id}`,
+              type: "Task",
+              title: task.title || task.name || "Untitled task",
+              projectName: task.project_name || task.projectName || project?.name || "TeamFlow Project",
+              status: task.status || task.task_status || "In progress",
+              date: getDateValue(task),
+              deadline: task.due_date || task.dueDate || task.deadline || null,
+            };
+          });
+
+        const projectActivity = projects
+          .filter((project) => String(project.created_by ?? project.createdBy ?? project.manager_id) === String(currentUserId))
+          .map((project) => ({
+            id: `project-${project.id}`,
+            type: "Project",
+            title: project.name || "Untitled project",
+            projectName: "Project created",
+            status: project.status || "Active",
+            date: getDateValue(project),
+            deadline: project.deadline || null,
+          }));
+
+        const providerActivity = Array.isArray(history)
+          ? history.map((item, index) => ({
+              id: `history-${item.id ?? index}`,
+              type: item.type || "Task",
+              title: item.title || item.taskTitle || item.name || "Work activity",
+              projectName: item.projectName || item.project_name || "TeamFlow Project",
+              status: item.status || "Completed",
+              date: getDateValue(item),
+              deadline: item.deadline || item.due_date || null,
+            }))
+          : [];
+
+        const merged = new Map();
+        [...providerActivity, ...taskActivity, ...projectActivity].forEach((item) => {
+          const key = `${item.type}-${item.title}-${item.projectName}`.toLowerCase();
+          merged.set(key, item);
+        });
+
+        const sorted = [...merged.values()].sort((a, b) => {
+          const ad = a.date ? new Date(a.date).getTime() : 0;
+          const bd = b.date ? new Date(b.date).getTime() : 0;
+          return bd - ad;
+        });
+
+        if (mounted) setActivityHistory(sorted);
+      } catch (error) {
+        console.error("Profile activity history error:", error);
+        if (mounted) setActivityHistory(Array.isArray(history) ? history : []);
+      } finally {
+        if (mounted) setActivityLoading(false);
+      }
+    };
+
+    loadActivity();
+    return () => { mounted = false; };
+  }, [currentUserId]);
+
 
   const userName =
     getUserName();
 
   const initials =
     getInitials(userName);
+
+
+  /* =====================================================
+     DEPARTMENT FROM REGISTRATION
+  ===================================================== */
+
+  const registeredDepartment = (() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+
+      if (!storedUser) {
+        return department || "";
+      }
+
+      const user = JSON.parse(storedUser);
+
+      return user?.department || department || "";
+    } catch {
+      return department || "";
+    }
+  })();
 
 
   /* =====================================================
@@ -209,7 +368,7 @@ export default function Profile() {
             </h2>
 
             <p>
-              {department ||
+              {registeredDepartment ||
                 "Department not selected"}
             </p>
 
@@ -267,7 +426,7 @@ export default function Profile() {
             </span>
 
             <strong>
-              {department
+              {registeredDepartment
                 ? "Set"
                 : "Not Set"}
             </strong>
@@ -282,10 +441,7 @@ export default function Profile() {
             MAIN CONTENT
         ================================================= */}
 
-        <div
-          className="profile-content-grid"
-          style={{ alignItems: "start" }}
-        >
+        <div className="profile-content-grid">
 
 
           {/* =================================================
@@ -312,8 +468,17 @@ export default function Profile() {
               </div>
 
 
-              <div className="profile-department-display">
-                {department || "Department not set"}
+              <div
+                className="profile-select"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  minHeight: "48px",
+                  cursor: "default",
+                }}
+              >
+                {registeredDepartment ||
+                  "Department not set"}
               </div>
 
             </section>
@@ -534,102 +699,65 @@ export default function Profile() {
 
               <div className="profile-section-header">
 
-                <h2>
-                  Work History
-                </h2>
+                <h2>Work History</h2>
 
                 <p>
-                  Your previous project
-                  and task activity will
-                  be maintained here for
-                  future recommendations.
+                  Tasks and projects this team member has worked on, newest first.
                 </p>
 
               </div>
 
-
-              {history.length === 0 ? (
-
+              {activityLoading ? (
                 <div className="profile-empty-history">
-
-                  <div className="profile-empty-icon">
-                    ◷
-                  </div>
-
-                  <h3>
-                    No work history yet
-                  </h3>
-
-                  <p>
-                    As you claim,
-                    complete and work
-                    on tasks, TeamFlow
-                    will build your
-                    professional history
-                    here.
-                  </p>
-
+                  <h3>Loading work history...</h3>
                 </div>
-
+              ) : activityHistory.length === 0 ? (
+                <div className="profile-empty-history">
+                  <div className="profile-empty-icon">◷</div>
+                  <h3>No work history yet</h3>
+                  <p>Tasks and projects will appear here as work is assigned or completed.</p>
+                </div>
               ) : (
-
-                <div className="profile-history-list">
-
-                  {history.map(
-                    (item, index) => (
-
-                      <div
-                        className="profile-history-item"
-                        key={
-                          item.id ||
-                          index
-                        }
-                      >
-
-                        <div className="profile-history-marker" />
-
-
-                        <div>
-
-                          <h3>
-                            {item.title ||
-                              item.taskTitle ||
-                              item.task_title ||
-                              item.name ||
-                              "Task activity"}
+                <div
+                  className="profile-history-list"
+                  style={{
+                    maxHeight: "430px",
+                    overflowY: "auto",
+                    paddingRight: "8px",
+                  }}
+                >
+                  {activityHistory.map((item, index) => (
+                    <div
+                      className="profile-history-item"
+                      key={item.id || index}
+                      style={{ marginBottom: "10px" }}
+                    >
+                      <div className="profile-history-marker" />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: "flex", gap: "7px", alignItems: "center", flexWrap: "wrap" }}>
+                          <h3 style={{ marginBottom: 0 }}>
+                            {item.title || "Work activity"}
                           </h3>
-
-                          <p>
-                            {item.projectName ||
-                              item.project_name ||
-                              item.projectTitle ||
-                              "TeamFlow Project"}
-                          </p>
-
-                          <small>
-                            {item.status ||
-                              item.event ||
-                              item.action ||
-                              "Completed"}
-                          </small>
-
+                          <span className="profile-history-type">{item.type || "Task"}</span>
                         </div>
-
+                        <p>{item.projectName || "TeamFlow Project"}</p>
+                        <small>
+                          {item.status || "Completed"}
+                          {item.date ? ` • ${new Date(item.date).toLocaleDateString("en-IN")}` : ""}
+                          {item.deadline ? ` • Deadline: ${new Date(item.deadline).toLocaleDateString("en-IN")}` : ""}
+                        </small>
                       </div>
-
-                    )
-                  )}
-
+                    </div>
+                  ))}
                 </div>
-
               )}
 
             </section>
-
-
           </div>
 
         </div>
+
+
 
 
       </div>

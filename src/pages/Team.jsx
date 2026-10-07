@@ -1,261 +1,164 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
+import { apiGet, getArray, getCurrentUserId } from "../../utils/workspaceApi.js";
 
-const API_BASE_URL = "http://65.0.11.153:5001/api";
+function getId(user) {
+  return user?.id ?? user?.user_id ?? user?._id;
+}
 
-function readLoggedInUser() {
-  try {
-    const raw = localStorage.getItem("user");
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+function getName(user) {
+  return user?.name || user?.username || user?.full_name || user?.email || "Unnamed user";
+}
+
+function getDepartment(user) {
+  return String(user?.department || "").trim();
+}
+
+function initials(name) {
+  return String(name || "U")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 function Team() {
   const [users, setUsers] = useState([]);
-  const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [openTeam, setOpenTeam] = useState(null);
 
-  const currentUser = readLoggedInUser();
+  const userId = getCurrentUserId();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    let mounted = true;
 
-    if (!token) {
-      setError("Authentication required. Please login again.");
-      setLoading(false);
-      return;
-    }
-
-    fetch(`${API_BASE_URL}/auth/users`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (response) => {
-        const text = await response.text();
-        let data = {};
-        try {
-          data = text ? JSON.parse(text) : {};
-        } catch {
-          throw new Error("Invalid users API response.");
-        }
-
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to load team members.");
-        }
-
-        return data;
-      })
+    apiGet("/auth/users")
       .then((data) => {
-        const list =
-          data.users ||
-          data.data ||
-          (Array.isArray(data) ? data : []);
-
-        setUsers(Array.isArray(list) ? list : []);
+        if (mounted) setUsers(getArray(data, ["users", "data"]));
       })
       .catch((err) => {
-        console.error("Team load error:", err);
-        setError(err.message || "Failed to load team members.");
+        console.error("Load teams error:", err);
+        if (mounted) setError(err.message || "Failed to load teams.");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => { mounted = false; };
   }, []);
 
-  const currentDepartment =
-    currentUser?.department ||
-    currentUser?.department_name ||
-    "";
+  const currentUser = useMemo(
+    () => users.find((user) => String(getId(user)) === String(userId)),
+    [users, userId]
+  );
 
-  const departments = useMemo(() => {
-    const names = users
-      .map(
-        (user) =>
-          user.department ||
-          user.department_name ||
-          "Other"
-      )
-      .filter(Boolean);
+  const currentDepartment = getDepartment(currentUser);
 
-    return [...new Set(names)].sort();
-  }, [users]);
+  // In the current backend, departments are the available team grouping.
+  // We therefore present each department as a team instead of inventing
+  // "Other" / "Department not available" pseudo-teams.
+  const teams = useMemo(() => {
+    const groups = new Map();
 
-  const myTeam = useMemo(() => {
-    if (!currentDepartment) return [];
+    users.forEach((user) => {
+      const department = getDepartment(user);
+      if (!department) return;
 
-    return users.filter((user) => {
-      const department =
-        user.department ||
-        user.department_name ||
-        "Other";
-
-      return (
-        String(department).toLowerCase() ===
-        String(currentDepartment).toLowerCase()
-      );
+      if (!groups.has(department)) groups.set(department, []);
+      groups.get(department).push(user);
     });
+
+    return [...groups.entries()]
+      .map(([name, members]) => ({ name, members }))
+      .sort((a, b) => {
+        if (a.name === currentDepartment) return -1;
+        if (b.name === currentDepartment) return 1;
+        return a.name.localeCompare(b.name);
+      });
   }, [users, currentDepartment]);
-
-  const selectedMembers = useMemo(() => {
-    if (!selectedDepartment) return [];
-    return users.filter((user) => {
-      const department =
-        user.department ||
-        user.department_name ||
-        "Other";
-
-      return (
-        String(department).toLowerCase() ===
-        String(selectedDepartment).toLowerCase()
-      );
-    });
-  }, [users, selectedDepartment]);
-
-  const memberCard = (member) => {
-    const name =
-      member.name ||
-      member.full_name ||
-      member.username ||
-      member.email ||
-      "Unnamed user";
-
-    const department =
-      member.department ||
-      member.department_name ||
-      "Other";
-
-    return (
-      <article className="team-member-card" key={member.id || member.email || name}>
-        <div className="team-avatar">
-          {name.slice(0, 1).toUpperCase()}
-        </div>
-        <div>
-          <strong>{name}</strong>
-          <p>{member.email || "No email"}</p>
-          <span>{department}</span>
-        </div>
-      </article>
-    );
-  };
 
   return (
     <DashboardLayout>
-      <div className="teamflow-page workspace-page">
+      <div className="teamflow-page workspace-page teams-page">
         <section className="teamflow-heading">
           <p className="welcome-label">PEOPLE</p>
           <h2>Your teams.</h2>
           <p className="welcome-description">
-            See your department first, then open any team to view its members.
+            Your team is shown first. Select any team to see its members.
           </p>
         </section>
 
         {error && <div className="workspace-alert">{error}</div>}
 
-        <section className="team-section">
-          <div className="team-section-heading">
-            <div>
-              <p className="welcome-label">MY TEAM</p>
-              <h3>
-                {currentDepartment || "Department not available"}
-              </h3>
-              <p>
-                {myTeam.length} member{myTeam.length === 1 ? "" : "s"} in your
-                department.
-              </p>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="workspace-empty">Loading your team...</div>
-          ) : myTeam.length === 0 ? (
-            <div className="workspace-empty">
-              <strong>No team members found.</strong>
-              <p>
-                Your registration department must be returned by the users API.
-              </p>
-            </div>
-          ) : (
-            <div className="team-grid">
-              {myTeam.map(memberCard)}
-            </div>
-          )}
-        </section>
-
-        <section className="team-section">
-          <div className="team-section-heading">
-            <div>
-              <p className="welcome-label">ALL TEAMS</p>
-              <h3>Departments</h3>
-              <p>Click a department to see members only.</p>
-            </div>
-          </div>
-
-          {loading ? (
+        {loading ? (
+          <section className="workspace-panel">
             <div className="workspace-empty">Loading teams...</div>
-          ) : departments.length === 0 ? (
-            <div className="workspace-empty">No departments found.</div>
-          ) : (
-            <div className="team-department-grid">
-              {departments.map((department) => {
-                const count = users.filter((user) => {
-                  const value =
-                    user.department ||
-                    user.department_name ||
-                    "Other";
-                  return (
-                    String(value).toLowerCase() ===
-                    String(department).toLowerCase()
-                  );
-                }).length;
+          </section>
+        ) : teams.length === 0 ? (
+          <section className="workspace-panel">
+            <div className="workspace-empty">
+              <strong>No teams found</strong>
+              <p>Users with a registered department will appear here.</p>
+            </div>
+          </section>
+        ) : (
+          <section className="team-directory">
+            {teams.map((team, index) => {
+              const isMine = team.name === currentDepartment;
+              const isOpen = openTeam === team.name;
 
-                return (
+              return (
+                <article
+                  className={`team-directory-card ${isMine ? "my-team" : ""} ${isOpen ? "is-open" : ""}`}
+                  key={team.name}
+                >
                   <button
                     type="button"
-                    className="team-department-card"
-                    key={department}
-                    onClick={() => setSelectedDepartment(department)}
+                    className="team-directory-header"
+                    onClick={() => setOpenTeam(isOpen ? null : team.name)}
+                    aria-expanded={isOpen}
                   >
-                    <div>
-                      <span className="team-department-label">
-                        DEPARTMENT
-                      </span>
-                      <h3>{department}</h3>
-                      <p>{count} member{count === 1 ? "" : "s"}</p>
+                    <div className="team-directory-title">
+                      <div className="team-directory-icon">
+                        {initials(team.name)}
+                      </div>
+                      <div>
+                        <div className="team-directory-kicker">
+                          {isMine ? "YOUR TEAM" : `TEAM ${index + 1}`}
+                        </div>
+                        <h3>{team.name}</h3>
+                        <p>{team.members.length} member{team.members.length === 1 ? "" : "s"}</p>
+                      </div>
                     </div>
-                    <span className="team-arrow">→</span>
+                    <span className="team-directory-arrow">{isOpen ? "−" : "+"}</span>
                   </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
 
-        {selectedDepartment && (
-          <section className="team-section">
-            <div className="team-section-heading">
-              <div>
-                <p className="welcome-label">TEAM MEMBERS</p>
-                <h3>{selectedDepartment}</h3>
-                <p>Members only — no tasks or project details.</p>
-              </div>
-              <button
-                type="button"
-                className="team-close-button"
-                onClick={() => setSelectedDepartment(null)}
-              >
-                Close
-              </button>
-            </div>
+                  {isOpen && (
+                    <div className="team-members-panel">
+                      {team.members.map((member) => {
+                        const memberId = getId(member);
+                        const isCurrent = String(memberId) === String(userId);
+                        const name = getName(member);
 
-            {selectedMembers.length === 0 ? (
-              <div className="workspace-empty">
-                No members found for this department.
-              </div>
-            ) : (
-              <div className="team-grid">
-                {selectedMembers.map(memberCard)}
-              </div>
-            )}
+                        return (
+                          <div className={`team-compact-member ${isCurrent ? "current-member" : ""}`} key={memberId}>
+                            <div className="team-avatar">{initials(name)}</div>
+                            <div className="team-member-main">
+                              <strong>{name}</strong>
+                              <span>{member.email || "No email"}</span>
+                            </div>
+                            {isCurrent && <em>You</em>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </section>
         )}
       </div>

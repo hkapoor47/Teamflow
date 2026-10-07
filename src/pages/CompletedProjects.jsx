@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
-import { apiGet, getArray, getCurrentUserId, normalizeStatus, formatDate } from "./workspaceApi.js";
+import { apiGet, getArray, getCurrentUserId, normalizeStatus, formatDate } from "../../utils/workspaceApi.js";
 
 function Completed() {
   const [projects, setProjects] = useState([]);
