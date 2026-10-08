@@ -8,7 +8,7 @@ import {
   getArray,
   normalizeStatus,
   formatDate,
-} from "../../utils/workspaceApi.js";
+} from "./workspaceApi.js";
 
 const CLOSED = ["COMPLETED", "COMPLETE", "DONE", "CLOSED", "RESOLVED"];
 

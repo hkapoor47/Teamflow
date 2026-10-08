@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
-import { apiGet, getArray, getCurrentUserId } from "../../utils/workspaceApi.js";
+import { apiGet, getArray, getCurrentUserId } from "./workspaceApi.js";
 
 function getId(user) {
   return user?.id ?? user?.user_id ?? user?._id;
@@ -37,10 +37,30 @@ function Team() {
 
     apiGet("/auth/users")
       .then((data) => {
-        if (mounted) setUsers(getArray(data, ["users", "data"]));
+        let list = getArray(data, ["users", "data"]);
+
+        // If the user-list endpoint does not return the logged-in user,
+        // still show the user's registered department as their team.
+        try {
+          const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+          const storedId = getId(storedUser);
+          if (storedUser && !list.some((item) => String(getId(item)) === String(storedId))) {
+            list = [...list, storedUser];
+          }
+        } catch {}
+
+        if (mounted) setUsers(list);
       })
       .catch((err) => {
         console.error("Load teams error:", err);
+        try {
+          const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+          if (mounted && storedUser) {
+            setUsers([storedUser]);
+            setError("");
+            return;
+          }
+        } catch {}
         if (mounted) setError(err.message || "Failed to load teams.");
       })
       .finally(() => {
@@ -55,7 +75,14 @@ function Team() {
     [users, userId]
   );
 
-  const currentDepartment = getDepartment(currentUser);
+  const currentDepartment = getDepartment(currentUser) || (() => {
+    try {
+      const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+      return getDepartment(storedUser);
+    } catch {
+      return "";
+    }
+  })();
 
   // In the current backend, departments are the available team grouping.
   // We therefore present each department as a team instead of inventing
