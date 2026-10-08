@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import useUserProfile from "../context/useUserProfile.js";
@@ -77,30 +77,6 @@ function getInitials(name) {
 }
 
 
-
-const API_BASE_URL = "http://65.0.11.153:5001/api";
-
-function getToken() {
-  return localStorage.getItem("token");
-}
-
-function getCurrentUserId() {
-  try {
-    const token = getToken();
-    if (!token) return null;
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.userId ?? payload.id ?? payload.sub ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function getDateValue(item) {
-  return item?.completed_at || item?.completedAt || item?.updated_at ||
-    item?.updatedAt || item?.created_at || item?.createdAt ||
-    item?.due_date || item?.deadline || null;
-}
-
 export default function Profile() {
   const {
     department,
@@ -120,106 +96,6 @@ export default function Profile() {
 
   const [skillActionLoading, setSkillActionLoading] =
     useState(false);
-
-  const [activityHistory, setActivityHistory] = useState([]);
-  const [activityLoading, setActivityLoading] = useState(true);
-
-  const currentUserId = getCurrentUserId();
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadActivity = async () => {
-      const token = getToken();
-      if (!token || currentUserId == null) {
-        if (mounted) setActivityLoading(false);
-        return;
-      }
-
-      try {
-        const headers = { Authorization: `Bearer ${token}` };
-        const [tasksResponse, projectsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/all-tasks`, { headers }),
-          fetch(`${API_BASE_URL}/projects`, { headers }),
-        ]);
-
-        const tasksData = await tasksResponse.json();
-        const projectsData = await projectsResponse.json();
-
-        if (!tasksResponse.ok) throw new Error(tasksData?.message || "Failed to load tasks");
-        if (!projectsResponse.ok) throw new Error(projectsData?.message || "Failed to load projects");
-
-        const tasks = Array.isArray(tasksData?.tasks) ? tasksData.tasks : [];
-        const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : [];
-        const projectMap = new Map(projects.map((project) => [String(project.id), project]));
-
-        const taskActivity = tasks
-          .filter((task) => {
-            const assigned = task.assigned_to ?? task.assigneeId ?? task.assignee_id;
-            const claimed = task.claimed_by ?? task.claimedBy;
-            return String(assigned) === String(currentUserId) || String(claimed) === String(currentUserId);
-          })
-          .map((task) => {
-            const project = projectMap.get(String(task.project_id ?? task.projectId));
-            return {
-              id: `task-${task.id}`,
-              type: "Task",
-              title: task.title || task.name || "Untitled task",
-              projectName: task.project_name || task.projectName || project?.name || "TeamFlow Project",
-              status: task.status || task.task_status || "In progress",
-              date: getDateValue(task),
-              deadline: task.due_date || task.dueDate || task.deadline || null,
-            };
-          });
-
-        const projectActivity = projects
-          .filter((project) => String(project.created_by ?? project.createdBy ?? project.manager_id) === String(currentUserId))
-          .map((project) => ({
-            id: `project-${project.id}`,
-            type: "Project",
-            title: project.name || "Untitled project",
-            projectName: "Project created",
-            status: project.status || "Active",
-            date: getDateValue(project),
-            deadline: project.deadline || null,
-          }));
-
-        const providerActivity = Array.isArray(history)
-          ? history.map((item, index) => ({
-              id: `history-${item.id ?? index}`,
-              type: item.type || "Task",
-              title: item.title || item.taskTitle || item.name || "Work activity",
-              projectName: item.projectName || item.project_name || "TeamFlow Project",
-              status: item.status || "Completed",
-              date: getDateValue(item),
-              deadline: item.deadline || item.due_date || null,
-            }))
-          : [];
-
-        const merged = new Map();
-        [...providerActivity, ...taskActivity, ...projectActivity].forEach((item) => {
-          const key = `${item.type}-${item.title}-${item.projectName}`.toLowerCase();
-          merged.set(key, item);
-        });
-
-        const sorted = [...merged.values()].sort((a, b) => {
-          const ad = a.date ? new Date(a.date).getTime() : 0;
-          const bd = b.date ? new Date(b.date).getTime() : 0;
-          return bd - ad;
-        });
-
-        if (mounted) setActivityHistory(sorted);
-      } catch (error) {
-        console.error("Profile activity history error:", error);
-        if (mounted) setActivityHistory(Array.isArray(history) ? history : []);
-      } finally {
-        if (mounted) setActivityLoading(false);
-      }
-    };
-
-    loadActivity();
-    return () => { mounted = false; };
-  }, [currentUserId]);
 
 
   const userName =
@@ -469,12 +345,18 @@ export default function Profile() {
 
 
               <div
-                className="profile-select"
                 style={{
                   display: "flex",
                   alignItems: "center",
                   minHeight: "48px",
+                  padding: "0 16px",
+                  border: "1px solid rgba(148, 163, 184, 0.18)",
+                  borderRadius: "10px",
+                  background: "rgba(15, 23, 42, 0.55)",
+                  color: "#e2e8f0",
                   cursor: "default",
+                  boxSizing: "border-box",
+                  width: "100%",
                 }}
               >
                 {registeredDepartment ||
@@ -592,7 +474,7 @@ export default function Profile() {
 
                           <div
                             className="profile-tag"
-                            key={skill.id}
+                            key={skill?.id ?? skill?._id ?? skill?.skill_id ?? String(skill)}
                           >
 
                             <span>
@@ -606,13 +488,13 @@ export default function Profile() {
                               type="button"
                               onClick={() =>
                                 handleRemoveSkill(
-                                  skill.id
+                                  skill?.id ?? skill?._id ?? skill?.skill_id
                                 )
                               }
                               disabled={
                                 skillActionLoading
                               }
-                              aria-label={`Remove ${skill.skill_name}`}
+                              aria-label={`Remove ${skill?.skill_name || skill?.name || skill?.skill || (typeof skill === "string" ? skill : "Skill")}`}
                             >
                               ×
                             </button>
@@ -634,7 +516,7 @@ export default function Profile() {
                   <div className="profile-suggestions">
 
                     <span>
-                      Suggested:
+                      Quick add:
                     </span>
 
 
@@ -644,8 +526,8 @@ export default function Profile() {
                           !skills.some(
                             (skill) =>
                               String(
-                                skill?.skill_name ||
-                                  ""
+                                skill?.skill_name || skill?.name || skill?.skill ||
+                                  (typeof skill === "string" ? skill : "")
                               )
                                 .toLowerCase() ===
                               suggestedSkill.toLowerCase()
@@ -695,71 +577,105 @@ export default function Profile() {
                 WORK HISTORY
             ============================================= */}
 
-            <section className="profile-section">
+            <section
+              className="profile-section"
+              style={{
+                minHeight: "395px",
+                boxSizing: "border-box",
+              }}
+            >
 
               <div className="profile-section-header">
 
-                <h2>Work History</h2>
+                <h2>
+                  Work History
+                </h2>
 
                 <p>
-                  Tasks and projects this team member has worked on, newest first.
+                  Your previous project
+                  and task activity will
+                  be maintained here for
+                  future recommendations.
                 </p>
 
               </div>
 
-              {activityLoading ? (
+
+              {history.length === 0 ? (
+
                 <div className="profile-empty-history">
-                  <h3>Loading work history...</h3>
+
+                  <div className="profile-empty-icon">
+                    ◷
+                  </div>
+
+                  <h3>
+                    No work history yet
+                  </h3>
+
+                  <p>
+                    As you claim,
+                    complete and work
+                    on tasks, TeamFlow
+                    will build your
+                    professional history
+                    here.
+                  </p>
+
                 </div>
-              ) : activityHistory.length === 0 ? (
-                <div className="profile-empty-history">
-                  <div className="profile-empty-icon">◷</div>
-                  <h3>No work history yet</h3>
-                  <p>Tasks and projects will appear here as work is assigned or completed.</p>
-                </div>
+
               ) : (
-                <div
-                  className="profile-history-list"
-                  style={{
-                    maxHeight: "430px",
-                    overflowY: "auto",
-                    paddingRight: "8px",
-                  }}
-                >
-                  {activityHistory.map((item, index) => (
-                    <div
-                      className="profile-history-item"
-                      key={item.id || index}
-                      style={{ marginBottom: "10px" }}
-                    >
-                      <div className="profile-history-marker" />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: "flex", gap: "7px", alignItems: "center", flexWrap: "wrap" }}>
-                          <h3 style={{ marginBottom: 0 }}>
-                            {item.title || "Work activity"}
+
+                <div className="profile-history-list">
+
+                  {history.map(
+                    (item, index) => (
+
+                      <div
+                        className="profile-history-item"
+                        key={
+                          item.id ||
+                          index
+                        }
+                      >
+
+                        <div className="profile-history-marker" />
+
+
+                        <div>
+
+                          <h3>
+                            {item.title ||
+                              item.taskTitle ||
+                              "Task activity"}
                           </h3>
-                          <span className="profile-history-type">{item.type || "Task"}</span>
+
+                          <p>
+                            {item.projectName ||
+                              "TeamFlow Project"}
+                          </p>
+
+                          <small>
+                            {item.status ||
+                              "Completed"}
+                          </small>
+
                         </div>
-                        <p>{item.projectName || "TeamFlow Project"}</p>
-                        <small>
-                          {item.status || "Completed"}
-                          {item.date ? ` • ${new Date(item.date).toLocaleDateString("en-IN")}` : ""}
-                          {item.deadline ? ` • Deadline: ${new Date(item.deadline).toLocaleDateString("en-IN")}` : ""}
-                        </small>
+
                       </div>
-                    </div>
-                  ))}
+
+                    )
+                  )}
+
                 </div>
+
               )}
 
             </section>
+       
           </div>
 
         </div>
-
-
-
-
       </div>
 
     </DashboardLayout>

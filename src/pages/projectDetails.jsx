@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useNavigate, useParams } from "react-router-dom";
@@ -55,6 +55,7 @@ function ProjectDetails() {
   const [aiRecommendations, setAiRecommendations] = useState([]);
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const [aiRecommendationError, setAiRecommendationError] = useState("");
+  const aiRecommendationDebounceRef = useRef(null);
 
   // Same userId that the backend gets from the JWT.
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -645,6 +646,10 @@ function ProjectDetails() {
     setAiRecommendations([]);
     setAiRecommendationError("");
     setAiRecommendationLoading(false);
+    if (aiRecommendationDebounceRef.current) {
+      clearTimeout(aiRecommendationDebounceRef.current);
+      aiRecommendationDebounceRef.current = null;
+    }
 
   };
 
@@ -659,21 +664,103 @@ function ProjectDetails() {
   ===================================================== */
 
   const getAiRecommendations = async () => {
-    if (!backendProjectId) {
-      alert("Backend project ID could not be found. Please refresh the page.");
+    if (!backendProjectId || !taskTitle.trim()) {
+      setAiRecommendations([]);
       return;
     }
 
-    if (!taskTitle.trim()) {
-      alert("Enter the task name first so AI can recommend the right person.");
-      return;
-    }
+    const title = taskTitle.trim();
+    const normalize = (value) =>
+      String(value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9+#.]+/g, " ")
+        .split(/\\s+/)
+        .filter(Boolean);
+
+    const taskWords = [...new Set(normalize(title))];
+
+    const buildLocalRecommendations = () => {
+      const scoreMember = (member) => {
+        const memberId = member?.id;
+        const skillValues = [
+          ...(Array.isArray(member?.skills) ? member.skills : []),
+          ...(Array.isArray(member?.skillNames) ? member.skillNames : []),
+          ...(Array.isArray(member?.skill_names) ? member.skill_names : []),
+        ];
+
+        const skillsText = skillValues
+          .map((skill) =>
+            typeof skill === "object"
+              ? skill?.skill_name || skill?.name || ""
+              : skill
+          )
+          .join(" ");
+
+        const memberHistory = projectTasks.filter(
+          (task) =>
+            Number(task?.assigned_to ?? task?.assigneeId ?? task?.assignee_id) === Number(memberId) ||
+            Number(task?.claimed_by ?? task?.claimedBy) === Number(memberId)
+        );
+
+        const historyText = memberHistory
+          .map((task) => task?.title || task?.name || "")
+          .join(" ");
+
+        const skillsLower = skillsText.toLowerCase();
+        const historyLower = historyText.toLowerCase();
+
+        const matchedWords = taskWords.filter((word) =>
+          `${skillsLower} ${historyLower}`.includes(word)
+        );
+        const exactSkillMatches = taskWords.filter((word) =>
+          skillsLower.includes(word)
+        );
+        const historyMatches = taskWords.filter((word) =>
+          historyLower.includes(word)
+        );
+
+        const score = Math.min(
+          98,
+          25 +
+            exactSkillMatches.length * 18 +
+            historyMatches.length * 14 +
+            matchedWords.length * 5 +
+            (memberHistory.length ? 5 : 0)
+        );
+
+        const reasons = [];
+        if (exactSkillMatches.length) {
+          reasons.push(`Skill match: ${exactSkillMatches.slice(0, 3).join(", ")}`);
+        }
+        if (historyMatches.length) {
+          reasons.push("Similar previous work");
+        }
+        if (!reasons.length) reasons.push("Available team member");
+
+        return {
+          employeeId: Number(memberId),
+          name: member?.name || member?.username || `User ${memberId}`,
+          recommendationScore: score,
+          successProbability: score,
+          prediction: score >= 70 ? "HIGH" : score >= 45 ? "MEDIUM" : "LOW",
+          reasons,
+          source: "local",
+        };
+      };
+
+      return members
+        .filter((member) => member?.id != null)
+        .map(scoreMember)
+        .sort((a, b) => b.recommendationScore - a.recommendationScore)
+        .slice(0, 5);
+    };
 
     try {
       const token = localStorage.getItem("token");
 
       if (!token) {
-        alert("Authentication required. Please login again.");
+        setAiRecommendations(buildLocalRecommendations());
+        setAiRecommendationError("");
         return;
       }
 
@@ -682,35 +769,35 @@ function ProjectDetails() {
 
       const query = new URLSearchParams({
         projectId: String(backendProjectId),
-        title: taskTitle.trim(),
+        title,
       });
 
       const response = await fetch(
         `${API_BASE_URL}/recommendations/preview?${query.toString()}`,
         {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       const responseText = await response.text();
-
       let data = {};
       try {
         data = responseText ? JSON.parse(responseText) : {};
-      } catch (parseError) {
-        console.error("AI recommendation returned non-JSON:", responseText);
-        throw new Error(
-          `Recommendation API returned an invalid response (${response.status}).`
-        );
-      }
-
-      console.log("AI RECOMMENDATION STATUS:", response.status);
-      console.log("AI RECOMMENDATION RESPONSE:", data);
+      } catch (_) {}
 
       if (!response.ok) {
+        if (response.status === 404 || response.status === 502) {
+          const fallback = buildLocalRecommendations();
+          setAiRecommendations(fallback);
+          setAiRecommendationError(
+            fallback.length
+              ? ""
+              : "No related team member found yet. Add skills to member profiles for better matching."
+          );
+          return;
+        }
+
         throw new Error(
           data.message ||
             data.error ||
@@ -718,8 +805,6 @@ function ProjectDetails() {
         );
       }
 
-      // Support the normal backend shape { recommendations: [] } as well as
-      // wrapped responses such as { data: { recommendations: [] } }.
       const recommendations =
         (Array.isArray(data.recommendations) && data.recommendations) ||
         (Array.isArray(data.data?.recommendations) && data.data.recommendations) ||
@@ -727,21 +812,27 @@ function ProjectDetails() {
         (Array.isArray(data) && data) ||
         [];
 
-      console.log("AI RECOMMENDATIONS PARSED:", recommendations);
-      setAiRecommendations(recommendations);
-
-      if (!recommendations.length) {
-        setAiRecommendationError(
-          data.message ||
-            "The AI service returned no recommendations for this task."
-        );
+      if (recommendations.length) {
+        setAiRecommendations(recommendations.slice(0, 5));
+        return;
       }
+
+      const fallback = buildLocalRecommendations();
+      setAiRecommendations(fallback);
+      setAiRecommendationError(
+        fallback.length
+          ? ""
+          : "No related team member found yet. Add skills/history for better matching."
+      );
     } catch (error) {
       console.error("AI recommendation error:", error);
+      const fallback = buildLocalRecommendations();
+      setAiRecommendations(fallback);
       setAiRecommendationError(
-        error.message || "Failed to generate AI recommendations."
+        fallback.length
+          ? ""
+          : "Could not find a related team member. Add skills/history for better recommendations."
       );
-      setAiRecommendations([]);
     } finally {
       setAiRecommendationLoading(false);
     }
@@ -3255,6 +3346,7 @@ function ProjectDetails() {
 
 
         {showTaskModal &&
+          isProjectManager &&
           createPortal(
             <div
               className="project-modal-overlay"
@@ -3386,9 +3478,20 @@ function ProjectDetails() {
                       value={taskTitle}
 
                       onChange={(event) => {
-                        setTaskTitle(event.target.value);
+                        const value = event.target.value;
+                        setTaskTitle(value);
                         setAiRecommendations([]);
                         setAiRecommendationError("");
+
+                        if (aiRecommendationDebounceRef.current) {
+                          clearTimeout(aiRecommendationDebounceRef.current);
+                        }
+
+                        if (value.trim()) {
+                          aiRecommendationDebounceRef.current = setTimeout(() => {
+                            getAiRecommendations();
+                          }, 550);
+                        }
                       }}
 
                       placeholder="e.g. Build login page"
@@ -3464,7 +3567,7 @@ function ProjectDetails() {
                         lineHeight: 1.5,
                       }}
                     >
-                      AI uses skills, previous work, workload, deadlines and QA history to suggest the best fit.
+                      Type the task name and recommendations update automatically using skills, similar work, workload, deadlines and QA history.
                     </p>
 
                     {aiRecommendationError && (
@@ -3500,7 +3603,7 @@ function ProjectDetails() {
                             letterSpacing: ".06em",
                           }}
                         >
-                          AI SUGGESTED TEAM MEMBERS
+                          BEST MATCHES FOR THIS TASK
                         </div>
 
                         {aiRecommendations.slice(0, 5).map((recommendation, index) => {
@@ -3584,6 +3687,18 @@ function ProjectDetails() {
                                   }}
                                 >
                                   {recommendation.reasons.slice(0, 2).join(" • ")}
+                                </div>
+                              )}
+
+                              {recommendation.source === "local" && (
+                                <div
+                                  style={{
+                                    marginTop: "5px",
+                                    color: "#64748b",
+                                    fontSize: "10px",
+                                  }}
+                                >
+                                  Related match from current skills/work history
                                 </div>
                               )}
                             </button>

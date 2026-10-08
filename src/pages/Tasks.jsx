@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { useProjects } from "../context/ProjectContext.jsx";
 
@@ -84,6 +83,13 @@ function Tasks() {
   const qaSectionRef = useRef(null);
   const [currentUserId, setCurrentUserId] = useState(null);
 
+  // Manager permission is project-specific: created_by is the project manager.
+  const isProjectManager = (project) =>
+    currentUserId != null &&
+    Number(project?.created_by) === Number(currentUserId);
+
+  const canCreateAnyTask = projects.some(isProjectManager);
+
   useEffect(() => {
     const token = getToken();
     if (!token) return;
@@ -100,9 +106,12 @@ function Tasks() {
   useEffect(() => {
     if (!showCreateTask) return;
 
+    const managedProject = projects.find(isProjectManager);
     setNewTask((current) => ({
       ...current,
-      projectId: current.projectId || "",
+      projectId: current.projectId && isProjectManager(projects.find((p) => String(p.id) === String(current.projectId)))
+        ? current.projectId
+        : String(managedProject?.id || ""),
     }));
   }, [showCreateTask]);
 
@@ -150,11 +159,23 @@ function Tasks() {
       return;
     }
 
+    if (!newTask.projectId) {
+      notify("Please select a project you manage.");
+      return;
+    }
+
     try {
       setCreatingTask(true);
 
+      if (newTask.projectId) {
+        const selectedProject = projects.find((project) => String(project.id) === String(newTask.projectId));
+        if (!isProjectManager(selectedProject)) {
+          throw new Error("Only the project manager can create tasks in this project.");
+        }
+      }
+
       await createTask({
-        projectId: newTask.projectId || null,
+        projectId: newTask.projectId,
         title: newTask.title.trim(),
         description: newTask.description.trim(),
         priority: newTask.priority,
@@ -173,9 +194,7 @@ function Tasks() {
 
       setShowCreateTask(false);
       notify(
-        newTask.projectId
-          ? "Project task created successfully."
-          : "Individual task created successfully."
+        "Project task created successfully."
       );
     } catch (error) {
       notify(error.message || "Failed to create task.");
@@ -818,17 +837,19 @@ function Tasks() {
             </select>
           </label>
 
-          <button
-            className="primary-button"
-            onClick={() => setShowCreateTask(true)}
-          >
-            + Create task
-          </button>
+          {canCreateAnyTask && (
+            <button
+              className="primary-button"
+              onClick={() => setShowCreateTask(true)}
+            >
+              + Create task
+            </button>
+          )}
         </div>
 
         {notice && <div className="claim-notice">{notice}</div>}
 
-        {showCreateTask && createPortal(
+        {showCreateTask && (
           <div className="modal-overlay">
             <div className="modal-card">
               <div className="modal-header">
@@ -889,8 +910,7 @@ function Tasks() {
                         })
                       }
                     >
-                      <option value="">No Project — Individual Task</option>
-                      {projects.map((project) => (
+                      {projects.filter(isProjectManager).map((project) => (
                         <option key={project.id} value={project.id}>
                           {project.name}
                         </option>
@@ -970,7 +990,6 @@ function Tasks() {
               </form>
             </div>
           </div>
-        , document.body
         )}
 
         <section className="panel task-board">
