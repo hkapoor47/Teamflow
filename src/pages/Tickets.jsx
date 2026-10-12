@@ -41,6 +41,23 @@ function getProjectName(item) {
   );
 }
 
+function getCreatorName(project) {
+  const creator =
+    project?.created_by_user ??
+    project?.createdByUser ??
+    project?.creator ??
+    project?.created_by_name ??
+    project?.createdByName ??
+    project?.manager ??
+    project?.owner ??
+    null;
+  if (creator && typeof creator === "object") {
+    return creator.name || creator.full_name || creator.username || creator.email || "";
+  }
+  if (typeof creator === "string" && !/^\d+$/.test(creator)) return creator;
+  return project?.creator_name || project?.manager_name || project?.owner_name || "";
+}
+
 function collectIds(value, output) {
   if (value == null) return;
   if (Array.isArray(value)) {
@@ -286,6 +303,17 @@ function Tickets() {
                 const claimedBy = ticket.claimed_by ?? ticket.claimedBy;
                 const claimedByMe = sameId(claimedBy, userId);
                 const status = normalizeStatus(ticket.status) || "OPEN";
+                const ticketProjectId = getProjectId(ticket);
+                const ticketProjectName = getProjectName(ticket).trim().toLowerCase();
+                const relatedProject = projects.find((project) => {
+                  const projectId = valueId(project);
+                  const projectName = getProjectName(project).trim().toLowerCase();
+                  return (
+                    (ticketProjectId != null && sameId(projectId, ticketProjectId)) ||
+                    (ticketProjectName && projectName === ticketProjectName)
+                  );
+                });
+                const creatorName = getCreatorName(relatedProject) || getCreatorName(ticket);
 
                 return (
                   <article className="workspace-ticket improved-ticket" key={id}>
@@ -298,6 +326,7 @@ function Tickets() {
                       <p>{ticket.description || "No description provided."}</p>
                       <div className="workspace-meta">
                         <span>Project: {getProjectName(ticket) || "—"}</span>
+                        {creatorName && <span>Created by: {creatorName}</span>}
                         <span>Priority: {ticket.priority || "Medium"}</span>
                         <span>Deadline: {formatDate(ticket.due_date || ticket.deadline)}</span>
                         <span>{claimedByMe ? "Claimed by you" : claimedBy ? "Claimed by another member" : "Open to claim"}</span>
@@ -306,13 +335,13 @@ function Tickets() {
 
                     <div className="ticket-action-area">
                       {!claimedBy && (
-                        <button className="claim-button" onClick={() => claimTicket(id)} disabled={actionId === id}>
+                        <button className="claim-button ticket-action-primary" onClick={() => claimTicket(id)} disabled={actionId === id}>
                           {actionId === id ? "Claiming…" : "Claim"}
                         </button>
                       )}
 
                       {claimedByMe && !CLOSED.includes(status) && (
-                        <button className="complete-ticket-button" onClick={() => completeTicket(id)} disabled={actionId === id}>
+                        <button className="complete-ticket-button ticket-action-primary" onClick={() => completeTicket(id)} disabled={actionId === id}>
                           {actionId === id ? "Completing…" : "Complete"}
                         </button>
                       )}

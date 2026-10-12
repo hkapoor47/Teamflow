@@ -9829,94 +9829,64 @@ td:first-child small { font-weight: 400; }
   .ticket-action-area { width:100%; justify-content:flex-start; }
 }
 
-.recommended-tasks-section {
-  margin: 24px 0;
-  padding: 22px;
-  border: 1px solid rgba(20, 184, 166, 0.28);
-  border-radius: 16px;
-  background: var(--card-bg, #fff);
-  color: var(--text-color, #172033);
-}
 
-.recommended-tasks-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.recommended-tasks-heading h2 {
-  margin: 0 0 6px;
-}
-
-.recommended-tasks-heading p {
-  margin: 0;
-  color: var(--muted-text, #64748b);
-}
-
-.recommended-tasks-eyebrow {
-  margin: 0 0 6px !important;
-  color: #0f9f91 !important;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
-.recommended-tasks-refresh {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 12px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.recommended-tasks-list {
-  display: grid;
-  gap: 14px;
-}
-
-.recommended-task-item {
-  min-width: 0;
-}
-
-.recommended-task-score {
-  display: inline-block;
-  margin-bottom: 8px;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: rgba(20, 184, 166, 0.12);
-  color: #0f766e;
+/* =========================================================
+   TICKETS: match primary teal CTA styling across all actions
+   PROFILE: keep long work history inside its own scroll area
+========================================================= */
+.tickets-page .ticket-action-primary,
+.tickets-page .claim-button,
+.tickets-page .complete-ticket-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 104px;
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  border-radius: 10px !important;
+  background: linear-gradient(180deg, #34e0cb 0%, #14b8a6 100%) !important;
+  color: #04211f !important;
+  box-shadow: 0 6px 18px rgba(20,184,166,.22), inset 0 1px 0 rgba(255,255,255,.28) !important;
   font-size: 12px;
+  line-height: 1;
   font-weight: 800;
+  letter-spacing: 0;
+  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
 }
-
-.recommended-task-reason {
-  margin: 0 0 8px;
-  color: var(--muted-text, #64748b);
-  font-size: 13px;
+.tickets-page .ticket-action-primary:hover,
+.tickets-page .claim-button:hover,
+.tickets-page .complete-ticket-button:hover {
+  background: linear-gradient(180deg, #4ff0dc 0%, #19c4b1 100%) !important;
+  color: #04211f !important;
+  border-color: rgba(255,255,255,.2) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(20,184,166,.32), inset 0 1px 0 rgba(255,255,255,.34) !important;
 }
-
-.recommended-tasks-error {
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: #fff1f2;
-  color: #9f1239;
-  overflow-wrap: anywhere;
+.tickets-page .ticket-action-primary:disabled,
+.tickets-page .claim-button:disabled,
+.tickets-page .complete-ticket-button:disabled {
+  opacity: .58; cursor: not-allowed; transform: none;
 }
-
-.recommended-tasks-empty {
-  padding: 18px 0;
-  color: var(--muted-text, #64748b);
+.tickets-page .ticket-action-area { min-width: 112px; }
+.tickets-page .workspace-ticket.improved-ticket { align-items: flex-start; gap: 20px; }
+.tickets-page .workspace-meta { display: flex; flex-wrap: wrap; gap: 7px 14px; }
+.profile-work-history-section { min-height: 0 !important; }
+.profile-work-history-section .profile-history-list {
+  max-height: 460px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 7px 2px 0;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45,212,191,.55) rgba(15,23,42,.35);
 }
-
-@media (max-width: 600px) {
-  .recommended-tasks-section {
-    padding: 16px;
-  }
-
-  .recommended-tasks-heading {
-    flex-direction: column;
-  }
+.profile-work-history-section .profile-history-list::-webkit-scrollbar { width: 7px; }
+.profile-work-history-section .profile-history-list::-webkit-scrollbar-track { background: rgba(15,23,42,.35); border-radius: 99px; }
+.profile-work-history-section .profile-history-list::-webkit-scrollbar-thumb { background: rgba(45,212,191,.5); border-radius: 99px; }
+.profile-work-history-creator { color: #5eead4 !important; font-size: 10px !important; margin-top: 4px !important; }
+@media (max-width: 700px) {
+  .tickets-page .workspace-ticket.improved-ticket { flex-direction: column; }
+  .tickets-page .ticket-action-area { width: 100%; justify-content: flex-start; }
+  .profile-work-history-section .profile-history-list { max-height: 340px; }
 }

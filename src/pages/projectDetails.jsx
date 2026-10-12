@@ -748,11 +748,18 @@ function ProjectDetails() {
         };
       };
 
-      return members
+      const managerId = project?.created_by ?? currentUserId;
+      const uniqueMembers = new Map();
+      members
         .filter((member) => member?.id != null)
+        .filter((member) => String(member.id) !== String(managerId))
+        .filter((member) => String(member.id) !== String(currentUserId))
+        .forEach((member) => uniqueMembers.set(String(member.id), member));
+
+      return [...uniqueMembers.values()]
         .map(scoreMember)
         .sort((a, b) => b.recommendationScore - a.recommendationScore)
-        .slice(0, 5);
+        .slice(0, 3);
     };
 
     try {
@@ -770,6 +777,7 @@ function ProjectDetails() {
       const query = new URLSearchParams({
         projectId: String(backendProjectId),
         title,
+        ...(taskDeadline ? { dueDate: taskDeadline } : {}),
       });
 
       const response = await fetch(
@@ -813,7 +821,21 @@ function ProjectDetails() {
         [];
 
       if (recommendations.length) {
-        setAiRecommendations(recommendations.slice(0, 5));
+        const managerId = project?.created_by ?? currentUserId;
+        const uniqueRecommendations = new Map();
+        recommendations.forEach((item) => {
+          const employeeId = item.employeeId ?? item.userId ?? item.user_id ?? item.id;
+          if (employeeId == null) return;
+          if (String(employeeId) === String(managerId) || String(employeeId) === String(currentUserId)) return;
+          if (uniqueRecommendations.has(String(employeeId))) return;
+          const member = members.find((candidate) => String(candidate.id) === String(employeeId));
+          uniqueRecommendations.set(String(employeeId), {
+            ...item,
+            employeeId,
+            name: member?.name || member?.username || item.employeeName || item.userName || item.name || `User ${employeeId}`,
+          });
+        });
+        setAiRecommendations([...uniqueRecommendations.values()].slice(0, 3));
         return;
       }
 
@@ -3349,7 +3371,7 @@ function ProjectDetails() {
           isProjectManager &&
           createPortal(
             <div
-              className="project-modal-overlay"
+              className="project-modal-overlay teamflow-task-create-overlay"
 
             onMouseDown={(event) => {
 
@@ -3377,7 +3399,7 @@ function ProjectDetails() {
 
             <div
 
-              className="create-project-modal"
+              className="create-project-modal teamflow-task-create-modal"
 
               onMouseDown={(event) =>
 
@@ -3588,11 +3610,13 @@ function ProjectDetails() {
 
                     {aiRecommendations.length > 0 && (
                       <div
+                        className="teamflow-ai-recommendation-list"
                         style={{
                           marginTop: "14px",
                           display: "flex",
                           flexDirection: "column",
                           gap: "8px",
+                          minWidth: 0,
                         }}
                       >
                         <div
@@ -3621,6 +3645,7 @@ function ProjectDetails() {
                             <button
                               key={employeeId}
                               type="button"
+                              className="teamflow-ai-recommendation-item"
                               onClick={() => selectAiAssignee(employeeId)}
                               style={{
                                 width: "100%",

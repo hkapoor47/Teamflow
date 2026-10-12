@@ -578,9 +578,8 @@ export default function Profile() {
             ============================================= */}
 
             <section
-              className="profile-section"
+              className="profile-section profile-work-history-section"
               style={{
-                minHeight: "395px",
                 boxSizing: "border-box",
               }}
             >
@@ -651,9 +650,16 @@ export default function Profile() {
                           </h3>
 
                           <p>
-                            {item.projectName ||
+                            {item.projectName || item.project_name ||
                               "TeamFlow Project"}
                           </p>
+                          {(item.projectCreatedBy || item.project_created_by || item.createdByProject) && (
+                            <p className="profile-history-creator">
+                              Created by: {typeof (item.projectCreatedBy || item.project_created_by || item.createdByProject) === "object"
+                                ? ((item.projectCreatedBy || item.project_created_by || item.createdByProject).name || (item.projectCreatedBy || item.project_created_by || item.createdByProject).username || "Project manager")
+                                : (item.projectCreatedBy || item.project_created_by || item.createdByProject)}
+                            </p>
+                          )}
 
                           <small>
                             {item.status ||
