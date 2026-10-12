@@ -9829,64 +9829,578 @@ td:first-child small { font-weight: 400; }
   .ticket-action-area { width:100%; justify-content:flex-start; }
 }
 
+/* =========================================================
+   TeamFlow task creation + recommendation layouts
+   Scoped overrides: avoid global grid rules squeezing AI rows.
+========================================================= */
+.teamflow-task-create-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 10050 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+  overflow-y: auto !important;
+  background: rgba(3, 9, 20, .72) !important;
+  backdrop-filter: blur(8px) !important;
+}
+.teamflow-task-create-overlay .teamflow-task-create-modal {
+  width: min(820px, calc(100vw - 40px)) !important;
+  max-width: 820px !important;
+  max-height: min(84vh, 760px) !important;
+  margin: auto !important;
+  overflow: auto !important;
+  background: #111d2d !important;
+  border: 1px solid rgba(148, 163, 184, .20) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .48) !important;
+}
+.teamflow-task-create-modal .modal-header {
+  padding: 24px 28px 18px !important;
+  border-bottom: 1px solid rgba(148, 163, 184, .12) !important;
+}
+.teamflow-task-create-modal .project-form-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 18px 22px !important;
+  padding: 22px 28px 10px !important;
+}
+.teamflow-task-create-modal .project-form-grid > .form-group {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+.teamflow-task-create-modal .teamflow-ai-recommendation-list {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  gap: 7px !important;
+}
+.teamflow-task-create-modal .teamflow-ai-recommendation-item {
+  display: block !important;
+  position: relative !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  text-align: left !important;
+}
+.teamflow-task-create-modal .teamflow-ai-recommendation-item span {
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+}
+.teamflow-task-create-modal .teamflow-ai-recommendation-item > div:first-child {
+  min-width: 0 !important;
+}
+.teamflow-task-create-modal .modal-footer {
+  margin: 0 28px !important;
+  padding: 17px 0 24px !important;
+}
+
+/* User-side task creation modal */
+.task-create-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 10000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+  overflow-y: auto !important;
+  background: rgba(3, 9, 20, .72) !important;
+  backdrop-filter: blur(8px) !important;
+}
+.task-create-modal {
+  width: min(820px, calc(100vw - 40px)) !important;
+  max-width: 820px !important;
+  max-height: min(84vh, 760px) !important;
+  overflow: auto !important;
+  margin: auto !important;
+  box-sizing: border-box !important;
+  background: #111d2d !important;
+  border: 1px solid rgba(148, 163, 184, .20) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .48) !important;
+}
+.task-create-modal .modal-header { padding: 24px 28px 18px !important; }
+.task-create-modal form { min-width: 0; }
+.task-create-modal .project-form-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 18px 22px !important;
+  padding: 18px 28px 10px !important;
+}
+.task-create-modal .project-form-grid > .form-group { min-width: 0 !important; }
+.task-create-modal .form-group select,
+.task-create-modal .form-group input,
+.task-create-modal .form-group textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.task-assignee-ai { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.task-assignee-ai-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 3px; }
+.task-assignee-ai-heading > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.task-assignee-ai-heading strong { color: #e2e8f0; font-size: 12px; }
+.task-assignee-ai-heading span { color: #94a3b8; font-size: 10px; line-height: 1.4; }
+.task-assignee-ai-heading button { flex: 0 0 auto; border: 1px solid rgba(45,212,191,.35); border-radius: 8px; padding: 7px 9px; background: rgba(20,184,166,.10); color: #5eead4; font-size: 11px; font-weight: 750; cursor: pointer; }
+.task-assignee-ai-heading button:disabled { opacity: .55; cursor: not-allowed; }
+.task-assignee-ai-row { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 10px 11px; border: 1px solid rgba(148,163,184,.18); border-radius: 10px; background: rgba(15,23,42,.5); color: #e2e8f0; text-align: left; cursor: pointer; }
+.task-assignee-ai-row:hover, .task-assignee-ai-row.is-selected { border-color: rgba(45,212,191,.65); background: rgba(20,184,166,.10); }
+.task-ai-rank { display: inline-flex; flex: 0 0 25px; width: 25px; height: 25px; align-items: center; justify-content: center; border-radius: 8px; background: rgba(148,163,184,.13); color: #cbd5e1; font-size: 11px; font-weight: 800; }
+.task-ai-person { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; gap: 3px; }
+.task-ai-person strong { font-size: 12px; font-weight: 750; white-space: normal; overflow-wrap: anywhere; }
+.task-ai-person small { color: #94a3b8; font-size: 10px; line-height: 1.35; white-space: normal; }
+.task-ai-score { flex: 0 0 auto; color: #5eead4; font-size: 12px; }
+.task-ai-message { margin: 3px 0; color: #fbbf24; font-size: 11px; line-height: 1.4; }
+.task-create-modal .modal-footer { margin: 0 28px !important; padding: 17px 0 24px !important; }
+
+.my-task-recommendations { margin: 18px 0 20px; padding: 20px; border: 1px solid rgba(45,212,191,.18); }
+.my-task-recommendations-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.my-task-recommendations-heading h3 { margin: 0 0 5px; color: var(--text-primary); }
+.my-task-recommendations-heading p:not(.welcome-label) { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.recommendation-chip { flex: 0 0 auto; border: 1px solid rgba(45,212,191,.28); border-radius: 999px; padding: 6px 9px; color: #5eead4; font-size: 10px; font-weight: 800; letter-spacing: .05em; }
+.my-task-recommendation-list { display: flex; flex-direction: column; gap: 8px; }
+.my-task-recommendation-row { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 11px; background: rgba(15,23,42,.28); }
+.my-task-recommendation-main { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; gap: 4px; }
+.my-task-recommendation-main strong { color: var(--text-primary); font-size: 13px; }
+.my-task-recommendation-main span { color: var(--text-secondary); font-size: 11px; }
+.my-task-recommendation-main small { color: var(--text-muted); font-size: 10px; }
+.my-task-recommendation-score { display: flex; flex: 0 0 50px; flex-direction: column; align-items: center; color: #5eead4; font-weight: 800; font-size: 14px; }
+.my-task-recommendation-score small { color: var(--text-secondary); font-size: 9px; font-weight: 500; }
+.recommendation-empty { margin: 0; padding: 10px 0; color: var(--text-secondary); font-size: 12px; }
+@media (max-width: 680px) {
+  .teamflow-task-create-overlay, .task-create-overlay { align-items: center !important; padding: 12px !important; }
+  .teamflow-task-create-overlay .teamflow-task-create-modal, .task-create-modal { width: calc(100vw - 24px) !important; max-height: 90vh !important; }
+  .teamflow-task-create-modal .modal-header, .task-create-modal .modal-header { padding: 20px 18px 15px !important; }
+  .teamflow-task-create-modal .project-form-grid, .task-create-modal .project-form-grid { grid-template-columns: minmax(0,1fr) !important; padding: 16px 18px 8px !important; gap: 14px !important; }
+  .teamflow-task-create-modal .modal-footer, .task-create-modal .modal-footer { margin: 0 18px !important; }
+  .my-task-recommendations { padding: 15px; }
+  .my-task-recommendation-row { flex-wrap: wrap; }
+  .my-task-recommendation-score { margin-left: auto; }
+}
+
 
 /* =========================================================
-   TICKETS: match primary teal CTA styling across all actions
-   PROFILE: keep long work history inside its own scroll area
+   FINAL UI PATCH — task modal, ticket actions, profile history
+   These scoped rules intentionally override older legacy styles.
 ========================================================= */
-.tickets-page .ticket-action-primary,
-.tickets-page .claim-button,
-.tickets-page .complete-ticket-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 104px;
-  min-height: 42px;
-  padding: 10px 16px;
-  border: 1px solid rgba(255,255,255,.14) !important;
+
+/* Individual task creation must be centered against the viewport.
+   Tasks.jsx renders this modal through createPortal(document.body). */
+.task-create-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  z-index: 1000000 !important;
+  background: rgba(3, 8, 20, .72) !important;
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.task-create-overlay .task-create-modal-card {
+  width: min(780px, calc(100vw - 48px)) !important;
+  max-width: 780px !important;
+  max-height: min(86vh, 820px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+  padding: 28px !important;
+  box-sizing: border-box !important;
+  border-radius: 20px !important;
+  background: linear-gradient(155deg, #142137 0%, #0f1a2c 100%) !important;
+  border: 1px solid #2a3c56 !important;
+  box-shadow: 0 28px 90px rgba(0,0,0,.52), 0 0 0 1px rgba(45,212,191,.04) !important;
+}
+
+.task-create-modal-card .modal-header {
+  margin-bottom: 22px !important;
+}
+
+.task-create-modal-card .project-form-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-items: start !important;
+  gap: 18px 20px !important;
+}
+
+.task-create-modal-card .form-group {
+  min-width: 0 !important;
+}
+
+.task-create-modal-card .form-group input,
+.task-create-modal-card .form-group select,
+.task-create-modal-card .form-group textarea {
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.task-create-modal-card .task-assignee-ai {
+  margin-top: 12px !important;
+  padding: 12px !important;
+  border: 1px solid rgba(71, 94, 123, .62) !important;
+  border-radius: 12px !important;
+  background: rgba(7, 17, 32, .52) !important;
+}
+
+.task-create-modal-card .task-assignee-ai-heading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin-bottom: 8px !important;
+}
+
+.task-create-modal-card .task-assignee-ai-heading > div {
+  min-width: 0 !important;
+}
+
+.task-create-modal-card .task-assignee-ai-heading strong {
+  display: block !important;
+  font-size: 12px !important;
+}
+
+.task-create-modal-card .task-assignee-ai-heading span {
+  display: block !important;
+  margin-top: 3px !important;
+  color: #8ea3bf !important;
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+}
+
+.task-create-modal-card .task-assignee-ai-row {
+  display: flex !important;
+  width: 100% !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-top: 7px !important;
+  padding: 10px !important;
+  text-align: left !important;
+  border: 1px solid #2a3b53 !important;
   border-radius: 10px !important;
-  background: linear-gradient(180deg, #34e0cb 0%, #14b8a6 100%) !important;
-  color: #04211f !important;
-  box-shadow: 0 6px 18px rgba(20,184,166,.22), inset 0 1px 0 rgba(255,255,255,.28) !important;
-  font-size: 12px;
-  line-height: 1;
-  font-weight: 800;
-  letter-spacing: 0;
-  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+  background: #142239 !important;
+  color: #e7eef8 !important;
+  cursor: pointer !important;
 }
-.tickets-page .ticket-action-primary:hover,
-.tickets-page .claim-button:hover,
-.tickets-page .complete-ticket-button:hover {
-  background: linear-gradient(180deg, #4ff0dc 0%, #19c4b1 100%) !important;
-  color: #04211f !important;
-  border-color: rgba(255,255,255,.2) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 26px rgba(20,184,166,.32), inset 0 1px 0 rgba(255,255,255,.34) !important;
+
+.task-create-modal-card .task-assignee-ai-row:hover,
+.task-create-modal-card .task-assignee-ai-row.is-selected {
+  border-color: #2dd4bf !important;
+  background: rgba(20, 184, 166, .12) !important;
 }
-.tickets-page .ticket-action-primary:disabled,
-.tickets-page .claim-button:disabled,
-.tickets-page .complete-ticket-button:disabled {
-  opacity: .58; cursor: not-allowed; transform: none;
+
+.task-create-modal-card .task-ai-person {
+  flex: 1 !important;
+  min-width: 0 !important;
 }
-.tickets-page .ticket-action-area { min-width: 112px; }
-.tickets-page .workspace-ticket.improved-ticket { align-items: flex-start; gap: 20px; }
-.tickets-page .workspace-meta { display: flex; flex-wrap: wrap; gap: 7px 14px; }
-.profile-work-history-section { min-height: 0 !important; }
-.profile-work-history-section .profile-history-list {
-  max-height: 460px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 0 7px 2px 0;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(45,212,191,.55) rgba(15,23,42,.35);
+
+.task-create-modal-card .task-ai-person strong {
+  display: block !important;
+  overflow-wrap: anywhere !important;
+  font-size: 12px !important;
 }
-.profile-work-history-section .profile-history-list::-webkit-scrollbar { width: 7px; }
-.profile-work-history-section .profile-history-list::-webkit-scrollbar-track { background: rgba(15,23,42,.35); border-radius: 99px; }
-.profile-work-history-section .profile-history-list::-webkit-scrollbar-thumb { background: rgba(45,212,191,.5); border-radius: 99px; }
-.profile-work-history-creator { color: #5eead4 !important; font-size: 10px !important; margin-top: 4px !important; }
-@media (max-width: 700px) {
-  .tickets-page .workspace-ticket.improved-ticket { flex-direction: column; }
-  .tickets-page .ticket-action-area { width: 100%; justify-content: flex-start; }
-  .profile-work-history-section .profile-history-list { max-height: 340px; }
+
+.task-create-modal-card .task-ai-person small {
+  display: block !important;
+  margin-top: 3px !important;
+  color: #8ea3bf !important;
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+}
+
+.task-create-modal-card .task-ai-score {
+  flex: 0 0 auto !important;
+  color: #5eead4 !important;
+  font-size: 12px !important;
+}
+
+.task-create-modal-card .modal-footer {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  margin-top: 22px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid #26364d !important;
+}
+
+.task-create-modal-card .create-project-submit {
+  min-height: 42px !important;
+  padding: 0 20px !important;
+  border: 1px solid #2dd4bf !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, #2dd4bf, #14b8a6) !important;
+  color: #062c2a !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(20,184,166,.18) !important;
+}
+
+.task-create-modal-card .cancel-project-button {
+  min-height: 42px !important;
+  padding: 0 18px !important;
+  border-radius: 10px !important;
+  border: 1px solid #34465f !important;
+  background: #17263b !important;
+  color: #d4deec !important;
+}
+
+@media (max-width: 760px) {
+  .task-create-overlay {
+    padding: 12px !important;
+  }
+  .task-create-overlay .task-create-modal-card {
+    width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 24px) !important;
+    padding: 20px !important;
+  }
+  .task-create-modal-card .project-form-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+}
+
+/* Ticket actions use the same teal gradient and visual weight as Create Task. */
+.ticket-action-area .claim-button,
+.ticket-action-area .complete-ticket-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 104px !important;
+  min-height: 42px !important;
+  padding: 0 18px !important;
+  border: 1px solid #2dd4bf !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, #2dd4bf, #14b8a6) !important;
+  color: #062c2a !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  box-shadow: 0 7px 20px rgba(20,184,166,.17) !important;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease !important;
+}
+.ticket-action-area .claim-button:hover:not(:disabled),
+.ticket-action-area .complete-ticket-button:hover:not(:disabled) {
+  transform: translateY(-1px) !important;
+  filter: brightness(1.04) !important;
+  box-shadow: 0 10px 24px rgba(20,184,166,.25) !important;
+}
+.ticket-action-area .claim-button:disabled,
+.ticket-action-area .complete-ticket-button:disabled {
+  opacity: .6 !important;
+  cursor: not-allowed !important;
+}
+
+/* Work History has its own scroll area; the profile page stays a stable height. */
+.profile-history-section {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  max-height: 610px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+.profile-history-section .profile-section-header {
+  flex: 0 0 auto !important;
+}
+.profile-history-scroll {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: 430px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 2px 8px 2px 0 !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #3b536f #111c2d !important;
+}
+.profile-history-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+.profile-history-scroll::-webkit-scrollbar-track {
+  background: #111c2d;
+  border-radius: 8px;
+}
+.profile-history-scroll::-webkit-scrollbar-thumb {
+  background: #3b536f;
+  border-radius: 8px;
+}
+
+
+/* Project task modal: balanced width and readable recommendation rows. */
+.teamflow-task-create-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+.teamflow-task-create-overlay .teamflow-task-create-modal {
+  width: min(820px, calc(100vw - 48px)) !important;
+  max-width: 820px !important;
+  max-height: min(86vh, 820px) !important;
+  margin: 0 auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+  padding: 26px !important;
+}
+.teamflow-task-create-modal .project-form-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 18px 20px !important;
+  align-items: start !important;
+}
+.teamflow-task-create-modal .form-group {
+  min-width: 0 !important;
+}
+.teamflow-task-create-modal .teamflow-ai-recommendation-list {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.teamflow-task-create-modal .teamflow-ai-recommendation-item {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+.teamflow-task-create-modal .teamflow-ai-recommendation-item > div:first-child {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  min-width: 0 !important;
+}
+.teamflow-task-create-modal .teamflow-ai-recommendation-item > div:first-child > div {
+  min-width: 0 !important;
+}
+.teamflow-task-create-modal .teamflow-ai-recommendation-item span {
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+@media (max-width: 760px) {
+  .teamflow-task-create-overlay { padding: 12px !important; }
+  .teamflow-task-create-overlay .teamflow-task-create-modal {
+    width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 24px) !important;
+    padding: 20px !important;
+  }
+  .teamflow-task-create-modal .project-form-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+
+/* Oct 12 fix: keep the individual-task board headings aligned with their columns. */
+.task-board {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.task-board .task-board-table-wrap {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  max-height: 520px;
+  overflow: auto;
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--tf-line, #24344c);
+  border-radius: 14px;
+  scrollbar-gutter: stable;
+}
+.task-board .task-table {
+  display: table !important;
+  width: 100% !important;
+  min-width: 980px;
+  max-width: none;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  margin: 0 !important;
+}
+.task-board .task-table thead {
+  display: table-header-group !important;
+}
+.task-board .task-table tbody {
+  display: table-row-group !important;
+}
+.task-board .task-table tr {
+  display: table-row !important;
+}
+.task-board .task-table th,
+.task-board .task-table td {
+  display: table-cell !important;
+  box-sizing: border-box;
+  vertical-align: middle;
+  text-align: left;
+  padding: 14px 16px;
+  line-height: 1.35;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.task-board .task-table th {
+  position: sticky !important;
+  top: 0;
+  z-index: 3;
+  white-space: nowrap !important;
+  font-size: 11px;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+  background: #152235 !important;
+  box-shadow: 0 1px 0 rgba(148, 163, 184, .2);
+}
+.task-board .task-table th:nth-child(1) { width: 29%; }
+.task-board .task-table th:nth-child(2) { width: 16%; }
+.task-board .task-table th:nth-child(3) { width: 18%; }
+.task-board .task-table th:nth-child(4) { width: 12%; }
+.task-board .task-table th:nth-child(5) { width: 10%; }
+.task-board .task-table th:nth-child(6) { width: 15%; }
+.task-board .task-table td strong {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.task-board .task-table td small {
+  display: block;
+  margin-top: 5px;
+  line-height: 1.35;
+  white-space: normal;
+}
+.task-board .task-table td:nth-child(4),
+.task-board .task-table td:nth-child(5) {
+  white-space: nowrap;
+}
+.task-board .task-table td:nth-child(6) {
+  white-space: nowrap;
+}
+.task-board .task-table td:nth-child(6) button {
+  max-width: 100%;
+  white-space: nowrap;
+}
+.task-board .task-table tbody tr:hover td {
+  background: rgba(45, 212, 191, .055);
+}
+@media (max-width: 720px) {
+  .task-board .task-table { min-width: 900px; }
+  .task-board .task-table th,
+  .task-board .task-table td { padding: 12px 13px; }
 }

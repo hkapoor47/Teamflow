@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
 import { useProjects } from "../context/ProjectContext.jsx";
 
@@ -204,14 +205,28 @@ function Tasks() {
       }
 
       const deduped = new Map();
+      const seenNames = [];
+      const normalizeName = (value) => String(value || "").normalize("NFKD").toLowerCase().replace(/[^a-z0-9]+/g, "");
+      const samePersonName = (left, right) => {
+        const a = normalizeName(left);
+        const b = normalizeName(right);
+        if (!a || !b) return false;
+        if (a === b) return true;
+        const shorter = a.length <= b.length ? a : b;
+        const longer = a.length > b.length ? a : b;
+        return shorter.length >= 5 && longer.startsWith(shorter);
+      };
       recommendations.forEach((item) => {
         const id = item.employeeId ?? item.userId ?? item.user_id ?? item.id;
         if (id == null || String(id) === String(currentUserId) || deduped.has(String(id))) return;
         const member = getMember(id);
+        const displayName = member?.name || member?.username || item.employeeName || item.userName || item.name || `User ${id}`;
+        if (seenNames.some((name) => samePersonName(name, displayName))) return;
+        seenNames.push(displayName);
         deduped.set(String(id), {
           ...item,
           employeeId: id,
-          name: member?.name || member?.username || item.employeeName || item.userName || item.name || `User ${id}`,
+          name: displayName,
           recommendationScore: Number(item.recommendationScore ?? item.successProbability ?? item.score ?? 0),
         });
       });
@@ -963,40 +978,9 @@ function Tasks() {
 
         {notice && <div className="claim-notice">{notice}</div>}
 
-        <section className="my-task-recommendations panel">
-          <div className="my-task-recommendations-heading">
-            <div>
-              <p className="welcome-label">PERSONALIZED FOR YOU</p>
-              <h3>Recommended tasks</h3>
-              <p>Tasks ranked by your skills, workload, deadlines and performance history.</p>
-            </div>
-            <span className="recommendation-chip">AI MATCH</span>
-          </div>
-          {myRecommendationsLoading ? (
-            <p className="recommendation-empty">Finding the best-fit tasks for your profile…</p>
-          ) : myTaskRecommendations.length ? (
-            <div className="my-task-recommendation-list">
-              {myTaskRecommendations.map((item, index) => (
-                <article className="my-task-recommendation-row" key={item.taskId}>
-                  <span className="task-ai-rank">{item.rank || index + 1}</span>
-                  <div className="my-task-recommendation-main">
-                    <strong>{item.title}</strong>
-                    <span>{item.projectName || "Individual task"} · {String(item.priority || "MEDIUM").toUpperCase()} priority</span>
-                    <small>{(item.reasons || []).slice(0, 2).join(" · ")}</small>
-                  </div>
-                  <div className="my-task-recommendation-score">{Number(item.successProbability || 0).toFixed(0)}%<small>match</small></div>
-                  <button type="button" className="primary-button" onClick={() => claim(item.taskId)}>Claim task</button>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p className="recommendation-empty">{myRecommendationsError || "No unclaimed tasks are available to recommend right now."}</p>
-          )}
-        </section>
-
-        {showCreateTask && (
+        {showCreateTask && createPortal(
           <div className="modal-overlay task-create-overlay">
-            <div className="modal-card task-create-modal">
+            <div className="modal-card task-create-modal-card">
               <div className="modal-header">
                 <div>
                   <p className="welcome-label">NEW TASK</p>
@@ -1156,8 +1140,7 @@ function Tasks() {
                 </div>
               </form>
             </div>
-          </div>
-        )}
+          </div>, document.body)}
 
         <section className="panel task-board">
           <div className="panel-header">
@@ -1167,14 +1150,7 @@ function Tasks() {
             </div>
           </div>
 
-          <div
-            className="task-table-wrap"
-            style={{
-              maxHeight: "520px",
-              overflowY: "auto",
-              overflowX: "auto",
-            }}
-          >
+          <div className="task-table-wrap task-board-table-wrap">
             <table className="task-table">
               <thead>
                 <tr>

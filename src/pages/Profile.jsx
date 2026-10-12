@@ -625,7 +625,7 @@ export default function Profile() {
 
               ) : (
 
-                <div className="profile-history-list">
+                <div className="profile-history-list profile-history-scroll">
 
                   {history.map(
                     (item, index) => (

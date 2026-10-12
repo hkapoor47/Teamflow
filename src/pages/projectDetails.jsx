@@ -11,6 +11,25 @@ import { useProjects } from "../context/ProjectContext.jsx";
 
 const API_BASE_URL = "http://65.0.11.153:5001/api";
 
+const normalizePersonName = (value) =>
+  String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+
+const isDuplicatePersonName = (left, right) => {
+  const a = normalizePersonName(left);
+  const b = normalizePersonName(right);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length > b.length ? a : b;
+  return shorter.length >= 5 && longer.startsWith(shorter);
+};
+
+
 
 
 function ProjectDetails() {
@@ -203,8 +222,16 @@ function ProjectDetails() {
 
   // The user who created this project is its manager.
   // A user can therefore be a manager in one project and an employee in another.
+  const projectManagerId =
+    project?.created_by ??
+    project?.createdBy ??
+    project?.manager_id ??
+    project?.managerId ??
+    null;
   const isProjectManager =
-    Number(currentUserId) === Number(project?.created_by);
+    currentUserId != null &&
+    projectManagerId != null &&
+    String(currentUserId) === String(projectManagerId);
 
 
 
@@ -748,13 +775,24 @@ function ProjectDetails() {
         };
       };
 
-      const managerId = project?.created_by ?? currentUserId;
+      const managerId =
+        project?.created_by ??
+        project?.createdBy ??
+        project?.manager_id ??
+        project?.managerId ??
+        currentUserId;
       const uniqueMembers = new Map();
+      const seenNames = [];
       members
         .filter((member) => member?.id != null)
         .filter((member) => String(member.id) !== String(managerId))
         .filter((member) => String(member.id) !== String(currentUserId))
-        .forEach((member) => uniqueMembers.set(String(member.id), member));
+        .forEach((member) => {
+          const displayName = member.name || member.username || `User ${member.id}`;
+          if (seenNames.some((name) => isDuplicatePersonName(name, displayName))) return;
+          seenNames.push(displayName);
+          uniqueMembers.set(String(member.id), member);
+        });
 
       return [...uniqueMembers.values()]
         .map(scoreMember)
@@ -821,18 +859,33 @@ function ProjectDetails() {
         [];
 
       if (recommendations.length) {
-        const managerId = project?.created_by ?? currentUserId;
+        const managerId =
+          project?.created_by ??
+          project?.createdBy ??
+          project?.manager_id ??
+          project?.managerId ??
+          currentUserId;
         const uniqueRecommendations = new Map();
+        const seenRecommendationNames = [];
         recommendations.forEach((item) => {
           const employeeId = item.employeeId ?? item.userId ?? item.user_id ?? item.id;
           if (employeeId == null) return;
           if (String(employeeId) === String(managerId) || String(employeeId) === String(currentUserId)) return;
           if (uniqueRecommendations.has(String(employeeId))) return;
           const member = members.find((candidate) => String(candidate.id) === String(employeeId));
+          const displayName =
+            member?.name ||
+            member?.username ||
+            item.employeeName ||
+            item.userName ||
+            item.name ||
+            `User ${employeeId}`;
+          if (seenRecommendationNames.some((name) => isDuplicatePersonName(name, displayName))) return;
+          seenRecommendationNames.push(displayName);
           uniqueRecommendations.set(String(employeeId), {
             ...item,
             employeeId,
-            name: member?.name || member?.username || item.employeeName || item.userName || item.name || `User ${employeeId}`,
+            name: displayName,
           });
         });
         setAiRecommendations([...uniqueRecommendations.values()].slice(0, 3));
@@ -2313,14 +2366,16 @@ function ProjectDetails() {
 
 
 
-              <button
-                type="button"
-                className="create-project-button"
-                onClick={() => setShowTaskModal(true)}
-              >
-                <span>+</span>
-                Create task
-              </button>
+              {isProjectManager && (
+                <button
+                  type="button"
+                  className="create-project-button"
+                  onClick={() => setShowTaskModal(true)}
+                >
+                  <span>+</span>
+                  Create task
+                </button>
+              )}
 
 
 
