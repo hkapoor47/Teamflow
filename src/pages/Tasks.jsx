@@ -16,11 +16,15 @@ const getTaskProjectId = (task) =>
 const getTaskQaStatus = (task) =>
   normalizeStatus(task?.qa_status ?? task?.qaStatus ?? "NOT_STARTED");
 
-const getTaskAssigneeId = (task) =>
-  task?.assigneeId ?? task?.assignee_id ?? task?.assigned_to ?? task?.assignedTo ?? null;
+const getTaskAssigneeId = (task) => {
+  const value = task?.assigneeId ?? task?.assignee_id ?? task?.assigned_to ?? task?.assignedTo ?? null;
+  return value === "" ? null : value;
+};
 
-const getTaskClaimedById = (task) =>
-  task?.claimedBy ?? task?.claimed_by ?? task?.claimedById ?? task?.claimed_by_id ?? null;
+const getTaskClaimedById = (task) => {
+  const value = task?.claimedBy ?? task?.claimed_by ?? task?.claimedById ?? task?.claimed_by_id ?? null;
+  return value === "" ? null : value;
+};
 
 const getQaTestId = (test) =>
   test?.id ?? test?.qa_test_id ?? test?.qaTestId ?? null;
@@ -111,7 +115,7 @@ function Tasks() {
 
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
-      setCurrentUserId(payload.userId ?? payload.id ?? payload.sub ?? null);
+      setCurrentUserId(payload.userId ?? payload.user_id ?? payload.id ?? payload.sub ?? null);
     } catch (error) {
       console.error("Failed to read current user from token:", error);
       setCurrentUserId(null);
@@ -202,15 +206,31 @@ function Tasks() {
 
   const visibleTasks = useMemo(() => {
     return tasks.filter((task) => {
+      const projectId = getTaskProjectId(task);
+      const assigneeId = getTaskAssigneeId(task);
+      const claimedById = getTaskClaimedById(task);
+      const responsibleUserId = claimedById ?? assigneeId;
+      const status = normalizeStatus(task?.status);
+      const qaStatus = getTaskQaStatus(task);
+      const isFullyCompleted =
+        ["COMPLETED", "COMPLETE", "DONE", "CLOSED", "RESOLVED"].includes(status) &&
+        qaStatus === "PASSED";
+
+      // The global task queue should not expose work already owned by another
+      // teammate. Keep unassigned work claimable and the logged-in user's own
+      // work visible so they can complete it and send it to QA.
+      const isUnclaimed = assigneeId == null && claimedById == null;
+      const isMine =
+        responsibleUserId != null &&
+        currentUserId != null &&
+        String(responsibleUserId) === String(currentUserId);
+      if (isFullyCompleted || (!isUnclaimed && !isMine)) return false;
+
       if (projectFilter === "all") return true;
-
-      if (projectFilter === "none") {
-        return getTaskProjectId(task) == null;
-      }
-
-      return String(getTaskProjectId(task)) === String(projectFilter);
+      if (projectFilter === "none") return projectId == null;
+      return String(projectId) === String(projectFilter);
     });
-  }, [tasks, projectFilter]);
+  }, [tasks, projectFilter, currentUserId]);
 
   const getProject = (id) =>
     projects.find((project) => String(project.id) === String(id));
@@ -346,6 +366,32 @@ function Tasks() {
       () => setNotice(""),
       3000
     );
+  };
+
+  // Some older ProjectContext versions define completeTask but do not expose
+  // it in the context value. Use the context function when available, otherwise
+  // call the same backend endpoint directly to avoid "A is not a function".
+  const completeTaskSafely = async (taskId) => {
+    if (typeof completeTask === "function") {
+      return completeTask(taskId);
+    }
+
+    const token = getToken();
+    if (!token) throw new Error("Please login again.");
+
+    const response = await fetch(`${API_BASE_URL}/projects/tasks/${taskId}/complete`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || data.error || "Failed to complete task.");
+    }
+    if (typeof refreshTasks === "function") await refreshTasks();
+    return data;
   };
 
   const claim = async (taskId) => {
@@ -1303,13 +1349,23 @@ function Tasks() {
                       </td>
 
                       <td>
-                        <span className="task-status">
-                          {fullyDone
-                            ? "DONE"
-                            : developmentCompleted
-                            ? "QA PENDING"
-                            : normalizeStatus(task.status) || "TODO"}
-                        </span>
+                        {fullyDone ? (
+                          <span className="task-status">DONE</span>
+                        ) : developmentCompleted ? (
+                          <button
+                            type="button"
+                            className="task-status task-status-button"
+                            onClick={() => loadQaForTask(task)}
+                            title={activeTicket ? "Open QA workspace to view the active fix ticket" : "Open QA testing"}
+                            style={{ cursor: "pointer", border: 0, font: "inherit" }}
+                          >
+                            QA PENDING
+                          </button>
+                        ) : (
+                          <span className="task-status">
+                            {normalizeStatus(task.status) || "TODO"}
+                          </span>
+                        )}
                       </td>
 
                       <td>
@@ -1339,7 +1395,7 @@ function Tasks() {
                         ) : activeTicket ? (
                           <span className="task-status" title="Complete the active fix ticket before QA re-testing">
                             {activeTicketClaimedBy != null
-                              ? `Claimed${activeTicketClaimedByName ? ` by ${activeTicketClaimedByName}` : ""}`
+                              ? `Claimed by ${activeTicketClaimedByName || getMember(activeTicketClaimedBy)?.name || "another teammate"}`
                               : "Fix Ticket Active"}
                           </span>
                         ) : developmentCompleted ? (
@@ -1367,7 +1423,7 @@ function Tasks() {
                                   className="primary-button"
                                   onClick={async () => {
                                     try {
-                                      await completeTask(task.id);
+                                      await completeTaskSafely(task.id);
                                       notify("Task completed and moved to QA.");
                                     } catch (error) {
                                       notify(error.message || "Failed to complete task.");
