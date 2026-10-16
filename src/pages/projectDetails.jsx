@@ -201,15 +201,25 @@ function ProjectDetails() {
 
   const project = apiProject || contextProject;
 
-  // The user who created this project is its manager.
-  // A user can therefore be a manager in one project and an employee in another.
-  const projectManagerId =
-    project?.manager_id ?? project?.managerId ?? project?.project_manager_id ??
-    project?.projectManagerId ?? project?.created_by ?? project?.createdBy ??
-    project?.owner_id ?? project?.ownerId ?? null;
+  // Only the user recorded as the project's creator may create tasks.
+  // Use the backend project as the source of truth; do not authorize from
+  // potentially stale frontend context data or a separate manager assignment.
+  const projectCreatorId =
+    apiProject?.created_by ??
+    apiProject?.createdBy ??
+    apiProject?.creator_id ??
+    apiProject?.creatorId ??
+    apiProject?.owner_id ??
+    apiProject?.ownerId ??
+    null;
+
   const isProjectManager =
-    currentUserId != null && projectManagerId != null &&
-    String(currentUserId) === String(projectManagerId);
+    Boolean(apiProject) &&
+    currentUserId !== null &&
+    currentUserId !== undefined &&
+    projectCreatorId !== null &&
+    projectCreatorId !== undefined &&
+    String(currentUserId) === String(projectCreatorId);
 
   // `members` is populated by ProjectContext from the authenticated
   // GET /api/auth/users endpoint. Only real database users with valid IDs
