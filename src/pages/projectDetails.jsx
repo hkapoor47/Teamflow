@@ -2404,8 +2404,6 @@ function ProjectDetails() {
 
                     <th>Deadline</th>
 
-                    <th>Progress</th>
-
                     <th>Action</th>
 
                   </tr>
@@ -2430,7 +2428,7 @@ function ProjectDetails() {
 
                       <td
 
-                        colSpan="7"
+                        colSpan="5"
 
                         style={{
 
@@ -2462,7 +2460,7 @@ function ProjectDetails() {
 
                       <td
 
-                        colSpan="7"
+                        colSpan="5"
 
                         style={{
 
