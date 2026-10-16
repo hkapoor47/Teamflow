@@ -1,3 +1,4 @@
+
 name: Deploy Teamflow Frontend
 
 on:
@@ -20,6 +21,7 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 24
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -28,21 +30,33 @@ jobs:
         run: npm run build
 
       - name: Setup SSH
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/teamflow_deploy
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/teamflow_deploy
           chmod 600 ~/.ssh/teamflow_deploy
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
-      - name: Create frontend directory
+      - name: Verify EC2 connection
         run: |
           ssh -i ~/.ssh/teamflow_deploy \
+            -o StrictHostKeyChecking=yes \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            "mkdir -p /home/ec2-user/frontend"
+            "whoami && test -d /var/www/teamflow"
 
-      - name: Deploy frontend to EC2
+      - name: Deploy frontend to Nginx directory
         run: |
           tar -czf - -C dist . | \
           ssh -i ~/.ssh/teamflow_deploy \
+            -o StrictHostKeyChecking=yes \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
-            "tar -xzf - -C /home/ec2-user/frontend"
+            "sudo tar -xzf - -C /var/www/teamflow"
+
+      - name: Verify deployed frontend
+        run: |
+          ssh -i ~/.ssh/teamflow_deploy \
+            -o StrictHostKeyChecking=yes \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "test -s /var/www/teamflow/index.html && echo 'Frontend deployed successfully'"
