@@ -2666,32 +2666,25 @@ function Tasks() {
         {/* Centered QA ticket form, matching the Create Task modal style. */}
 
         {showTicketModal && createPortal(
-
           <div
-            className="modal-overlay"
+            className="qa-ticket-modal-overlay"
             style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 3000,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "24px",
-              overflowY: "auto",
-              boxSizing: "border-box",
+              position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+              width: "100vw", height: "100vh", minHeight: "100dvh",
+              margin: 0, padding: "24px", boxSizing: "border-box",
+              display: "grid", placeItems: "center", overflowY: "auto",
+              background: "rgba(3, 8, 20, 0.72)",
+              backdropFilter: "blur(7px)", WebkitBackdropFilter: "blur(7px)",
+              zIndex: 2147483000, transform: "none",
             }}
           >
-
             <div
-              className="modal-card"
+              className="modal-card qa-ticket-modal-card"
               style={{
-                position: "relative",
-                margin: "auto",
-                maxWidth: "720px",
-                width: "min(100%, 720px)",
-                maxHeight: "calc(100vh - 48px)",
-                overflowY: "auto",
-                flex: "0 0 auto",
+                position: "relative", inset: "auto", transform: "none",
+                margin: "auto", width: "min(640px, calc(100vw - 48px))",
+                maxWidth: "640px", maxHeight: "calc(100vh - 48px)",
+                overflowY: "auto", boxSizing: "border-box", alignSelf: "center",
               }}
             >
 
@@ -2861,8 +2854,8 @@ function Tasks() {
 
             </div>
 
-          </div>
-
+          </div>,
+          document.body
         )}
 
       </div>
