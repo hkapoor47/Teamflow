@@ -1298,13 +1298,6 @@ function Tasks() {
                   const activeTicket = activeTicketByTaskId[String(task.id)] || null;
                   const activeTicketClaimedBy =
                     activeTicket?.claimed_by ?? activeTicket?.claimedBy ?? null;
-                  const activeTicketClaimedByName =
-                    activeTicket?.claimed_by_name ??
-                    activeTicket?.claimedByName ??
-                    activeTicket?.claimed_by_username ??
-                    activeTicket?.claimedByUsername ??
-                    null;
-
                   return (
                     <tr key={task.id}>
                       <td>
@@ -1371,16 +1364,20 @@ function Tasks() {
                         {fullyDone ? (
                           <span className="task-status">Completed</span>
                         ) : activeTicket ? (
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            onClick={() => loadQaForTask(task)}
-                            title="Open the active fix ticket to claim it or view who claimed it"
-                          >
-                            {activeTicketClaimedBy != null
-                              ? `View Ticket · ${activeTicketClaimedByName || getMember(activeTicketClaimedBy)?.name || "Claimed"}`
-                              : "View / Claim Ticket"}
-                          </button>
+                          activeTicketClaimedBy != null ? (
+                            <span className="task-status" title="This fix ticket has already been claimed">
+                              Claimed
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() => loadQaForTask(task)}
+                              title="Open the active fix ticket to claim it"
+                            >
+                              Claim Ticket
+                            </button>
+                          )
                         ) : developmentCompleted ? (
                           <button
                             type="button"

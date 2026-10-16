@@ -2532,22 +2532,6 @@ function ProjectDetails() {
 
 
 
-                      /*
-
-                       * Backend currently does not return
-
-                       * individual task progress.
-
-                       */
-
-
-
-                      const taskProgress =
-
-                        Number(task.progress) || 0;
-
-
-
                       return (
 
 
@@ -2846,53 +2830,7 @@ function ProjectDetails() {
 
 
 
-                          {/* PROGRESS */}
 
-
-
-                          <td>
-
-
-
-                            <div className="table-progress">
-
-
-
-                              <div className="progress-background">
-
-
-
-                                <div
-
-                                  className="progress-fill"
-
-                                  style={{
-
-                                    width: `${taskProgress}%`,
-
-                                  }}
-
-                                />
-
-
-
-                              </div>
-
-
-
-                              <span>
-
-                                {taskProgress}%
-
-                              </span>
-
-
-
-                            </div>
-
-
-
-                          </td>
 
                           {/* ACTION */}
                           <td>
