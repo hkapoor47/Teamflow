@@ -203,8 +203,13 @@ function ProjectDetails() {
 
   // The user who created this project is its manager.
   // A user can therefore be a manager in one project and an employee in another.
+  const projectManagerId =
+    project?.manager_id ?? project?.managerId ?? project?.project_manager_id ??
+    project?.projectManagerId ?? project?.created_by ?? project?.createdBy ??
+    project?.owner_id ?? project?.ownerId ?? null;
   const isProjectManager =
-    Number(currentUserId) === Number(project?.created_by);
+    currentUserId != null && projectManagerId != null &&
+    String(currentUserId) === String(projectManagerId);
 
   // `members` is populated by ProjectContext from the authenticated
   // GET /api/auth/users endpoint. Only real database users with valid IDs
@@ -681,6 +686,8 @@ function ProjectDetails() {
   // Remove the manager from default suggestions, collapse duplicate IDs, and
   // prefer the canonical name from the member list over inconsistent API labels.
   const normalizeRecommendations = (items) => {
+    const hasValidUserId = currentUserId !== null && currentUserId !== undefined && String(currentUserId).trim() !== "";
+    const hasValidManagerId = projectManagerId !== null && projectManagerId !== undefined && String(projectManagerId).trim() !== "";
     const memberById = new Map(
       (Array.isArray(members) ? members : [])
         .filter((member) => member?.id !== null && member?.id !== undefined)
@@ -711,13 +718,13 @@ function ProjectDetails() {
       .slice(0, 3);
   };
 
-  const getAiRecommendations = async () => {
-    if (!backendProjectId || !taskTitle.trim()) {
+  const getAiRecommendations = async (requestedTitle = taskTitle) => {
+    if (!backendProjectId || !String(requestedTitle || "").trim()) {
       setAiRecommendations([]);
       return;
     }
 
-    const title = taskTitle.trim();
+    const title = String(requestedTitle).trim();
     const normalize = (value) =>
       String(value || "")
         .toLowerCase()
@@ -2348,14 +2355,16 @@ function ProjectDetails() {
 
 
 
-              <button
-                type="button"
-                className="create-project-button"
-                onClick={() => setShowTaskModal(true)}
-              >
-                <span>+</span>
-                Create task
-              </button>
+              {isProjectManager === true && (
+                <button
+                  type="button"
+                  className="create-project-button"
+                  onClick={() => setShowTaskModal(true)}
+                >
+                  <span>+</span>
+                  Create task
+                </button>
+              )}
 
 
 
@@ -3571,8 +3580,8 @@ function ProjectDetails() {
 
                         if (value.trim()) {
                           aiRecommendationDebounceRef.current = setTimeout(() => {
-                            getAiRecommendations();
-                          }, 550);
+                            getAiRecommendations(value);
+                          }, 650);
                         }
                       }}
 
@@ -3634,16 +3643,22 @@ function ProjectDetails() {
                     >
                       <option value="">Leave unassigned</option>
 
-                      {assignableMembers.map((member) => {
-                        const memberId = member.id ?? member.user_id ?? member.userId;
-                        const memberName =
-                          member.name || member.username || member.full_name || member.email || `User ${memberId}`;
-                        return (
-                          <option key={memberId} value={memberId}>
-                            {memberName}
+                      {(assignableMembers.length > 0
+                        ? assignableMembers.map((member) => ({
+                            id: member.id ?? member.user_id ?? member.userId,
+                            name: member.name || member.username || member.full_name || member.email,
+                          }))
+                        : aiRecommendations.map((recommendation) => ({
+                            id: recommendation.employeeId ?? recommendation.id ?? recommendation.user_id ?? recommendation.userId,
+                            name: recommendation.name || recommendation.username || recommendation.full_name || recommendation.email,
+                          }))
+                      )
+                        .filter((member) => member.id != null && String(member.id).trim() !== "")
+                        .map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.name || `User ${member.id}`}
                           </option>
-                        );
-                      })}
+                        ))}
                     </select>
 
                     <p
@@ -3698,7 +3713,7 @@ function ProjectDetails() {
 
                         {aiRecommendations.slice(0, 3).map((recommendation, index) => {
                           const employeeId =
-                            recommendation.employeeId ?? recommendation.id;
+                            recommendation.employeeId ?? recommendation.userId ?? recommendation.user_id ?? recommendation.id;
                           const score = Number(
                             recommendation.recommendationScore ??
                               recommendation.successProbability ??

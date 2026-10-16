@@ -10470,3 +10470,121 @@ td:first-child small { font-weight: 400; }
     max-height: calc(100dvh - 24px) !important;
   }
 }
+
+/* TeamFlow layout fixes: import this file after the existing app CSS. */
+:root { color-scheme: dark; }
+
+/* Keep the application header visually separate from page content. */
+.navbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1200 !important;
+  background: #081321 !important;
+  border-bottom: 1px solid #203047 !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .20) !important;
+  isolation: isolate;
+}
+
+/* Prevent page headings/cards from sliding behind the header. */
+.page-content {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding-top: 28px !important;
+  overflow-wrap: anywhere;
+}
+
+/* Keep the app shell as the scrolling region rather than scrolling the header
+   and page together. The app's existing layout remains responsible for height. */
+.dashboard-layout, .app-layout, .layout-container {
+  min-height: 100vh;
+}
+
+/* Avoid accidental clipping/overlap in project and task content. */
+.page-content > * { min-width: 0; }
+.page-content h1, .page-content h2, .page-content h3 { scroll-margin-top: 90px; }
+.page-content table { width: 100%; }
+.page-content .table-container,
+.page-content .task-table-wrap { max-width: 100%; overflow-x: auto; }
+
+/* Dark solid modal and dropdown surfaces for readability. */
+.project-modal-overlay { z-index: 99999 !important; }
+.project-modal-overlay .tf-task-modal,
+.project-modal-overlay .modal-content {
+  background: #101c2d !important;
+  color: #edf4fc !important;
+}
+.project-modal-overlay select,
+.project-modal-overlay input,
+.project-modal-overlay textarea {
+  background: #0b1626 !important;
+  color: #edf4fc !important;
+  border-color: #2a3d56 !important;
+}
+
+@media (max-width: 700px) {
+  .page-content { padding: 20px 14px 40px !important; }
+  .navbar { width: 100%; }
+}
+/* TeamFlow layout fixes: import this file after the existing app CSS. */
+:root { color-scheme: dark; }
+
+/* Keep the application header visually separate from page content. */
+.navbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1200 !important;
+  background: #081321 !important;
+  border-bottom: 1px solid #203047 !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .20) !important;
+  isolation: isolate;
+}
+
+/* Prevent page headings/cards from sliding behind the header. */
+.page-content {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding-top: 28px !important;
+  overflow-wrap: anywhere;
+}
+
+/* Keep the app shell as the scrolling region rather than scrolling the header
+   and page together. The app's existing layout remains responsible for height. */
+.dashboard-layout, .app-layout, .layout-container {
+  min-height: 100vh;
+}
+
+/* Avoid accidental clipping/overlap in project and task content. */
+.page-content > * { min-width: 0; }
+.page-content h1, .page-content h2, .page-content h3 { scroll-margin-top: 90px; }
+.page-content table { width: 100%; }
+.page-content .table-container,
+.page-content .task-table-wrap { max-width: 100%; overflow-x: auto; }
+
+/* Dark solid modal and dropdown surfaces for readability. */
+.project-modal-overlay { z-index: 99999 !important; }
+.project-modal-overlay .tf-task-modal,
+.project-modal-overlay .modal-content {
+  background: #101c2d !important;
+  color: #edf4fc !important;
+}
+.project-modal-overlay select,
+.project-modal-overlay input,
+.project-modal-overlay textarea {
+  background: #0b1626 !important;
+  color: #edf4fc !important;
+  border-color: #2a3d56 !important;
+}
+
+@media (max-width: 700px) {
+  .page-content { padding: 20px 14px 40px !important; }
+  .navbar { width: 100%; }
+}
+
+
+/* Keep the top navigation visually isolated from route content. */
+.dashboard-layout, .app-layout, .layout-container { height: 100vh; overflow: hidden; }
+.dashboard-layout > .main-content, .app-layout > .main-content, .layout-container > .main-content { min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.navbar { flex: 0 0 auto; }
+/* Only project managers should see project task creation controls. */
