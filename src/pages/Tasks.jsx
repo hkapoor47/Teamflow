@@ -95,6 +95,7 @@ function Tasks() {
   const [ticketActionLoading, setTicketActionLoading] = useState(false);
   const qaSectionRef = useRef(null);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [activeTicketByTaskId, setActiveTicketByTaskId] = useState({});
 
   // Manager permission is project-specific: created_by is the project manager.
   const isProjectManager = (project) =>
@@ -116,6 +117,74 @@ function Tasks() {
       setCurrentUserId(null);
     }
   }, []);
+
+  // Keep task-board actions in sync with active QA fix tickets.
+  // A task with an active ticket must not offer QA Testing until the fix ticket
+  // is completed. Map tickets back to tasks through the linked QA test.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadActiveTicketsForBoard = async () => {
+      const token = getToken();
+      if (!token || !Array.isArray(projects) || !projects.length) {
+        if (!cancelled) setActiveTicketByTaskId({});
+        return;
+      }
+
+      const activeByTask = {};
+
+      await Promise.all(projects.map(async (project) => {
+        if (project?.id == null) return;
+
+        try {
+          const headers = { Authorization: `Bearer ${token}` };
+          const [ticketsResponse, qaResponse] = await Promise.all([
+            fetch(`${API_BASE_URL}/projects/${project.id}/tickets`, { headers }),
+            fetch(`${API_BASE_URL}/projects/${project.id}/qa-tests`, { headers }),
+          ]);
+
+          if (!ticketsResponse.ok || !qaResponse.ok) return;
+
+          const [ticketsData, qaData] = await Promise.all([
+            ticketsResponse.json().catch(() => ({})),
+            qaResponse.json().catch(() => ({})),
+          ]);
+
+          const ticketsValue = ticketsData.tickets || ticketsData.qaTickets || ticketsData.data || ticketsData;
+          const qaValue = qaData.testCases || qaData.qaTests || qaData.data || qaData;
+          const tickets = Array.isArray(ticketsValue) ? ticketsValue : [];
+          const qaTests = Array.isArray(qaValue) ? qaValue : [];
+
+          const taskIdByQaId = new Map();
+          qaTests.forEach((test) => {
+            const qaId = getQaTestId(test);
+            const taskId = test?.task_id ?? test?.taskId;
+            if (qaId != null && taskId != null) taskIdByQaId.set(String(qaId), String(taskId));
+          });
+
+          tickets.forEach((ticket) => {
+            if (!isTicketActive(ticket)) return;
+
+            const qaId = getTicketQaTestId(ticket);
+            const linkedTaskId =
+              (qaId != null ? taskIdByQaId.get(String(qaId)) : null) ??
+              (ticket.task_id != null ? String(ticket.task_id) : null);
+
+            if (linkedTaskId != null && !activeByTask[linkedTaskId]) {
+              activeByTask[linkedTaskId] = ticket;
+            }
+          });
+        } catch (error) {
+          console.warn(`Could not load active tickets for project ${project.id}:`, error);
+        }
+      }));
+
+      if (!cancelled) setActiveTicketByTaskId(activeByTask);
+    };
+
+    loadActiveTicketsForBoard();
+    return () => { cancelled = true; };
+  }, [projects, tasks]);
 
   useEffect(() => {
     if (!showCreateTask) return;
@@ -1181,6 +1250,15 @@ function Tasks() {
                     );
                   const fullyDone =
                     developmentCompleted && qaStatus === "PASSED";
+                  const activeTicket = activeTicketByTaskId[String(task.id)] || null;
+                  const activeTicketClaimedBy =
+                    activeTicket?.claimed_by ?? activeTicket?.claimedBy ?? null;
+                  const activeTicketClaimedByName =
+                    activeTicket?.claimed_by_name ??
+                    activeTicket?.claimedByName ??
+                    activeTicket?.claimed_by_username ??
+                    activeTicket?.claimedByUsername ??
+                    null;
 
                   return (
                     <tr key={task.id}>
@@ -1258,6 +1336,12 @@ function Tasks() {
                       <td>
                         {fullyDone ? (
                           <span className="task-status">Completed</span>
+                        ) : activeTicket ? (
+                          <span className="task-status" title="Complete the active fix ticket before QA re-testing">
+                            {activeTicketClaimedBy != null
+                              ? `Claimed${activeTicketClaimedByName ? ` by ${activeTicketClaimedByName}` : ""}`
+                              : "Fix Ticket Active"}
+                          </span>
                         ) : developmentCompleted ? (
                           <button
                             type="button"
