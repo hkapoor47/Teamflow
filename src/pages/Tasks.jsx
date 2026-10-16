@@ -1279,7 +1279,6 @@ function Tasks() {
                   <th>Project</th>
                   <th>Assigned to</th>
                   <th>Status</th>
-                  <th>Progress</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -1369,35 +1368,19 @@ function Tasks() {
                       </td>
 
                       <td>
-                        <div className="progress-cell">
-                          <div className="progress-track">
-                            <span
-                              style={{
-                                width: `${
-                                  fullyDone
-                                    ? 100
-                                    : Number(task.progress) || 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                          <span>
-                            {fullyDone
-                              ? "100%"
-                              : `${Number(task.progress) || 0}%`}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td>
                         {fullyDone ? (
                           <span className="task-status">Completed</span>
                         ) : activeTicket ? (
-                          <span className="task-status" title="Complete the active fix ticket before QA re-testing">
+                          <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() => loadQaForTask(task)}
+                            title="Open the active fix ticket to claim it or view who claimed it"
+                          >
                             {activeTicketClaimedBy != null
-                              ? `Claimed by ${activeTicketClaimedByName || getMember(activeTicketClaimedBy)?.name || "another teammate"}`
-                              : "Fix Ticket Active"}
-                          </span>
+                              ? `View Ticket · ${activeTicketClaimedByName || getMember(activeTicketClaimedBy)?.name || "Claimed"}`
+                              : "View / Claim Ticket"}
+                          </button>
                         ) : developmentCompleted ? (
                           <button
                             type="button"
@@ -1461,7 +1444,7 @@ function Tasks() {
 
                 {!visibleTasks.length && (
                   <tr>
-                    <td colSpan="6" style={{ padding: "30px", textAlign: "center" }}>
+                    <td colSpan="5" style={{ padding: "30px", textAlign: "center" }}>
                       No tasks found.
                     </td>
                   </tr>
