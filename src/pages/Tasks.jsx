@@ -215,22 +215,25 @@ function Tasks() {
       const isFullyCompleted =
         ["COMPLETED", "COMPLETE", "DONE", "CLOSED", "RESOLVED"].includes(status) &&
         qaStatus === "PASSED";
+      const hasActiveTicket = Boolean(activeTicketByTaskId[String(task.id)]);
 
-      // The global task queue should not expose work already owned by another
-      // teammate. Keep unassigned work claimable and the logged-in user's own
-      // work visible so they can complete it and send it to QA.
+      // Individual tasks (no project) stay visible in the shared task queue,
+      // even if someone was originally assigned. Project tasks are shown only
+      // when unassigned, owned by the current user, or waiting on an active fix ticket.
       const isUnclaimed = assigneeId == null && claimedById == null;
       const isMine =
         responsibleUserId != null &&
         currentUserId != null &&
         String(responsibleUserId) === String(currentUserId);
-      if (isFullyCompleted || (!isUnclaimed && !isMine)) return false;
+      const isIndividualTask = projectId == null;
+      if (isFullyCompleted) return false;
+      if (!isIndividualTask && !hasActiveTicket && !isUnclaimed && !isMine) return false;
 
       if (projectFilter === "all") return true;
-      if (projectFilter === "none") return projectId == null;
+      if (projectFilter === "none") return isIndividualTask;
       return String(projectId) === String(projectFilter);
     });
-  }, [tasks, projectFilter, currentUserId]);
+  }, [tasks, projectFilter, currentUserId, activeTicketByTaskId]);
 
   const getProject = (id) =>
     projects.find((project) => String(project.id) === String(id));
@@ -1298,6 +1301,21 @@ function Tasks() {
                   const activeTicket = activeTicketByTaskId[String(task.id)] || null;
                   const activeTicketClaimedBy =
                     activeTicket?.claimed_by ?? activeTicket?.claimedBy ?? null;
+                  const activeTicketClaimedName =
+                    activeTicket?.claimed_by_name ??
+                    activeTicket?.claimedByName ??
+                    activeTicket?.assigned_to_name ??
+                    activeTicket?.assignedToName ??
+                    activeTicket?.claimant_name ??
+                    activeTicket?.claimantName ??
+                    null;
+                  const activeTicketMember =
+                    activeTicketClaimedBy != null ? getMember(activeTicketClaimedBy) : null;
+                  const activeTicketDisplayName =
+                    activeTicketClaimedName ||
+                    activeTicketMember?.name ||
+                    activeTicketMember?.username ||
+                    null;
                   return (
                     <tr key={task.id}>
                       <td>
@@ -1321,18 +1339,29 @@ function Tasks() {
                       </td>
 
                       <td>
-                        {member ? (
+                        {activeTicket ? (
+                          activeTicketClaimedBy != null ? (
+                            activeTicketDisplayName ? (
+                              <span className="assignee" title="Fix ticket claimant">
+                                <i>{activeTicketDisplayName.charAt(0).toUpperCase()}</i>
+                                {activeTicketDisplayName}
+                              </span>
+                            ) : (
+                              <span className="assignee" title="Fix ticket has been claimed">
+                                <i>✓</i> Claimed
+                              </span>
+                            )
+                          ) : (
+                            <span className="unassigned">Unassigned</span>
+                          )
+                        ) : member ? (
                           <span className="assignee">
                             <i>{member.name?.charAt(0)?.toUpperCase()}</i>
                             {member.name}
                           </span>
                         ) : task.claimedByName ? (
                           <span className="assignee">
-                            <i>
-                              {task.claimedByName
-                                ?.charAt(0)
-                                ?.toUpperCase()}
-                            </i>
+                            <i>{task.claimedByName?.charAt(0)?.toUpperCase()}</i>
                             {task.claimedByName}
                           </span>
                         ) : (
@@ -1906,3 +1935,36 @@ function Tasks() {
 }
 
 export default Tasks;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
