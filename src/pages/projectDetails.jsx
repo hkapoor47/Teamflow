@@ -11,25 +11,6 @@ import { useProjects } from "../context/ProjectContext.jsx";
 
 const API_BASE_URL = "http://65.0.11.153:5001/api";
 
-const normalizePersonName = (value) =>
-  String(value || "")
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
-
-const isDuplicatePersonName = (left, right) => {
-  const a = normalizePersonName(left);
-  const b = normalizePersonName(right);
-  if (!a || !b) return false;
-  if (a === b) return true;
-  const shorter = a.length <= b.length ? a : b;
-  const longer = a.length > b.length ? a : b;
-  return shorter.length >= 5 && longer.startsWith(shorter);
-};
-
-
 
 
 function ProjectDetails() {
@@ -126,7 +107,7 @@ function ProjectDetails() {
       }
 
       const payload = JSON.parse(atob(token.split(".")[1]));
-      setCurrentUserId(payload.userId ?? payload.id ?? null);
+      setCurrentUserId(payload.userId ?? payload.user_id ?? payload.id ?? payload.sub ?? null);
     } catch (error) {
       console.error("Failed to read current user from token:", error);
       setCurrentUserId(null);
@@ -222,16 +203,23 @@ function ProjectDetails() {
 
   // The user who created this project is its manager.
   // A user can therefore be a manager in one project and an employee in another.
-  const projectManagerId =
-    project?.created_by ??
-    project?.createdBy ??
-    project?.manager_id ??
-    project?.managerId ??
-    null;
   const isProjectManager =
-    currentUserId != null &&
-    projectManagerId != null &&
-    String(currentUserId) === String(projectManagerId);
+    Number(currentUserId) === Number(project?.created_by);
+
+  // `members` is populated by ProjectContext from the authenticated
+  // GET /api/auth/users endpoint. Only real database users with valid IDs
+  // can be selected for assignment.
+  const assignableMembers = Array.isArray(members)
+    ? members.filter((member) => {
+        const id = member?.id ?? member?.user_id ?? member?.userId;
+        return id != null && String(id).trim() !== "" && Number.isFinite(Number(id));
+      }).filter((member, index, list) => {
+        const id = String(member?.id ?? member?.user_id ?? member?.userId);
+        return list.findIndex((candidate) =>
+          String(candidate?.id ?? candidate?.user_id ?? candidate?.userId) === id
+        ) === index;
+      })
+    : [];
 
 
 
@@ -690,6 +678,39 @@ function ProjectDetails() {
      responsible for the final assignment decision.
   ===================================================== */
 
+  // Remove the manager from default suggestions, collapse duplicate IDs, and
+  // prefer the canonical name from the member list over inconsistent API labels.
+  const normalizeRecommendations = (items) => {
+    const memberById = new Map(
+      (Array.isArray(members) ? members : [])
+        .filter((member) => member?.id !== null && member?.id !== undefined)
+        .map((member) => [String(member.id), member])
+    );
+    const seen = new Set();
+    return (Array.isArray(items) ? items : [])
+      .map((item) => {
+        const id = item?.employeeId ?? item?.employee_id ?? item?.userId ?? item?.user_id ?? item?.id;
+        if (id === null || id === undefined || String(id).trim() === "") return null;
+        const key = String(id);
+        if (hasValidUserId && key === String(currentUserId)) return null;
+        if (hasValidManagerId && key === String(projectManagerId)) return null;
+        if (seen.has(key)) return null;
+        seen.add(key);
+        const member = memberById.get(key);
+        const rawName = member?.name ?? member?.full_name ?? member?.username ?? item?.name ?? item?.fullName ?? item?.full_name ?? item?.username;
+        const cleanName = String(rawName || `Team member ${key}`).replace(/\s+/g, " ").trim();
+        // Normalize all-lowercase/all-uppercase labels for a consistent UI.
+        const name = cleanName === cleanName.toUpperCase() || cleanName === cleanName.toLowerCase()
+          ? cleanName.toLowerCase().replace(/\b\p{L}/gu, (letter) => letter.toUpperCase())
+          : cleanName;
+        const score = Number(item?.recommendationScore ?? item?.recommendation_score ?? item?.successProbability ?? item?.score ?? 0);
+        return { ...item, employeeId: id, name, recommendationScore: Number.isFinite(score) ? score : 0 };
+      })
+      .filter(Boolean)
+      .sort((a, b) => Number(b.recommendationScore) - Number(a.recommendationScore))
+      .slice(0, 3);
+  };
+
   const getAiRecommendations = async () => {
     if (!backendProjectId || !taskTitle.trim()) {
       setAiRecommendations([]);
@@ -775,29 +796,11 @@ function ProjectDetails() {
         };
       };
 
-      const managerId =
-        project?.created_by ??
-        project?.createdBy ??
-        project?.manager_id ??
-        project?.managerId ??
-        currentUserId;
-      const uniqueMembers = new Map();
-      const seenNames = [];
-      members
-        .filter((member) => member?.id != null)
-        .filter((member) => String(member.id) !== String(managerId))
-        .filter((member) => String(member.id) !== String(currentUserId))
-        .forEach((member) => {
-          const displayName = member.name || member.username || `User ${member.id}`;
-          if (seenNames.some((name) => isDuplicatePersonName(name, displayName))) return;
-          seenNames.push(displayName);
-          uniqueMembers.set(String(member.id), member);
-        });
-
-      return [...uniqueMembers.values()]
-        .map(scoreMember)
-        .sort((a, b) => b.recommendationScore - a.recommendationScore)
-        .slice(0, 3);
+      return normalizeRecommendations(
+        members
+          .filter((member) => member?.id != null)
+          .map(scoreMember)
+      );
     };
 
     try {
@@ -815,7 +818,6 @@ function ProjectDetails() {
       const query = new URLSearchParams({
         projectId: String(backendProjectId),
         title,
-        ...(taskDeadline ? { dueDate: taskDeadline } : {}),
       });
 
       const response = await fetch(
@@ -859,36 +861,17 @@ function ProjectDetails() {
         [];
 
       if (recommendations.length) {
-        const managerId =
-          project?.created_by ??
-          project?.createdBy ??
-          project?.manager_id ??
-          project?.managerId ??
-          currentUserId;
-        const uniqueRecommendations = new Map();
-        const seenRecommendationNames = [];
-        recommendations.forEach((item) => {
-          const employeeId = item.employeeId ?? item.userId ?? item.user_id ?? item.id;
-          if (employeeId == null) return;
-          if (String(employeeId) === String(managerId) || String(employeeId) === String(currentUserId)) return;
-          if (uniqueRecommendations.has(String(employeeId))) return;
-          const member = members.find((candidate) => String(candidate.id) === String(employeeId));
-          const displayName =
-            member?.name ||
-            member?.username ||
-            item.employeeName ||
-            item.userName ||
-            item.name ||
-            `User ${employeeId}`;
-          if (seenRecommendationNames.some((name) => isDuplicatePersonName(name, displayName))) return;
-          seenRecommendationNames.push(displayName);
-          uniqueRecommendations.set(String(employeeId), {
-            ...item,
-            employeeId,
-            name: displayName,
-          });
-        });
-        setAiRecommendations([...uniqueRecommendations.values()].slice(0, 3));
+        const normalized = normalizeRecommendations(recommendations);
+        if (normalized.length) {
+          setAiRecommendations(normalized);
+          setAiRecommendationError("");
+          return;
+        }
+        // If the API only returned the manager or duplicate/invalid users,
+        // fall back to the eligible team members instead.
+        const fallback = buildLocalRecommendations();
+        setAiRecommendations(fallback);
+        setAiRecommendationError(fallback.length ? "" : "No eligible team members found. Add skills or work history to improve matching.");
         return;
       }
 
@@ -984,22 +967,21 @@ function ProjectDetails() {
 
 
 
+      if (
+        taskAssignee &&
+        !assignableMembers.some((member) =>
+          String(member?.id ?? member?.user_id ?? member?.userId) === String(taskAssignee)
+        )
+      ) {
+        throw new Error("Select an assignee from the registered users list.");
+      }
+
       setCreatingTask(true);
 
-
-
       const requestBody = {
-
         title: taskTitle.trim(),
-
-        assigned_to: taskAssignee
-
-          ? Number(taskAssignee)
-
-          : null,
-
+        assigned_to: taskAssignee ? Number(taskAssignee) : null,
         due_date: taskDeadline || null,
-
       };
 
 
@@ -2366,16 +2348,14 @@ function ProjectDetails() {
 
 
 
-              {isProjectManager && (
-                <button
-                  type="button"
-                  className="create-project-button"
-                  onClick={() => setShowTaskModal(true)}
-                >
-                  <span>+</span>
-                  Create task
-                </button>
-              )}
+              <button
+                type="button"
+                className="create-project-button"
+                onClick={() => setShowTaskModal(true)}
+              >
+                <span>+</span>
+                Create task
+              </button>
 
 
 
@@ -2504,15 +2484,9 @@ function ProjectDetails() {
 
 
                       const member =
-
-                        members.find(
-
+                        assignableMembers.find(
                           (item) =>
-
-                            Number(item.id) ===
-
-                            Number(assigneeId)
-
+                            Number(item.id ?? item.user_id ?? item.userId) === Number(assigneeId)
                         );
 
 
@@ -2958,10 +2932,28 @@ function ProjectDetails() {
                                 );
                               }
 
+                              const taskAssigneeId =
+                                task.assigned_to ??
+                                task.assigneeId ??
+                                task.assignee_id ??
+                                task.assignedTo ??
+                                null;
+                              const taskClaimedById =
+                                task.claimed_by ??
+                                task.claimedBy ??
+                                task.claimed_by_id ??
+                                null;
+
+                              // A claim takes precedence once someone has claimed
+                              // the task. Otherwise, the manager-assigned user can
+                              // complete it directly.
+                              const responsibleUserId =
+                                taskClaimedById != null ? taskClaimedById : taskAssigneeId;
+
                               if (
-                                String(task.claimed_by ?? task.claimedBy ?? "") ===
-                                  String(currentUserId ?? "") &&
-                                currentUserId != null
+                                responsibleUserId != null &&
+                                currentUserId != null &&
+                                String(responsibleUserId) === String(currentUserId)
                               ) {
                                 return (
                                   <button
@@ -2991,7 +2983,7 @@ function ProjectDetails() {
                                 );
                               }
 
-                              if (task.claimed_by || task.claimedBy) {
+                              if (taskClaimedById != null) {
                                 return (
                                   <span
                                     style={{
@@ -3000,6 +2992,19 @@ function ProjectDetails() {
                                     }}
                                   >
                                     Claimed
+                                  </span>
+                                );
+                              }
+
+                              if (taskAssigneeId != null) {
+                                return (
+                                  <span
+                                    style={{
+                                      color: "#94a3b8",
+                                      fontSize: "12px",
+                                    }}
+                                  >
+                                    Assigned
                                   </span>
                                 );
                               }
@@ -3426,7 +3431,7 @@ function ProjectDetails() {
           isProjectManager &&
           createPortal(
             <div
-              className="project-modal-overlay teamflow-task-create-overlay"
+              className="project-modal-overlay"
 
             onMouseDown={(event) => {
 
@@ -3453,15 +3458,15 @@ function ProjectDetails() {
 
 
             <div
-
-              className="create-project-modal teamflow-task-create-modal"
-
-              onMouseDown={(event) =>
-
-                event.stopPropagation()
-
-              }
-
+              className="create-project-modal"
+              style={{
+                width: "min(780px, calc(100vw - 28px))",
+                maxWidth: "780px",
+                maxHeight: "min(82vh, 760px)",
+                overflowY: "auto",
+                overscrollBehavior: "contain",
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
             >
 
 
@@ -3629,11 +3634,16 @@ function ProjectDetails() {
                     >
                       <option value="">Leave unassigned</option>
 
-                      {members.map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.name}
-                        </option>
-                      ))}
+                      {assignableMembers.map((member) => {
+                        const memberId = member.id ?? member.user_id ?? member.userId;
+                        const memberName =
+                          member.name || member.username || member.full_name || member.email || `User ${memberId}`;
+                        return (
+                          <option key={memberId} value={memberId}>
+                            {memberName}
+                          </option>
+                        );
+                      })}
                     </select>
 
                     <p
@@ -3665,13 +3675,14 @@ function ProjectDetails() {
 
                     {aiRecommendations.length > 0 && (
                       <div
-                        className="teamflow-ai-recommendation-list"
                         style={{
-                          marginTop: "14px",
+                          marginTop: "10px",
                           display: "flex",
                           flexDirection: "column",
-                          gap: "8px",
-                          minWidth: 0,
+                          gap: "6px",
+                          maxHeight: "230px",
+                          overflowY: "auto",
+                          paddingRight: "3px",
                         }}
                       >
                         <div
@@ -3685,7 +3696,7 @@ function ProjectDetails() {
                           BEST MATCHES FOR THIS TASK
                         </div>
 
-                        {aiRecommendations.slice(0, 5).map((recommendation, index) => {
+                        {aiRecommendations.slice(0, 3).map((recommendation, index) => {
                           const employeeId =
                             recommendation.employeeId ?? recommendation.id;
                           const score = Number(
@@ -3700,7 +3711,6 @@ function ProjectDetails() {
                             <button
                               key={employeeId}
                               type="button"
-                              className="teamflow-ai-recommendation-item"
                               onClick={() => selectAiAssignee(employeeId)}
                               style={{
                                 width: "100%",
@@ -3708,8 +3718,8 @@ function ProjectDetails() {
                                 border: isSelected
                                   ? "1px solid rgba(45,212,191,.70)"
                                   : "1px solid rgba(148,163,184,.16)",
-                                borderRadius: "10px",
-                                padding: "11px 12px",
+                                borderRadius: "9px",
+                                padding: "8px 10px",
                                 background: isSelected
                                   ? "rgba(20,184,166,.12)"
                                   : "rgba(15,23,42,.55)",
@@ -3751,7 +3761,8 @@ function ProjectDetails() {
                                   style={{
                                     color: score >= 70 ? "#5eead4" : "#fbbf24",
                                     fontWeight: 900,
-                                    fontSize: "14px",
+                                    fontSize: "12px",
+                                    whiteSpace: "nowrap",
                                   }}
                                 >
                                   {score.toFixed(2)}%
