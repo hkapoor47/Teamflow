@@ -263,9 +263,9 @@ function Tickets() {
         <section className="teamflow-heading">
           <p className="welcome-label">PROJECT ISSUES</p>
           <h2>Tickets.</h2>
-          <p className="welcome-description">
+          {/* <p className="welcome-description">
             Issues from projects you are working on. You can claim an open ticket or continue a ticket already assigned to you.
-          </p>
+          </p> */}
         </section>
 
         {error && <div className="workspace-alert">{error}</div>}

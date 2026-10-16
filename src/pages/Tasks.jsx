@@ -1068,9 +1068,9 @@ function Tasks() {
         <section className="teamflow-heading">
           <p className="welcome-label">TASK WORKSPACE</p>
           <h2>All work, one clear queue.</h2>
-          <p className="welcome-description">
+          {/* <p className="welcome-description">
             Create project work or individual tasks, then claim, complete and QA them.
-          </p>
+          </p> */}
         </section>
 
         <div className="task-filters panel">
@@ -1585,9 +1585,9 @@ function Tasks() {
                       justifyContent: "space-between",
                     }}
                   >
-                    <div style={{ color: "#94a3b8", fontSize: "13px" }}>
+                    {/* <div style={{ color: "#94a3b8", fontSize: "13px" }}>
                       FAIL creates a fix ticket. Once the ticket is created, this task stays in QA Tickets until the fix is completed.
-                    </div>
+                    </div> */}
 
                     {createdTickets.length > 0 ? (
                       <div
@@ -1674,9 +1674,9 @@ function Tasks() {
                   QA TICKETS
                 </p>
                 <h3 style={{ margin: 0 }}>Created Tickets ({createdTickets.length})</h3>
-                <p style={{ marginTop: "6px" }}>
+                {/* <p style={{ marginTop: "6px" }}>
                   Active QA fix tickets are shown here. Complete a ticket to send its task back to QA for re-testing.
-                </p>
+                </p> */}
               </div>
             </div>
 

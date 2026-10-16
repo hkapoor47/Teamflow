@@ -2071,15 +2071,15 @@ function ProjectDetails() {
 
 
 
-            <p>
+            {/* <p>
 
               {project.description ||
 
                 "No project description provided."}
 
-            </p>
+            </p> */}
 
-
+<br/>
 
             <span
 
@@ -2285,11 +2285,11 @@ function ProjectDetails() {
 
 
 
-                  <p>
+                  {/* <p>
 
                     Description provided for this project.
 
-                  </p>
+                  </p> */}
 
 
 
@@ -2351,13 +2351,13 @@ function ProjectDetails() {
 
 
 
-                <p>
+                {/* <p>
 
                   Create work, assign members or leave
 
                   tasks open for team members to claim.
 
-                </p>
+                </p> */}
 
 
 
@@ -2899,9 +2899,6 @@ function ProjectDetails() {
                                 task.claimed_by_id ??
                                 null;
 
-                              // A claim takes precedence once someone has claimed
-                              // the task. Otherwise, the manager-assigned user can
-                              // complete it directly.
                               const responsibleUserId =
                                 taskClaimedById != null ? taskClaimedById : taskAssigneeId;
 
@@ -3058,7 +3055,7 @@ function ProjectDetails() {
             >
               <div>
                 <h3 style={{ marginBottom: "6px" }}>QA Testing</h3>
-                <p>Test completed development tasks directly. FAIL creates a ticket for fixing and re-testing.</p>
+                {/* <p>Test completed development tasks directly. FAIL creates a ticket for fixing and re-testing.</p> */}
               </div>
 
               <button
@@ -3199,7 +3196,7 @@ function ProjectDetails() {
               <div className="panel-header" style={{ marginBottom: "12px" }}>
                 <div>
                   <h3>QA Testing Tickets</h3>
-                  <p>Failed tasks move here. Claim a ticket, fix it, complete it, and the task returns to QA testing.</p>
+                  {/* <p>Failed tasks move here. Claim a ticket, fix it, complete it, and the task returns to QA testing.</p> */}
                 </div>
               </div>
 
@@ -3288,10 +3285,7 @@ function ProjectDetails() {
               <div className="modal-header">
                 <div>
                   <h2>Create QA ticket</h2>
-                  <p>
-                    This ticket will be linked to the failed QA test and appear
-                    in QA Testing Tickets.
-                  </p>
+                 
                 </div>
 
                 <button
@@ -3448,9 +3442,7 @@ function ProjectDetails() {
 
                   <p>
 
-                    Add work to {project.name} and
-
-                    optionally assign it to a member.
+                    Add tasks to {project.name} 
 
                   </p>
 
@@ -3615,7 +3607,7 @@ function ProjectDetails() {
                         lineHeight: 1.5,
                       }}
                     >
-                      Type the task name and recommendations update automatically using skills, similar work, workload, deadlines and QA history.
+                      You can leave unassigned 
                     </p>
 
                     {aiRecommendationError && (
