@@ -3512,17 +3512,13 @@ function ProjectDetails() {
                       onChange={(event) => {
                         const value = event.target.value;
                         setTaskTitle(value);
+                        // Recommendations must only be fetched when the manager
+                        // explicitly clicks the AI Recommend button.
                         setAiRecommendations([]);
                         setAiRecommendationError("");
-
                         if (aiRecommendationDebounceRef.current) {
                           clearTimeout(aiRecommendationDebounceRef.current);
-                        }
-
-                        if (value.trim()) {
-                          aiRecommendationDebounceRef.current = setTimeout(() => {
-                            getAiRecommendations(value);
-                          }, 650);
+                          aiRecommendationDebounceRef.current = null;
                         }
                       }}
 
@@ -3552,7 +3548,7 @@ function ProjectDetails() {
 
                       <button
                         type="button"
-                        onClick={getAiRecommendations}
+                        onClick={() => getAiRecommendations()}
                         disabled={aiRecommendationLoading || !taskTitle.trim()}
                         style={{
                           border: "1px solid rgba(45,212,191,.35)",
