@@ -589,14 +589,7 @@ export default function Profile() {
                 <h2>
                   Work History
                 </h2>
-
-                {/* <p>
-                  Your previous project
-                  and task activity will
-                  be maintained here for
-                  future recommendations.
-                </p> */}
-
+                
               </div>
 
 

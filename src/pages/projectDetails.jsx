@@ -213,6 +213,9 @@ function ProjectDetails() {
     apiProject?.ownerId ??
     null;
 
+  // Recommendation filtering uses the same authoritative project creator ID.
+  const projectManagerId = projectCreatorId;
+
   const isProjectManager =
     Boolean(apiProject) &&
     currentUserId !== null &&
