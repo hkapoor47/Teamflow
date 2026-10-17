@@ -47,7 +47,7 @@ function Projects() {
     try {
       const response = await fetch(`${API_BASE_URL}/recommendations/my-tasks`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.message || "Could not load project recommendations.");
+      if (!response.ok) throw new Error(response.status === 404 ? "Recommendation API not found (404). Deploy the updated backend recommendation route and restart the backend." : (data.message || `Could not load project recommendations (${response.status}).`));
       const tasks = Array.isArray(data.recommendations) ? data.recommendations : [];
       const scores = new Map();
       tasks.forEach((task, index) => {
@@ -400,63 +400,37 @@ function Projects() {
 
 
 
-        <section className="projects-page-header teamflow-heading">
-
-
-
-          <div>
-
-            {/* <p className="welcome-label">
-
-              PROJECT PORTFOLIO
-
-            </p> */}
-
-
-
-            <h1>All projects</h1>
-
-
-
-            {/* <p className="projects-subtitle">
-
-              Create, review and track every company
-
-              initiative in one place.
-
-            </p> */}
-
-          </div>
-
-
-
-          <button type="button" className="secondary-button" onClick={loadRecommendedProjects} disabled={recommendationsLoading} style={{ marginRight: 10 }}>
-            {recommendationsLoading ? "Finding best projects…" : "✨ Recommend projects for me"}
-          </button>
-
-          <button
-
-            className="create-project-button"
-
-            onClick={() => {
-
-              setError("");
-
-              setShowModal(true);
-
-            }}
-
-          >
-
-            <span>+</span>
-
-            Create project
-
-          </button>
-
-
-
-        </section>
+        <section className="projects-page-header teamflow-heading" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <h1>All projects</h1>
+          </div>
+          <div className="projects-header-actions" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, flexWrap: "wrap", marginLeft: "auto" }}>
+            <button
+              type="button"
+              onClick={loadRecommendedProjects}
+              disabled={recommendationsLoading}
+              aria-busy={recommendationsLoading}
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+                minHeight: 44, padding: "0 16px", borderRadius: 12,
+                border: "1px solid rgba(45, 212, 191, .42)",
+                background: recommendationsLoading ? "rgba(20, 184, 166, .08)" : "rgba(20, 184, 166, .13)",
+                color: "var(--text-primary, #e8f3ff)", fontWeight: 650, cursor: recommendationsLoading ? "wait" : "pointer",
+                whiteSpace: "nowrap", transition: "background .18s ease, border-color .18s ease", opacity: recommendationsLoading ? .8 : 1
+              }}
+            >
+              <span aria-hidden="true">{recommendationsLoading ? "◌" : "✦"}</span>
+              {recommendationsLoading ? "Finding matches…" : "Recommended for me"}
+            </button>
+            <button
+              type="button"
+              className="create-project-button"
+              onClick={() => { setError(""); setShowModal(true); }}
+            >
+              <span>+</span> Create project
+            </button>
+          </div>
+        </section>
 
 
 
