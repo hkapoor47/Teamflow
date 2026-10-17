@@ -460,28 +460,35 @@ function Projects() {
 
 
 
-        {/*         {recommendationsError && <div className="project-error" role="status" style={{ marginBottom: 12 }}>{recommendationsError}</div>}
+        {recommendationsError && (
+          <div className="project-error" role="status" style={{ marginBottom: 12 }}>
+            {recommendationsError}
+          </div>
+        )}
+
         {recommendedProjects.length > 0 && (
           <section className="panel" aria-label="Recommended projects" style={{ marginBottom: 18, padding: 16 }}>
             <h3 style={{ marginTop: 0 }}>Projects recommended for you</h3>
-            <p style={{ marginTop: 0, opacity: 0.8 }}>Based on projects containing tasks ranked for your skills and work history.</p>
+            <p style={{ marginTop: 0, opacity: 0.8 }}>
+              Based on projects containing tasks ranked for your skills and work history.
+            </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
               {recommendedProjects.map(project => (
                 <article key={project.id} style={{ border: "1px solid var(--border-color, #2b394a)", borderRadius: 12, padding: 12 }}>
                   <strong>{project.name}</strong>
-                  <p style={{ fontSize: 13, opacity: 0.8 }}>{project.recommendedTaskTitles.slice(0, 2).join(", ")}</p>
-                  <button type="button" className="primary-button" onClick={() => navigate(`/projects/${project.id}`)}>Open project</button>
+                  <p style={{ fontSize: 13, opacity: 0.8 }}>
+                    {project.recommendedTaskTitles.slice(0, 2).join(", ")}
+                  </p>
+                  <button type="button" className="primary-button" onClick={() => navigate(`/projects/${project.id}`)}>
+                    Open project
+                  </button>
                 </article>
               ))}
             </div>
           </section>
         )}
 
-        {/* PAGE ERROR */} */}
-
-
-
-        {error && !showModal && (
+        {error && !showModal && (
 
           <div className="project-error">
 
