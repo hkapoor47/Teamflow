@@ -1077,7 +1077,7 @@ function Tasks() {
 
         <div style={{ display: "flex", justifyContent: "flex-end", margin: "0 0 12px", gap: 10, flexWrap: "wrap" }}>
           <button type="button" className="secondary-button" onClick={loadMyRecommendations} disabled={myRecommendationsLoading}>
-            {myRecommendationsLoading ? "Finding best tasks…" : "✨ Recommended tasks for me"}
+            {myRecommendationsLoading ? "Finding best tasks…" : "✨ Recommended for me"}
           </button>
         </div>
         {myRecommendationsError && (
