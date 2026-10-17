@@ -338,29 +338,31 @@ function Tasks() {
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    const loadMyRecommendations = async () => {
-      const token = getToken();
-      if (!token) return;
-      setMyRecommendationsLoading(true);
-      setMyRecommendationsError("");
-      try {
-        const response = await fetch(`${API_BASE_URL}/recommendations/my-tasks`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.message || "Could not load task recommendations.");
-        if (!cancelled) setMyTaskRecommendations(Array.isArray(data.recommendations) ? data.recommendations.slice(0, 3) : []);
-      } catch (error) {
-        if (!cancelled) setMyRecommendationsError(error.message || "Could not load recommendations.");
-      } finally {
-        if (!cancelled) setMyRecommendationsLoading(false);
+  const loadMyRecommendations = async () => {
+    const token = getToken();
+    if (!token) {
+      setMyRecommendationsError("Please login again to get recommendations.");
+      return;
+    }
+    setMyRecommendationsLoading(true);
+    setMyRecommendationsError("");
+    try {
+      const response = await fetch(`${API_BASE_URL}/recommendations/my-tasks`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Could not load task recommendations.");
+      setMyTaskRecommendations(Array.isArray(data.recommendations) ? data.recommendations.slice(0, 5) : []);
+      if (!Array.isArray(data.recommendations) || data.recommendations.length === 0) {
+        setMyRecommendationsError("No unassigned tasks match your profile right now.");
       }
-    };
-    loadMyRecommendations();
-    return () => { cancelled = true; };
-  }, [tasks.length, currentUserId]);
+    } catch (error) {
+      setMyRecommendationsError(error.message || "Could not load recommendations.");
+      setMyTaskRecommendations([]);
+    } finally {
+      setMyRecommendationsLoading(false);
+    }
+  };
 
   const notify = (message) => {
     setNotice(message);
@@ -1072,6 +1074,33 @@ function Tasks() {
             Create project work or individual tasks, then claim, complete and QA them.
           </p> */}
         </section>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", margin: "0 0 12px", gap: 10, flexWrap: "wrap" }}>
+          <button type="button" className="secondary-button" onClick={loadMyRecommendations} disabled={myRecommendationsLoading}>
+            {myRecommendationsLoading ? "Finding best tasks…" : "✨ Recommended tasks for me"}
+          </button>
+        </div>
+        {myRecommendationsError && (
+          <div className="panel" role="status" style={{ marginBottom: 12, padding: 12 }}>
+            {myRecommendationsError}
+          </div>
+        )}
+        {myTaskRecommendations.length > 0 && (
+          <section className="panel" aria-label="Recommended tasks" style={{ marginBottom: 16, padding: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Tasks recommended for you</h3>
+            <p style={{ marginTop: 0, opacity: 0.8 }}>Ranked using your skills, workload and work/QA history.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+              {myTaskRecommendations.map((item, index) => (
+                <article key={item.taskId ?? item.id ?? index} style={{ border: "1px solid var(--border-color, #2b394a)", borderRadius: 12, padding: 12 }}>
+                  <strong>{item.title || "Untitled task"}</strong>
+                  <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>{item.projectName || "Individual task"} · {item.priority || "MEDIUM"}</div>
+                  <p style={{ fontSize: 13 }}>{(item.reasons || []).slice(0, 2).join(" · ") || "Matches your profile and work history"}</p>
+                  <button type="button" className="primary-button" onClick={() => claim(item.taskId)} disabled={!item.taskId}>Claim recommended task</button>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="task-filters panel">
           <label>

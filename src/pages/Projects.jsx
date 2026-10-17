@@ -36,6 +36,35 @@ function Projects() {
   const [creating, setCreating] = useState(false);
 
   const [error, setError] = useState("");
+  const [recommendedProjects, setRecommendedProjects] = useState([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [recommendationsError, setRecommendationsError] = useState("");
+
+  const loadRecommendedProjects = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) { setRecommendationsError("Please login again to get recommendations."); return; }
+    setRecommendationsLoading(true); setRecommendationsError("");
+    try {
+      const response = await fetch(`${API_BASE_URL}/recommendations/my-tasks`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Could not load project recommendations.");
+      const tasks = Array.isArray(data.recommendations) ? data.recommendations : [];
+      const scores = new Map();
+      tasks.forEach((task, index) => {
+        if (task.projectId == null) return;
+        const id = String(task.projectId);
+        const entry = scores.get(id) || { score: 0, tasks: [] };
+        entry.score += Number(task.successProbability ?? 0) || (tasks.length - index);
+        entry.tasks.push(task.title); scores.set(id, entry);
+      });
+      const ranked = projects.filter(project => scores.has(String(project.id)))
+        .map(project => ({ ...project, recommendationScore: scores.get(String(project.id)).score, recommendedTaskTitles: scores.get(String(project.id)).tasks }))
+        .sort((a, b) => b.recommendationScore - a.recommendationScore).slice(0, 5);
+      setRecommendedProjects(ranked);
+      if (!ranked.length) setRecommendationsError("No projects currently contain unassigned tasks recommended for your profile.");
+    } catch (err) { setRecommendedProjects([]); setRecommendationsError(err.message || "Could not load project recommendations."); }
+    finally { setRecommendationsLoading(false); }
+  };
 
 
 
@@ -401,7 +430,11 @@ function Projects() {
 
 
 
-          <button
+          <button type="button" className="secondary-button" onClick={loadRecommendedProjects} disabled={recommendationsLoading} style={{ marginRight: 10 }}>
+            {recommendationsLoading ? "Finding best projects…" : "✨ Recommend projects for me"}
+          </button>
+
+          <button
 
             className="create-project-button"
 
@@ -427,7 +460,24 @@ function Projects() {
 
 
 
-        {/* PAGE ERROR */}
+        {/*         {recommendationsError && <div className="project-error" role="status" style={{ marginBottom: 12 }}>{recommendationsError}</div>}
+        {recommendedProjects.length > 0 && (
+          <section className="panel" aria-label="Recommended projects" style={{ marginBottom: 18, padding: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Projects recommended for you</h3>
+            <p style={{ marginTop: 0, opacity: 0.8 }}>Based on projects containing tasks ranked for your skills and work history.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+              {recommendedProjects.map(project => (
+                <article key={project.id} style={{ border: "1px solid var(--border-color, #2b394a)", borderRadius: 12, padding: 12 }}>
+                  <strong>{project.name}</strong>
+                  <p style={{ fontSize: 13, opacity: 0.8 }}>{project.recommendedTaskTitles.slice(0, 2).join(", ")}</p>
+                  <button type="button" className="primary-button" onClick={() => navigate(`/projects/${project.id}`)}>Open project</button>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* PAGE ERROR */} */}
 
 
 
