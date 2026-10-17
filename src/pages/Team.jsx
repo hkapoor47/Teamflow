@@ -18,7 +18,7 @@ function Team() {
   const navigate = useNavigate();
   const { projects = [], tasks = [], members = [], loadingProjects, loadingTasks } = useProjects();
   const currentUserId = getCurrentUserId();
-  const [expandedProject, setExpandedProject] = useState(null);
+  const [expandedProjects, setExpandedProjects] = useState(() => new Set());
 
   const currentUser = useMemo(() => {
     const fromApi = members.find((user) => String(idOf(user)) === String(currentUserId));
@@ -79,11 +79,16 @@ function Team() {
         ) : (
           <section className="team-directory" aria-label="Projects and their members">
             {projectCards.map(({ project, id, name, tasks: projectTasks, members: projectMembers }) => {
-              const isOpen = expandedProject === id;
+              const isOpen = expandedProjects.has(id);
               const completed = projectTasks.filter((task) => /complete|done/i.test(String(task.status || ""))).length;
               return (
                 <article className={`team-directory-card ${isOpen ? "is-open" : ""}`} key={id}>
-                  <button type="button" className="team-directory-header" onClick={() => setExpandedProject(isOpen ? null : id)} aria-expanded={isOpen}>
+                  <button type="button" className="team-directory-header" onClick={() => setExpandedProjects((previous) => {
+                    const next = new Set(previous);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  })} aria-expanded={isOpen}>
                     <div className="team-directory-title">
                       <div className="team-directory-icon">{initials(name)}</div>
                       <div>
