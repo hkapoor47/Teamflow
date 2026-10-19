@@ -1077,7 +1077,7 @@ function Tasks() {
 
         <div style={{ display: "flex", justifyContent: "flex-end", margin: "0 0 12px", gap: 10, flexWrap: "wrap" }}>
           <button type="button" className="secondary-button" onClick={loadMyRecommendations} disabled={myRecommendationsLoading}>
-            {myRecommendationsLoading ? "Finding best tasks…" : "✨ Recommended for me"}
+            {myRecommendationsLoading ? "Finding best tasks…" : "✨ Recommended tasks for me"}
           </button>
         </div>
         {myRecommendationsError && (
@@ -1085,19 +1085,46 @@ function Tasks() {
             {myRecommendationsError}
           </div>
         )}
+        <style>{`
+          .recommended-task-card { position: relative; display: flex; flex-direction: column; gap: 13px; min-width: 0; overflow: hidden; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+          .recommended-task-card::before { content: ""; position: absolute; inset: 0 auto auto 0; width: 100%; height: 3px; background: linear-gradient(90deg, #2dd4bf, rgba(45,212,191,0)); }
+          .recommended-task-card:hover { transform: translateY(-3px); border-color: rgba(45,212,191,.45) !important; box-shadow: 0 15px 28px rgba(0,0,0,.18); }
+          .recommended-task-card button { width: 100%; margin-top: auto; min-height: 42px; }
+          @media (max-width: 600px) { .recommended-task-card { padding: 14px !important; } }
+        `}</style>
         {myTaskRecommendations.length > 0 && (
-          <section className="panel" aria-label="Recommended tasks" style={{ marginBottom: 16, padding: 16 }}>
-            <h3 style={{ marginTop: 0 }}>Tasks recommended for you</h3>
-            <p style={{ marginTop: 0, opacity: 0.8 }}>Ranked using your skills, workload and work/QA history.</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-              {myTaskRecommendations.map((item, index) => (
-                <article key={item.taskId ?? item.id ?? index} style={{ border: "1px solid var(--border-color, #2b394a)", borderRadius: 12, padding: 12 }}>
-                  <strong>{item.title || "Untitled task"}</strong>
-                  <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>{item.projectName || "Individual task"} · {item.priority || "MEDIUM"}</div>
-                  <p style={{ fontSize: 13 }}>{(item.reasons || []).slice(0, 2).join(" · ") || "Matches your profile and work history"}</p>
-                  <button type="button" className="primary-button" onClick={() => claim(item.taskId)} disabled={!item.taskId}>Claim recommended task</button>
-                </article>
-              ))}
+          <section className="panel" aria-label="Recommended tasks" style={{ marginBottom: 22, padding: "clamp(16px, 2.2vw, 24px)", borderRadius: 20, border: "1px solid rgba(45,212,191,.25)", background: "linear-gradient(145deg, rgba(20,184,166,.08), rgba(15,23,42,.20) 48%, rgba(30,41,59,.45))", boxShadow: "0 14px 34px rgba(0,0,0,.12)" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+              <div>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "#5eead4", fontSize: 11, fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 8 }}><span aria-hidden="true">✦</span> Personalised matches</div>
+                <h3 style={{ margin: "0 0 7px", fontSize: "clamp(19px, 2vw, 24px)" }}>Tasks recommended for you</h3>
+                <p style={{ margin: 0, maxWidth: 620, lineHeight: 1.55, opacity: .78 }}>Ranked using your skills, workload and work/QA history.</p>
+              </div>
+              <span style={{ flexShrink: 0, border: "1px solid rgba(45,212,191,.3)", background: "rgba(20,184,166,.10)", color: "#5eead4", borderRadius: 999, padding: "7px 11px", fontSize: 12, fontWeight: 750 }}>{myTaskRecommendations.length} {myTaskRecommendations.length === 1 ? "match" : "matches"}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 250px), 1fr))", gap: 14 }}>
+              {myTaskRecommendations.map((item, index) => {
+                const reasons = Array.isArray(item.reasons) ? item.reasons.filter(Boolean).slice(0, 3) : [];
+                const priority = String(item.priority || "MEDIUM").toUpperCase();
+                const priorityColor = priority === "HIGH" || priority === "URGENT" ? "#fca5a5" : priority === "LOW" ? "#93c5fd" : "#fcd34d";
+                return (
+                  <article key={item.taskId ?? item.id ?? index} className="recommended-task-card" style={{ border: "1px solid rgba(148,163,184,.18)", borderRadius: 16, padding: 17, background: "linear-gradient(160deg, rgba(30,41,59,.82), rgba(15,23,42,.78))", boxShadow: "0 7px 18px rgba(0,0,0,.10)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ color: "#5eead4", fontSize: 11, fontWeight: 800, letterSpacing: ".1em" }}>MATCH {String(index + 1).padStart(2, "0")}</span>
+                      <span style={{ border: `1px solid ${priorityColor}55`, color: priorityColor, background: `${priorityColor}12`, borderRadius: 999, padding: "4px 8px", fontSize: 10, fontWeight: 800 }}>{priority} PRIORITY</span>
+                    </div>
+                    <div>
+                      <h4 style={{ margin: "0 0 6px", fontSize: 16, lineHeight: 1.4, overflowWrap: "anywhere" }}>{item.title || "Untitled task"}</h4>
+                      <div style={{ fontSize: 12, opacity: .7, display: "flex", alignItems: "center", gap: 6 }}><span aria-hidden="true">▤</span>{item.projectName || "Individual task"}</div>
+                    </div>
+                    <div style={{ flex: 1, borderRadius: 12, padding: 11, background: "rgba(2,6,23,.25)", border: "1px solid rgba(148,163,184,.10)" }}>
+                      <div style={{ color: "#5eead4", fontSize: 11, fontWeight: 800, marginBottom: 7 }}>WHY THIS MATCHES</div>
+                      {reasons.length ? <ul style={{ margin: 0, paddingLeft: 17, display: "grid", gap: 5, fontSize: 12, lineHeight: 1.45, opacity: .88 }}>{reasons.map((reason, reasonIndex) => <li key={`${index}-${reasonIndex}`}>{reason}</li>)}</ul> : <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, opacity: .78 }}>Matches your skills and work history.</p>}
+                    </div>
+                    <button type="button" className="primary-button" onClick={() => claim(item.taskId ?? item.id)} disabled={!(item.taskId ?? item.id)}>Claim task <span aria-hidden="true">→</span></button>
+                  </article>
+                );
+              })}
             </div>
           </section>
         )}

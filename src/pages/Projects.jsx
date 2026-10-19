@@ -393,6 +393,13 @@ function Projects() {
     <DashboardLayout>
 
       <div className="teamflow-page projects-page">
+          <style>{`
+            .recommendation-project-card { position: relative; overflow: hidden; }
+            .recommendation-project-card::before { content: ""; position: absolute; inset: 0 auto auto 0; width: 100%; height: 3px; background: linear-gradient(90deg, #2dd4bf, rgba(45,212,191,0)); opacity: .9; }
+            .recommendation-project-card:hover { transform: translateY(-3px); border-color: rgba(45,212,191,.42) !important; box-shadow: 0 16px 30px rgba(0,0,0,.2) !important; }
+            .recommendation-project-card:focus-within { outline: 2px solid rgba(45,212,191,.55); outline-offset: 2px; }
+            @media (max-width: 600px) { .recommendation-project-card { padding: 14px !important; } }
+          `}</style>
 
 
 
@@ -440,24 +447,128 @@ function Projects() {
           </div>
         )}
 
+        {recommendationsLoading && (
+          <section
+            className="panel"
+            aria-live="polite"
+            style={{
+              marginBottom: 18,
+              padding: "18px 20px",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              border: "1px solid rgba(45, 212, 191, .28)",
+              background: "linear-gradient(135deg, rgba(20,184,166,.10), rgba(15,23,42,.18))",
+              borderRadius: 18,
+            }}
+          >
+            <span aria-hidden="true" style={{ fontSize: 22, color: "#2dd4bf" }}>✦</span>
+            <div>
+              <strong style={{ display: "block", marginBottom: 4 }}>Finding your best project matches</strong>
+              <span style={{ fontSize: 13, opacity: .75 }}>Checking recommended tasks against your profile and work history…</span>
+            </div>
+          </section>
+        )}
+
         {recommendedProjects.length > 0 && (
-          <section className="panel" aria-label="Recommended projects" style={{ marginBottom: 18, padding: 16 }}>
-            <h3 style={{ marginTop: 0 }}>Projects recommended for you</h3>
-            <p style={{ marginTop: 0, opacity: 0.8 }}>
-              Based on projects containing tasks ranked for your skills and work history.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-              {recommendedProjects.map(project => (
-                <article key={project.id} style={{ border: "1px solid var(--border-color, #2b394a)", borderRadius: 12, padding: 12 }}>
-                  <strong>{project.name}</strong>
-                  <p style={{ fontSize: 13, opacity: 0.8 }}>
-                    {project.recommendedTaskTitles.slice(0, 2).join(", ")}
-                  </p>
-                  <button type="button" className="primary-button" onClick={() => navigate(`/projects/${project.id}`)}>
-                    Open project
-                  </button>
-                </article>
-              ))}
+          <section
+            className="panel"
+            aria-label="Recommended projects"
+            style={{
+              marginBottom: 22,
+              padding: "clamp(16px, 2.2vw, 24px)",
+              borderRadius: 20,
+              border: "1px solid rgba(45, 212, 191, .25)",
+              background: "linear-gradient(145deg, rgba(20,184,166,.08), rgba(15,23,42,.20) 48%, rgba(30,41,59,.45))",
+              boxShadow: "0 14px 34px rgba(0,0,0,.12)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap", marginBottom: 18 }}>
+              <div>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "#5eead4", fontSize: 11, fontWeight: 800, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 8 }}>
+                  <span aria-hidden="true">✦</span> Personalised matches
+                </div>
+                <h3 style={{ margin: "0 0 7px", fontSize: "clamp(19px, 2vw, 24px)" }}>Projects recommended for you</h3>
+                <p style={{ margin: 0, maxWidth: 620, lineHeight: 1.55, opacity: .78 }}>
+                  Projects with open tasks that best match your skills and work history.
+                </p>
+              </div>
+              <span style={{ flexShrink: 0, border: "1px solid rgba(45,212,191,.3)", background: "rgba(20,184,166,.10)", color: "#5eead4", borderRadius: 999, padding: "7px 11px", fontSize: 12, fontWeight: 750 }}>
+                {recommendedProjects.length} {recommendedProjects.length === 1 ? "match" : "matches"}
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))", gap: 14 }}>
+              {recommendedProjects.map((project, index) => {
+                const taskTitles = Array.isArray(project.recommendedTaskTitles) ? project.recommendedTaskTitles.filter(Boolean) : [];
+                const dueDate = project.deadline ? new Date(project.deadline) : null;
+                const validDueDate = dueDate && !Number.isNaN(dueDate.getTime());
+                return (
+                  <article
+                    key={project.id}
+                    className="recommendation-project-card"
+                    style={{
+                      minWidth: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 14,
+                      padding: 17,
+                      borderRadius: 16,
+                      border: "1px solid rgba(148,163,184,.18)",
+                      background: "linear-gradient(160deg, rgba(30,41,59,.78), rgba(15,23,42,.72))",
+                      boxShadow: "0 7px 18px rgba(0,0,0,.10)",
+                      transition: "transform .18s ease, border-color .18s ease",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+                      <div aria-hidden="true" style={{ width: 44, height: 44, flexShrink: 0, display: "grid", placeItems: "center", borderRadius: 13, color: "#ccfbf1", fontSize: 18, fontWeight: 800, background: "linear-gradient(135deg, #0f766e, #14b8a6)", boxShadow: "0 5px 14px rgba(20,184,166,.16)" }}>
+                        {(project.name || "P").charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 5 }}>
+                          <span style={{ fontSize: 11, fontWeight: 750, color: "#5eead4" }}>MATCH {String(index + 1).padStart(2, "0")}</span>
+                          {project.status && <span style={{ fontSize: 10, fontWeight: 750, letterSpacing: ".04em", borderRadius: 999, padding: "4px 7px", background: "rgba(34,197,94,.10)", color: "#86efac" }}>{project.status}</span>}
+                        </div>
+                        <h4 style={{ margin: 0, fontSize: 16, lineHeight: 1.35, overflowWrap: "anywhere" }}>{project.name || `Project #${project.id}`}</h4>
+                        <div style={{ marginTop: 5, fontSize: 12, opacity: .65 }}>Project #{project.id}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ flex: 1, borderRadius: 12, padding: 12, background: "rgba(2,6,23,.25)", border: "1px solid rgba(148,163,184,.10)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 9, fontSize: 12, fontWeight: 750 }}>
+                        <span aria-hidden="true" style={{ color: "#5eead4" }}>▤</span> Recommended open tasks
+                      </div>
+                      {taskTitles.length ? (
+                        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
+                          {taskTitles.slice(0, 3).map((title, taskIndex) => (
+                            <li key={`${project.id}-${taskIndex}-${title}`} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, lineHeight: 1.4, color: "var(--text-primary, #e8f3ff)" }}>
+                              <span aria-hidden="true" style={{ color: "#2dd4bf", marginTop: 1 }}>•</span>
+                              <span style={{ overflowWrap: "anywhere" }}>{title}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p style={{ margin: 0, fontSize: 13, opacity: .7 }}>Open this project to explore its tasks.</p>
+                      )}
+                      {taskTitles.length > 3 && <p style={{ margin: "9px 0 0", fontSize: 11, opacity: .65 }}>+{taskTitles.length - 3} more recommended {taskTitles.length - 3 === 1 ? "task" : "tasks"}</p>}
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, opacity: .72 }}>
+                        <span aria-hidden="true">◷</span> {validDueDate ? `Due ${dueDate.toLocaleDateString()}` : "No deadline set"}
+                      </span>
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() => navigate(`/projects/${project.id}`)}
+                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 40, padding: "0 14px", borderRadius: 10, whiteSpace: "nowrap" }}
+                      >
+                        Open project <span aria-hidden="true">→</span>
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
         )}
