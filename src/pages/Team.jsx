@@ -6,14 +6,29 @@ import { getCurrentUserId } from "./workspaceApi.js";
 
 const idOf = (value) =>
   value?.id ?? value?.user_id ?? value?.userId ?? value?._id ?? value?.project_id ?? value?.projectId ?? null;
+const sameId = (a, b) => a != null && b != null && String(a).trim() === String(b).trim();
+const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null && String(value).trim() !== "");
 const text = (value, fallback = "") => String(value ?? fallback).trim();
 const userName = (user) => user?.name || user?.username || user?.full_name || user?.email || "Unnamed member";
 const initials = (name) => text(name, "U").split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 const projectIdOf = (project) => project?.id ?? project?.project_id ?? project?._id;
 const projectNameOf = (project) => project?.name || project?.project_name || project?.title || `Project ${projectIdOf(project) ?? ""}`;
 const taskProjectId = (task) => task?.projectId ?? task?.project_id ?? null;
-const taskAssigneeId = (task) => task?.assigneeId ?? task?.assigned_to ?? task?.assignee_id ?? task?.user_id ?? null;
-const taskClaimerId = (task) => task?.claimedBy ?? task?.claimed_by ?? task?.claimed_by_id ?? null;
+const taskAssigneeId = (task) => firstDefined(task?.assigneeId, task?.assigned_to, task?.assignee_id, task?.assigned_user_id);
+const taskClaimerId = (task) => firstDefined(task?.claimedBy, task?.claimed_by, task?.claimed_by_id);
+const taskCreatorId = (task) => firstDefined(task?.created_by, task?.createdBy, task?.creator_id, task?.created_by_user_id);
+const taskMemberName = (task, memberId) => {
+  if (sameId(taskAssigneeId(task), memberId)) {
+    return firstDefined(task?.assigned_to_name, task?.assignee_name, task?.assigneeName, task?.assigned_user_name);
+  }
+  if (sameId(taskClaimerId(task), memberId)) {
+    return firstDefined(task?.claimed_by_name, task?.claimedByName, task?.claimer_name);
+  }
+  if (sameId(taskCreatorId(task), memberId)) {
+    return firstDefined(task?.created_by_name, task?.creator_name, task?.createdByName);
+  }
+  return null;
+};
 const projectManagerId = (project) => project?.created_by ?? project?.manager_id ?? project?.managerId ?? project?.createdBy ?? project?.owner_id ?? project?.user_id ?? null;
 const isCompleted = (task) => ["complete", "completed", "done", "closed"].includes(String(task?.status ?? task?.task_status ?? "").trim().toLowerCase());
 
@@ -44,10 +59,10 @@ function Team() {
       const projectId = String(projectIdOf(project) ?? "");
       if (!projectId) return false;
 
-      const isCreator = String(projectManagerId(project) ?? "") === currentId;
+      const isCreator = sameId(projectManagerId(project), currentId);
       const participatesInTask = tasks.some((task) => {
         if (String(taskProjectId(task) ?? "") !== projectId) return false;
-        return String(taskAssigneeId(task) ?? "") === currentId || String(taskClaimerId(task) ?? "") === currentId;
+        return sameId(taskAssigneeId(task), currentId) || sameId(taskClaimerId(task), currentId) || sameId(taskCreatorId(task), currentId);
       });
 
       return isCreator || participatesInTask;
@@ -64,23 +79,23 @@ function Team() {
     projectTasks.forEach((task) => {
       const assigneeId = taskAssigneeId(task);
       const claimerId = taskClaimerId(task);
+      const creatorId = taskCreatorId(task);
       if (assigneeId != null) memberIds.add(String(assigneeId));
       if (claimerId != null) memberIds.add(String(claimerId));
+      if (creatorId != null) memberIds.add(String(creatorId));
     });
 
     const projectMembers = [...memberIds].map((memberId) => {
-      const user = members.find((candidate) => String(idOf(candidate)) === memberId);
+      const user = members.find((candidate) => sameId(idOf(candidate), memberId));
       if (user) return user;
       if (String(idOf(currentUser) ?? "") === memberId && currentUser) return currentUser;
 
       const relatedTask = projectTasks.find((task) =>
-        String(taskAssigneeId(task) ?? "") === memberId || String(taskClaimerId(task) ?? "") === memberId
+        sameId(taskAssigneeId(task), memberId) ||
+        sameId(taskClaimerId(task), memberId) ||
+        sameId(taskCreatorId(task), memberId)
       );
-      const relatedName = relatedTask && (
-        String(taskAssigneeId(relatedTask) ?? "") === memberId
-          ? relatedTask.assignee_name ?? relatedTask.assigned_to_name
-          : relatedTask.claimedByName ?? relatedTask.claimed_by_name
-      );
+      const relatedName = relatedTask ? taskMemberName(relatedTask, memberId) : null;
       return { id: memberId, name: relatedName || `User ${memberId}`, email: "" };
     }).filter(Boolean);
 
