@@ -2900,16 +2900,20 @@ function ProjectDetails() {
                                 task.claimed_by ??
                                 task.claimedBy ??
                                 task.claimed_by_id ??
+                                task.claimedById ??
                                 null;
 
                               const responsibleUserId =
-                                taskClaimedById != null ? taskClaimedById : taskAssigneeId;
+                                taskClaimedById != null && taskClaimedById !== ""
+                                  ? taskClaimedById
+                                  : taskAssigneeId;
 
-                              if (
-                                responsibleUserId != null &&
+                              const isMyTask =
                                 currentUserId != null &&
-                                String(responsibleUserId) === String(currentUserId)
-                              ) {
+                                responsibleUserId != null &&
+                                String(responsibleUserId).trim() === String(currentUserId).trim();
+
+                              if (isMyTask) {
                                 return (
                                   <button
                                     type="button"
