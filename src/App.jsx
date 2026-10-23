@@ -39,13 +39,13 @@ function App() {
         />
 
         <Route
-          path="/register"
-          element={<Register />}
+          path="/forgot-password"
+          element={<ForgotPassword />}
         />
 
         <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
+          path="/register"
+          element={<Register />}
         />
 
         {/* Dashboard */}
