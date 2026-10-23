@@ -156,9 +156,9 @@ const Login = () => {
                   Password
                 </label>
 
-                <a href="#">
+                <Link to="/forgot-password">
                   Forgot password?
-                </a>
+                </Link>
               </div>
 
               <div className="auth-input-wrapper">
